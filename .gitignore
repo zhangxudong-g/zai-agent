@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.egg-info/
+
+# uv
+.venv/
+
+# Env
+.env
+
+# Runtime
+sessions/*.jsonl
+workspace/*
