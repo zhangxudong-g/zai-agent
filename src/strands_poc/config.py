@@ -30,7 +30,15 @@ class Config:
     allowed_tools: list[str] = field(default_factory=list)
 
 
-_DEFAULT_TOOLS = ("read", "glob", "grep", "write", "edit")
+_DEFAULT_TOOLS = (
+    "read",
+    "glob",
+    "grep",
+    "file_tree",
+    "outline",
+    "write",
+    "edit",
+)
 
 
 def get_config(env_file: str | Path | None = ".env") -> Config:
