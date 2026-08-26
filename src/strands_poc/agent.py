@@ -25,12 +25,16 @@ from typing import Any
 from strands import Agent as StrandsAgent
 from strands.hooks import AfterToolCallEvent
 
+from . import telemetry
 from .config import Config
 from .llm import build_ollama_model_safe
 from .security import WorkspaceSandboxHook
 from .stream import StreamChunk, StreamConsumer
 from .tools import build_tools
 from .trace import SessionLogger
+
+# 模块导入时自动启用 OTel 遥测（幂等，从 .env 读配置）。
+telemetry.setup()
 
 # 尝试导入社区工具（可选依赖）
 try:
@@ -171,16 +175,64 @@ class Agent:
         )
 
     def _build_system_prompt(self) -> str:
-        """Build system prompt based on tool configuration."""
-        base_prompt = "你是一个代码分析 Agent。请使用工具读文件,先建立范围再深入分析。"
-        base_prompt += "给出基于证据的结论;避免过早收敛;结论前自检。"
-        
-        if self._use_community_tools:
-            base_prompt += "你可以使用提供的工具来完成分析任务。"
+        """Build the 4-stage analysis protocol + structured output template.
+
+        The same protocol is used regardless of which toolset is loaded;
+        only the tool catalog line at the bottom changes.
+        """
+        use_community = getattr(self, "_use_community_tools", False)
+        if use_community:
+            tool_catalog = "你可以使用提供的任何工具，包括社区工具。"
         else:
-            base_prompt += "Available tools: read (读文件), glob (搜索文件), grep (搜索内容), write (写文件), edit (编辑文件)."
-        
-        return base_prompt
+            tool_catalog = (
+                "Available tools: "
+                "read (读文件, 支持 offset/limit/max_bytes), "
+                "glob (搜索路径), "
+                "grep (搜索内容, 支持 context/output_mode), "
+                "file_tree (项目结构, 返回 JSON), "
+                "outline (Python 文件的类/函数签名), "
+                "write (写文件, 仅在无干扰模式下), "
+                "edit (编辑文件, 仅在无干扰模式下)."
+            )
+
+        return (
+            "你是一个严格的代码分析 Agent。请按以下 4 阶段协议工作。\n\n"
+            "【分析协议】\n"
+            "阶段1 Scope    — 先调用一次 file_tree（或 glob **/*）确认项目类型、目录边界。\n"
+            "阶段2 Outline  — 对核心文件（一般 ≤ 5 个）调 outline 抽取类/函数签名。\n"
+            "阶段3 Read     — 只读与问题相关的片段；用 read(offset, limit) 取局部，避免一次性读取大文件。\n"
+            "阶段4 Synthesize — 用下列模板输出，禁止散文化，禁止空想。\n\n"
+            "【输出模板（必须 4 段齐全，按顺序）】\n"
+            "## 范围\n"
+            "（简述分析对象的边界与判定）\n\n"
+            "## 证据\n"
+            "- file:line — 证据描述 N\n"
+            "- file:line — 证据描述 N\n\n"
+            "## 结论\n"
+            "（基于证据的明确判断；如不确定，先在 ## 不确定性 写出理由再下结论）\n\n"
+            "## 不确定性\n"
+            "（列出尚未验证的假设；若无，写“无”）\n\n"
+            "【自检规则】\n"
+            "- 任何结论必须能指向 file:line；空泛表述（“可能”、“大概”、“一般认为”等）一律改为更精确措辞，或补一条证据。\n"
+            "- 写文件前默认使用无干扰模式（no_disturb=True），除非用户明确要求覆盖或重写。\n\n"
+            f"{tool_catalog}"
+        )
+
+    # ------------------------------------------------------------------ #
+    # Self-check helpers (used by hooks and _finalize)
+    # ------------------------------------------------------------------ #
+    WEAK_ASSERTION_TOKENS = ("可能", "大概", "也许", "或许", "似乎", "应该", "我觉得", "我猜")
+
+    @classmethod
+    def detect_weak_assertions(cls, text: str) -> list[str]:
+        """Return the weak-assertion tokens actually present in *text*.
+
+        Cheap set intersection; "" or no-match → empty list. Used by the
+        self-check pass to flag final answers that need stronger phrasing.
+        """
+        if not text:
+            return []
+        return [tok for tok in cls.WEAK_ASSERTION_TOKENS if tok in text]
 
     # ------------------------------------------------------------------ #
     # Public API
