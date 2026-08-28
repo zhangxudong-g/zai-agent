@@ -257,6 +257,17 @@ def main(argv: list[str] | None = None) -> int:
                     print(f"   Stop reason: {chunk.stop_reason}")
                     if chunk.is_error:
                         print("   ❌ Error occurred")
+                        # Connection-level failures are the most common
+                        # cause of an aborted session (DNS blip, host
+                        # offline, firewall). Surface a hint so the
+                        # user knows what to check instead of staring
+                        # at a raw traceback.
+                        if chunk.stop_reason == "force_stop":
+                            print("   ↳ The agent was force-stopped. Common causes:")
+                            print("     - OLLAMA_BASE_URL in .env is unreachable (host down / DNS / firewall)")
+                            print("     - OpenTelemetry OTLP endpoint (Langfuse/Jaeger) is not running")
+                            print("     - A community tool made an outbound call that failed")
+                            print("   ↳ Check the traceback below and the session JSONL for the exact site.")
                     if chunk.usage:
                         print(f"   Tokens: input={chunk.usage.get('input', 'N/A')}, "
                               f"output={chunk.usage.get('output', 'N/A')}")

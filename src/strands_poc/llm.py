@@ -29,6 +29,105 @@ from typing import Any
 from .config import Config
 
 
+# ---------------------------------------------------------------- #
+# Connection-failure handling
+# ---------------------------------------------------------------- #
+#
+# When the configured Ollama host is unreachable (DNS resolution
+# fails, the TCP connection is refused, the host is offline, or the
+# request times out during handshake), ``ollama.AsyncClient.chat``
+# raises a low-level transport exception:
+#
+#   * httpx.ConnectError  (DNS / connect refused / network unreachable)
+#   * httpx.TimeoutException  (read / connect timeout)
+#   * OSError             (raw socket errors, e.g. gaierror)
+#
+# The Ollama Python SDK's streaming path does NOT wrap these — only
+# ``_request_raw`` (non-streaming chat) catches ``ConnectError`` and
+# turns it into a ``ConnectionError``. So ``ollama.AsyncClient.chat(..., stream=True)``
+# propagates the raw ``httpx.ConnectError`` straight to us.
+#
+# Strands's event loop converts any exception raised out of
+# ``OllamaModel.stream`` into a ``ForceStopEvent`` with
+# ``stop_reason='force_stop'``, which kills the whole session on a
+# transient network blip. To avoid that, we detect these errors
+# locally and yield a *normal-looking* model response whose text is a
+# friendly diagnostic and whose ``stopReason`` is ``end_turn`` — that
+# is the event-loop success path.
+class _NetworkUnreachable(Exception):
+    """Ollama host is unreachable (DNS / refused / timeout / offline).
+
+    Wrapping the underlying ``httpx`` / ``OSError`` exception lets the
+    patched stream handle every transport failure uniformly without
+    importing httpx at module scope (the SDK depends on httpx but the
+    PoC does not).
+    """
+
+
+def _classify_network_error(exc: BaseException) -> _NetworkUnreachable | None:
+    """Map a low-level transport exception to ``_NetworkUnreachable``.
+
+    Returns ``None`` for exceptions we don't recognise — those should
+    keep propagating so strands / the user can see the real cause.
+    """
+    # Lazy import: ollama SDK pulls httpx, but we don't want llm.py to
+    # hard-require httpx when only the patched stream ever sees it.
+    try:
+        import httpx
+    except ImportError:  # pragma: no cover - ollama SDK always pulls httpx
+        httpx = None  # type: ignore[assignment]
+
+    if httpx is not None and isinstance(exc, (httpx.ConnectError, httpx.TimeoutException)):
+        return _NetworkUnreachable(str(exc) or type(exc).__name__)
+
+    # socket.gaierror (subclass of OSError) on plain DNS failures.
+    # ConnectionRefusedError is also OSError — covers "Ollama not running".
+    if isinstance(exc, OSError) and not isinstance(exc, NotADirectoryError):
+        return _NetworkUnreachable(str(exc) or type(exc).__name__)
+
+    return None
+
+
+def _friendly_unreachable_message(host: str, exc: Exception) -> str:
+    """Build the user-facing diagnostic string surfaced as model text.
+
+    Args:
+        host: ``self.host`` of the ``OllamaModel`` instance, e.g.
+            ``"http://10.0.0.5:11434"``.
+        exc: The original transport exception (or our wrapper).
+    """
+    detail = str(exc) or type(exc).__name__
+    # Trim unhelpful platform-specific noise (e.g. "[Errno 11001]") but
+    # keep the human-readable part so users can search for it.
+    import re as _re
+
+    detail_clean = _re.sub(r"^\[Errno -?\d+\]\s*", "", detail).strip()
+    return (
+        f"Cannot reach Ollama at {host}: {detail_clean}. "
+        f"Check (1) OLLAMA_BASE_URL in .env, "
+        f"(2) the host is online and Ollama is running there, "
+        f"and (3) your network/DNS can resolve the hostname."
+    )
+
+
+def _yield_unreachable_response(self, exc: Exception):
+    """Yield a normal-looking assistant message reporting the network error.
+
+    The event loop sees a ``messageStart`` → ``contentBlockDelta`` →
+    ``messageStop`` (``stopReason='end_turn'``) sequence and treats it
+    as a successful model completion — no ``ForceStopEvent``.
+    """
+    host = getattr(self, "host", "<unknown host>")
+    text = _friendly_unreachable_message(host, exc)
+    yield self.format_chunk({"chunk_type": "message_start"})
+    yield self.format_chunk({"chunk_type": "content_start", "data_type": "text"})
+    yield self.format_chunk(
+        {"chunk_type": "content_delta", "data_type": "text", "data": text},
+    )
+    yield self.format_chunk({"chunk_type": "content_stop", "data_type": "text"})
+    yield self.format_chunk({"chunk_type": "message_stop", "data": "end_turn"})
+
+
 def patch_ollama_thinking() -> bool:
     """Monkey-patch ``OllamaModel.stream`` to expose thinking deltas.
 
@@ -132,6 +231,18 @@ def patch_ollama_thinking() -> bool:
             if any(message in str(error).lower() for message in self.OVERFLOW_MESSAGES):
                 raise ContextWindowOverflowException(str(error)) from error
             raise
+        except Exception as error:
+            # Connection failure BEFORE we received any model output.
+            # Detect transport errors (DNS / refused / timeout) and
+            # convert into a normal-looking model response so the event
+            # loop ends with stop_reason='end_turn' instead of
+            # 'force_stop'. Other exceptions propagate unchanged.
+            net_err = _classify_network_error(error)
+            if net_err is None:
+                raise
+            for ev in _yield_unreachable_response(self, net_err):
+                yield ev
+            return
 
         stop_reason = "tool_use" if tool_requested else (
             last_event.done_reason if last_event is not None else None
