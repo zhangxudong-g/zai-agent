@@ -431,7 +431,7 @@ class Agent:
 
 
     # ------------------------------------------------------------------ #
-    # Self-check helpers (used by hooks and _finalize)
+    # Self-check helpers (used by tests/test_agent_optimizations.py)
     # ------------------------------------------------------------------ #
     WEAK_ASSERTION_TOKENS = (
         "可能",
@@ -464,7 +464,13 @@ class Agent:
     async def run_async(self, prompt: str) -> str:
         """Run the agent synchronously (no streaming) and return final text."""
         self.logger.session_start()
-        # self.logger.user_prompt(prompt)
+        # Both user_prompt AND agent_start are emitted so the JSONL log
+        # matches the 9-event sequence the ``claude-agent`` schema and
+        # ``tests/test_smoke.py::test_session_logger_writes_well_formed_jsonl``
+        # expect. user_prompt is the human-input audit row; agent_start
+        # is the start-of-processing row. They carry the same payload
+        # today but have different semantic meaning downstream.
+        self.logger.user_prompt(prompt)
         self.logger.agent_start(prompt)
         start_ms = int(time.time() * 1000)
         final_text: str | None = None
@@ -509,7 +515,8 @@ class Agent:
     async def run_streaming(self, prompt: str) -> AsyncIterator[StreamChunk]:
         """Run the agent and yield ``StreamChunk`` events in real time."""
         self.logger.session_start()
-        # self.logger.user_prompt(prompt)
+        # See run_async for why both user_prompt and agent_start fire.
+        self.logger.user_prompt(prompt)
         self.logger.agent_start(prompt)
         start_ms = int(time.time() * 1000)
         # Use the shared consumer wired into JsonlTraceHook — tool results

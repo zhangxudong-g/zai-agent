@@ -22,11 +22,54 @@ from strands import tool
 
 
 # --------------------------------------------------------------------- #
-# ReadTool — offset / limit / max_bytes / binary detection
+# Path sandbox helper — enforces workspace boundary at the tool layer.
+#
+# This is the **first** of two defense layers (see security.py for the
+# hook layer). All file-I/O tools (``read`` / ``write`` / ``edit`` /
+# ``glob`` / ``grep`` / ``file_tree`` / ``outline``) must go through
+# this helper. It guarantees the resolved path is within ``workspace``
+# after symlink resolution, so a model can't escape the workspace via
+# absolute paths (``/etc/passwd``) or ``../`` traversal.
+#
+# Returns:
+#   Path        — resolved absolute path inside workspace
+#   str         — "[ERROR] ..." message when the path is outside
 # --------------------------------------------------------------------- #
-def _resolve_target(workspace: Path, file_path: str) -> Path:
-    p = Path(file_path)
-    return p if p.is_absolute() else (workspace / p)
+def _resolve_within_sandbox(
+    workspace: Path,
+    raw_path: str,
+    *,
+    label: str = "path",
+) -> Path | str:
+    """Resolve ``raw_path`` against ``workspace`` and confirm containment.
+
+    Args:
+        workspace: The agent's workspace root (already ``.resolve()``d).
+        raw_path: User-supplied path. Absolute paths are checked as-is;
+            relative paths are joined to ``workspace``.
+        label: Human-readable name of the path argument (used in error
+            messages so the model can self-correct).
+
+    Returns:
+        ``Path`` on success (always absolute and inside workspace),
+        ``str`` with ``"[ERROR] ..."`` prefix on failure.
+    """
+    if not raw_path:
+        return f"[ERROR] empty {label}"
+    try:
+        candidate = Path(raw_path)
+        if not candidate.is_absolute():
+            candidate = (workspace / candidate)
+        candidate = candidate.resolve()
+        candidate.relative_to(workspace)
+        return candidate
+    except ValueError:
+        return (
+            f"[ERROR] {label} outside workspace ({raw_path!r}); "
+            f"workspace is {workspace}"
+        )
+    except OSError as e:
+        return f"[ERROR] {label} resolution failed ({raw_path!r}): {e}"
 
 
 def _looks_binary(data: bytes, *, sample: int = 8192) -> bool:
@@ -50,7 +93,10 @@ def make_read_tool(workspace: Path):
         limit: int = 0,
         max_bytes: int = 0,
     ) -> str:
-        target = _resolve_target(workspace, file_path)
+        target_or_err = _resolve_within_sandbox(workspace, file_path, label="file_path")
+        if isinstance(target_or_err, str):
+            return target_or_err
+        target = target_or_err
         try:
             raw = target.read_bytes()
         except FileNotFoundError:
@@ -88,6 +134,9 @@ def make_glob_tool(workspace: Path):
         "List files under the workspace whose path matches the glob "
         "pattern (e.g. 'src/**/*.py'). Returns paths separated by newlines."
     ))
+    # Glob is anchored at ``workspace`` by design — the model only ever
+    # supplies a glob pattern, never a base directory. No path argument
+    # to sandbox, so no ``_resolve_within_sandbox`` call needed here.
     def glob_tool(pattern: str) -> str:
         results: list[str] = []
         for path in workspace.rglob(pattern):
@@ -131,11 +180,18 @@ def make_grep_tool(workspace: Path):
         except re.error as e:
             return f"[ERROR] invalid regex: {e}"
 
-        base_dir = (
-            workspace / path
-            if path and not Path(path).is_absolute()
-            else (Path(path) if path else workspace)
-        )
+        # Sandbox the base directory: a model that passes ``/etc`` here
+        # must fail the same way the read tool fails. Glob filter still
+        # applies afterwards.
+        if path:
+            base_dir_or_err = _resolve_within_sandbox(
+                workspace, path, label="path",
+            )
+            if isinstance(base_dir_or_err, str):
+                return base_dir_or_err
+            base_dir = base_dir_or_err
+        else:
+            base_dir = workspace
 
         matched_paths: set[str] = set()
         rows: list[str] = []
@@ -167,6 +223,7 @@ def make_grep_tool(workspace: Path):
                 continue
 
             # content mode (default), with optional context
+            hit_cap = False
             for lineno, line in enumerate(lines, start=1):
                 if rx.search(line):
                     rows.append(f"{rel}:{lineno}: {line}")
@@ -178,9 +235,10 @@ def make_grep_tool(workspace: Path):
                             if delta == 0:
                                 continue  # the match line already printed
                             rows.append(f"{rel}:{lineno + delta}- {ctx_line}")
-                    if len(rows) >= 200:
-                        break
-            if len(rows) >= 200:
+                if len(rows) >= 200:
+                    hit_cap = True
+                    break
+            if hit_cap:
                 break
 
         if output_mode == "files_with_matches":
@@ -208,7 +266,10 @@ def make_write_tool(workspace: Path):
         "unless absolute. Workspace enforcement is done by a hook."
     ))
     def write_tool(file_path: str, content: str) -> str:
-        target = _resolve_target(workspace, file_path)
+        target_or_err = _resolve_within_sandbox(workspace, file_path, label="file_path")
+        if isinstance(target_or_err, str):
+            return target_or_err
+        target = target_or_err
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(content, encoding="utf-8")
         return f"Wrote {len(content)} bytes to {file_path}"
@@ -224,7 +285,10 @@ def make_edit_tool(workspace: Path):
         "is not found. Workspace enforcement is done by a hook."
     ))
     def edit_tool(file_path: str, old_string: str, new_string: str) -> str:
-        target = _resolve_target(workspace, file_path)
+        target_or_err = _resolve_within_sandbox(workspace, file_path, label="file_path")
+        if isinstance(target_or_err, str):
+            return target_or_err
+        target = target_or_err
         src = target.read_text(encoding="utf-8")
         replaced = src.replace(old_string, new_string)
         if replaced == src:
@@ -273,7 +337,13 @@ def make_file_tree_tool(workspace: Path):
         "(default 4). Cheap: does NOT read file contents."
     ))
     def file_tree_tool(max_depth: int = 4, path: str = "") -> str:
-        base = _resolve_target(workspace, path) if path else workspace
+        if path:
+            base_or_err = _resolve_within_sandbox(workspace, path, label="path")
+            if isinstance(base_or_err, str):
+                return base_or_err
+            base = base_or_err
+        else:
+            base = workspace
         if not base.exists():
             return f"[ERROR] path not found: {path or '.'}"
         entries = build_file_tree_entries(base, max_depth)
@@ -292,7 +362,10 @@ def make_outline_tool(workspace: Path):
         "returns the first 30 lines."
     ))
     def outline_tool(file_path: str) -> str:
-        target = _resolve_target(workspace, file_path)
+        target_or_err = _resolve_within_sandbox(workspace, file_path, label="file_path")
+        if isinstance(target_or_err, str):
+            return target_or_err
+        target = target_or_err
         try:
             text = target.read_text(encoding="utf-8")
         except FileNotFoundError:
