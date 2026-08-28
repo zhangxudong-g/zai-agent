@@ -75,7 +75,7 @@ def _make_agent_prompt():
 def test_system_prompt_has_four_stages(workspace: Path):
     """system prompt must enumerate 4 ordered analysis stages."""
     agent = _make_agent_prompt()
-    prompt = agent._build_system_prompt()
+    prompt = agent._build_system_prompt(mode="analysis")
     for stage in ("阶段1", "阶段2", "阶段3", "阶段4"):
         assert stage in prompt, f"missing stage marker {stage!r} in prompt"
 
@@ -83,7 +83,7 @@ def test_system_prompt_has_four_stages(workspace: Path):
 def test_system_prompt_has_output_template_sections(workspace: Path):
     """system prompt must include all 4 required output sections."""
     agent = _make_agent_prompt()
-    prompt = agent._build_system_prompt()
+    prompt = agent._build_system_prompt(mode="analysis")
     for section in ("## 范围", "## 证据", "## 结论", "## 不确定性"):
         assert section in prompt, f"missing section {section!r}"
 
