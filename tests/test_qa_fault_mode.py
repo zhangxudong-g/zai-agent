@@ -214,8 +214,6 @@ def test_default_mode_is_qa_fault():
     from strands_poc.agent import Agent
 
     sig = Agent.__init__.__code__.co_varnames
-    # Find the default value of the `mode` parameter, if any.
-    defaults = Agent.__init__.__defaults__ or ()
     # varnames after the first (self) include positional params; kwargs follow.
     param_index = sig.index("mode") if "mode" in sig else None
     assert param_index is not None, "Agent.__init__ must accept a `mode` parameter"

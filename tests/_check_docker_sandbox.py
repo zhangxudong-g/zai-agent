@@ -21,7 +21,6 @@ import asyncio
 import shutil
 import subprocess
 import sys
-from pathlib import Path
 
 
 def check(name: str, ok: bool, detail: str = "") -> bool:
@@ -74,7 +73,7 @@ def step3_container_running(container: str) -> bool:
         )
     except (OSError, subprocess.TimeoutExpired) as e:
         return check(f"容器 {container!r} 在跑", False, str(e))
-    lines = [l for l in out.stdout.strip().splitlines() if l]
+    lines = [line for line in out.stdout.strip().splitlines() if line]
     if not lines:
         return check(
             f"容器 {container!r} 在跑", False,
@@ -147,7 +146,7 @@ def main(argv: list[str] | None = None) -> int:
     args = p.parse_args(argv)
 
     print("=" * 60)
-    print(f"Docker Sandbox 连通性自检")
+    print("Docker Sandbox 连通性自检")
     print(f"  容器:   {args.container}")
     print(f"  工作目录: {args.workdir}")
     print("=" * 60)

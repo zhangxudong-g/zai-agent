@@ -20,16 +20,13 @@ No Ollama / no real Strands runtime required — we drive the
 
 from __future__ import annotations
 
-import asyncio
 import sys
 from pathlib import Path
-
-import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 
-from strands_poc.stream import StreamChunk, StreamConsumer  # noqa: E402
+from strands_poc.stream import StreamChunk, StreamConsumer
 
 
 # ============================================================ #
@@ -228,7 +225,7 @@ def test_main_streaming_mode_renders_thinking(monkeypatch, capsys):
     monkeypatch.setattr(cli, "display_tool_results_from_log", lambda *a, **kw: None)
     monkeypatch.setattr(cli, "generate_session_id", lambda: "TEST")
 
-    rc = cli.main(["--stream", "--prompt", "hi", "--workspace", "/tmp/w"])
+    cli.main(["--stream", "--prompt", "hi", "--workspace", "/tmp/w"])
     captured = capsys.readouterr().out
 
     assert "reasoning step" in captured, (

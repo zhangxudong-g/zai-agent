@@ -27,12 +27,12 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
 
-from strands_poc.config import get_config  # noqa: E402
-from strands_poc.security import WorkspaceSandboxHook  # noqa: E402
-from strands_poc.stream import StreamChunk, StreamConsumer  # noqa: E402
-from strands_poc.trace import SessionLogger  # noqa: E402
+import asyncio
 
-import asyncio  # noqa: E402
+from strands_poc.config import get_config
+from strands_poc.security import WorkspaceSandboxHook
+from strands_poc.stream import StreamConsumer
+from strands_poc.trace import SessionLogger
 
 
 # --------------------------------------------------------------------- #
@@ -405,7 +405,7 @@ def test_strands_tool_decorator_importable() -> None:
 # --------------------------------------------------------------------- #
 # 7. _resolve_within_sandbox (tool-layer path guard, issue #1 fix)
 # --------------------------------------------------------------------- #
-from strands_poc.tools import _resolve_within_sandbox  # noqa: E402
+from strands_poc.tools import _resolve_within_sandbox
 
 
 def test_resolve_within_sandbox_relative(tmp_path: Path) -> None:

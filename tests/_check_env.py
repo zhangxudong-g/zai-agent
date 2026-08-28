@@ -1,7 +1,8 @@
 """Quick check: 加载 .env 后打印关键变量（密钥脱敏）"""
-from pathlib import Path
-from dotenv import load_dotenv
 import os
+from pathlib import Path
+
+from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 

@@ -25,12 +25,12 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import contextlib
 import json
 import logging
 import sys
 import time
 from pathlib import Path
-from typing import Any
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
@@ -55,10 +55,10 @@ def _bash_available() -> bool:
     rather than crash on a missing utility.
     """
     import shutil
-    for candidate in ("bash", "sh", "/usr/bin/bash", "/bin/sh"):
-        if shutil.which(candidate):
-            return True
-    return False
+    return any(
+        shutil.which(candidate)
+        for candidate in ("bash", "sh", "/usr/bin/bash", "/bin/sh")
+    )
 
 
 def _to_bash_path(path: str) -> str:
@@ -95,17 +95,14 @@ def _run_bash_via_script_sync(command: str, *, cwd=None, env=None) -> tuple[int,
             fh.write(command)
         proc = subprocess.run(
             ["bash", _to_bash_path(path)],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            capture_output=True,
             cwd=cwd,
             env=env,
         )
         return proc.returncode or 0, proc.stdout, proc.stderr
     finally:
-        try:
+        with contextlib.suppress(OSError):
             os.unlink(path)
-        except OSError:
-            pass
 
 
 async def _run_bash_via_script(command: str, *, cwd=None, env=None) -> tuple[int, bytes, bytes]:
@@ -116,7 +113,6 @@ async def _run_bash_via_script(command: str, *, cwd=None, env=None) -> tuple[int
     a running event loop". Using ``asyncio.to_thread`` keeps the event loop
     responsive while the subprocess runs.
     """
-    import asyncio
     return await asyncio.to_thread(
         _run_bash_via_script_sync, command, cwd=cwd, env=env,
     )
@@ -128,7 +124,8 @@ async def _run_bash_via_script(command: str, *, cwd=None, env=None) -> tuple[int
 def pattern_1_hierarchy() -> dict:
     """探索 Sandbox 类的层级关系和抽象方法。"""
     from strands.sandbox import (
-        Sandbox, PosixShellSandbox,
+        PosixShellSandbox,
+        Sandbox,
     )
 
     # 1. 继承关系
@@ -158,7 +155,6 @@ def pattern_1_hierarchy() -> dict:
         pass
 
     # 4. 默认 sandbox（无隔离）
-    from strands.sandbox.not_a_sandbox_local_environment import NotASandboxLocalEnvironment
     concrete.append({
         "class": "NotASandboxLocalEnvironment",
         "note": "Agent 默认使用，无隔离",
@@ -178,8 +174,8 @@ def pattern_1_hierarchy() -> dict:
 def pattern_2_default_behavior() -> dict:
     """不传 sandbox 时，Agent 用 NotASandboxLocalEnvironment（无隔离）。"""
     from strands import Agent
-    from strands_tools import calculator
     from strands.sandbox.not_a_sandbox_local_environment import NotASandboxLocalEnvironment
+    from strands_tools import calculator
 
     # 1. Agent 不传 sandbox 时
     agent = Agent(model=None, tools=[calculator], callback_handler=None)
@@ -201,9 +197,8 @@ def pattern_2_default_behavior() -> dict:
 # ============================================================================
 def pattern_3_custom_sandbox() -> dict:
     """实现一个用 asyncio.subprocess 的本地 sandbox。"""
-    from strands.sandbox import PosixShellSandbox, StreamChunk, ExecutionResult
-    import asyncio
-    import time
+
+    from strands.sandbox import ExecutionResult, PosixShellSandbox, StreamChunk
 
     class LocalSubprocessSandbox(PosixShellSandbox):
         """本地 asyncio.subprocess 实现的 sandbox。"""
@@ -261,7 +256,7 @@ def pattern_3_custom_sandbox() -> dict:
 # ============================================================================
 def pattern_4_file_editor_routing() -> dict:
     """把 file_editor 绑定到自定义 sandbox。"""
-    from strands.vended_tools.file_editor import make_file_editor, file_editor
+    from strands.vended_tools.file_editor import file_editor, make_file_editor
 
     # 1. 默认 file_editor（无 sandbox）
     default_editor = file_editor
@@ -334,10 +329,10 @@ def pattern_5_construction() -> dict:
 # ============================================================================
 def pattern_6_agent_injection() -> dict:
     """把 sandbox 注入到 Agent，看 _sandbox 字段。"""
+
     from strands import Agent
+    from strands.sandbox import ExecutionResult, PosixShellSandbox, StreamChunk
     from strands_tools import calculator
-    from strands.sandbox import PosixShellSandbox, StreamChunk, ExecutionResult, StreamType
-    import asyncio
 
     class TestSandbox(PosixShellSandbox):
         async def execute_streaming(self, command, *, timeout=None, cwd=None, env=None, **kwargs):
@@ -364,8 +359,8 @@ def pattern_7_execute_code_streaming() -> dict:
     源码要点（strands/sandbox/posix_shell.py）：
         command = f"base64 -d << '{eof}' | {language}\\n{encoded}\\n{eof}"
     """
-    from strands.sandbox import PosixShellSandbox, StreamChunk, ExecutionResult
-    import asyncio
+
+    from strands.sandbox import ExecutionResult, PosixShellSandbox, StreamChunk
 
     class LocalShellSandbox(PosixShellSandbox):
         async def execute_streaming(
@@ -431,8 +426,9 @@ def pattern_8_file_io() -> dict:
     子类只需实现 execute_streaming，文件操作就能"白嫖"——这正是为什么大多数
     自定义后端都继承 PosixShellSandbox 而不是直接继承 Sandbox 抽象基类。
     """
-    import tempfile, os, asyncio
-    from strands.sandbox import PosixShellSandbox, StreamChunk, ExecutionResult
+    import tempfile
+
+    from strands.sandbox import ExecutionResult, PosixShellSandbox, StreamChunk
 
     class LocalShellSandbox(PosixShellSandbox):
         async def execute_streaming(
@@ -480,7 +476,7 @@ def pattern_8_file_io() -> dict:
             await sandbox.write_file(nested_b, b"\x00\x01\x02binary\xff")
 
             # 2) read_file / read_text
-            raw_bytes = await sandbox.read_file(hello_b)
+            await sandbox.read_file(hello_b)
             text = await sandbox.read_text(hello_b)
 
             # 3) list_files

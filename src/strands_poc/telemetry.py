@@ -20,7 +20,7 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-__all__ = ["setup", "is_active", "exporter_kind"]
+__all__ = ["exporter_kind", "is_active", "setup"]
 
 _active: bool = False
 _kind: str = ""

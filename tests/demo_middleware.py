@@ -30,15 +30,15 @@ import logging
 import sys
 import time
 from pathlib import Path
-from typing import Any
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 
 
 def _make_model():
-    from strands.models.ollama import OllamaModel
     import os
+
+    from strands.models.ollama import OllamaModel
     return OllamaModel(
         host=os.getenv("OLLAMA_BASE_URL", "http://swiftechie.aa0.netvolante.jp:51434").rstrip("/"),
         model_id=os.getenv("OLLAMA_MODEL", "qwen3.8:27b"),
@@ -56,8 +56,8 @@ def _reset_logger():
 def pattern_1_wrap_timing() -> dict:
     """Wrap phase 计时：在 LLM 调用前后打印耗时。"""
     from strands import Agent
-    from strands_tools import calculator
     from strands._middleware.stages import InvokeModelStage
+    from strands_tools import calculator
 
     timings = []
 
@@ -94,8 +94,8 @@ def pattern_2_input_inject() -> dict:
     用途：动态注入 system context、注入参考资料、token截断等。
     """
     from strands import Agent
-    from strands_tools import calculator
     from strands._middleware.stages import InvokeModelStage
+    from strands_tools import calculator
 
     injection_log = []
 
@@ -128,8 +128,8 @@ def pattern_3_output_modify() -> dict:
     用途：截断敏感内容、添加 metadata、后处理文本。
     """
     from strands import Agent
-    from strands_tools import calculator
     from strands._middleware.stages import InvokeModelStage
+    from strands_tools import calculator
 
     modifications = []
 
@@ -163,8 +163,8 @@ def pattern_3_output_modify() -> dict:
 def pattern_4_chain_composition() -> dict:
     """多个 middleware 按"洋葱模型"嵌套执行：先入后出。"""
     from strands import Agent
-    from strands_tools import calculator
     from strands._middleware.stages import InvokeModelStage
+    from strands_tools import calculator
 
     execution_log = []
 
@@ -206,8 +206,8 @@ def pattern_4_chain_composition() -> dict:
 def pattern_5_tool_wrap() -> dict:
     """ExecuteToolStage：拦截工具调用。"""
     from strands import Agent
-    from strands_tools import calculator
     from strands._middleware.stages import ExecuteToolStage
+    from strands_tools import calculator
 
     tool_logs = []
 
@@ -236,8 +236,8 @@ def pattern_5_tool_wrap() -> dict:
 def pattern_6_outer_wrap() -> dict:
     """AgentStreamStage：包裹整个 agent() 输出流。"""
     from strands import Agent
-    from strands_tools import calculator
     from strands._middleware.stages import AgentStreamStage
+    from strands_tools import calculator
 
     stream_logs = []
 

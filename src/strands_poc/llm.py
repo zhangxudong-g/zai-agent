@@ -21,6 +21,7 @@ so the user never sees the model's reasoning.
 
 from __future__ import annotations
 
+import contextlib
 import functools
 import importlib
 from typing import Any
@@ -70,11 +71,11 @@ def patch_ollama_thinking() -> bool:
     @functools.wraps(original_stream)
     async def patched_stream(self, messages, tool_specs=None, system_prompt=None,
                               *, tool_choice=None, **kwargs: Any):
+        import ollama as _ollama_pkg
         from strands.models.ollama import (
             ContextWindowOverflowException,
             warn_on_tool_choice_not_supported,
         )
-        import ollama as _ollama_pkg
 
         warn_on_tool_choice_not_supported(tool_choice)
 
@@ -186,9 +187,7 @@ def build_ollama_model_safe(config: Config):
     # Best-effort: tune keep_alive and temperature via attributes
     # (newer Strands versions expose them; older versions ignore unknown attrs).
     for attr, value in (("keep_alive", "10m"), ("temperature", 0.7)):
-        try:
+        with contextlib.suppress(AttributeError, TypeError):
             setattr(model, attr, value)
-        except (AttributeError, TypeError):
-            pass
 
     return model

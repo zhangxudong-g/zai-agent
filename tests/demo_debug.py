@@ -22,7 +22,6 @@ import logging
 import sys
 import time
 from pathlib import Path
-from typing import Any
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
@@ -34,8 +33,9 @@ def _make_model():
         from strands_poc.llm import build_ollama_model  # type: ignore
         return build_ollama_model(get_config())
     except ImportError:
-        from strands.models.ollama import OllamaModel
         import os
+
+        from strands.models.ollama import OllamaModel
         return OllamaModel(
             host=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/"),
             model_id=os.getenv("OLLAMA_MODEL", "qwen3:7b"),
@@ -78,7 +78,7 @@ def pattern_1_basic_debug() -> dict:
     lines = log_buf.getvalue().strip().split("\n")
     return {
         "total_log_lines": len(lines),
-        "loggers_seen": sorted({l.split(" | ")[1] for l in lines if " | " in l}),
+        "loggers_seen": sorted({line.split(" | ")[1] for line in lines if " | " in line}),
         "first_3_lines": lines[:3],
         "last_3_lines": lines[-3:],
     }
@@ -107,7 +107,7 @@ def pattern_2_info_level() -> dict:
     lines = log_buf.getvalue().strip().split("\n")
     return {
         "total_log_lines": len(lines),
-        "loggers_seen": sorted({l.split(" | ")[1] for l in lines if " | " in l}),
+        "loggers_seen": sorted({line.split(" | ")[1] for line in lines if " | " in line}),
         "all_lines": lines[:10],
     }
 
@@ -318,16 +318,16 @@ def pattern_7_quiet_third_party() -> dict:
     agent = Agent(model=_make_model(), tools=[calculator], callback_handler=None)
     agent("What is 11 * 11?")
 
-    lines = [l for l in log_buf.getvalue().strip().split("\n") if l]
-    third_party_lines = [l for l in lines if any(n in l for n in ("urllib3", "botocore", "boto3", "httpx", "httpcore"))]
-    strands_lines = [l for l in lines if "strands" in l]
+    lines = [line for line in log_buf.getvalue().strip().split("\n") if line]
+    third_party_lines = [line for line in lines if any(n in line for n in ("urllib3", "botocore", "boto3", "httpx", "httpcore"))]
+    strands_lines = [line for line in lines if "strands" in line]
 
     return {
         "total_lines": len(lines),
         "strands_lines": len(strands_lines),
         "third_party_lines": len(third_party_lines),
         "third_party_ratio": f"{len(third_party_lines)}/{len(lines)}",
-        "loggers_in_output": sorted({l.split(" | ")[1] for l in lines if " | " in l}),
+        "loggers_in_output": sorted({line.split(" | ")[1] for line in lines if " | " in line}),
     }
 
 

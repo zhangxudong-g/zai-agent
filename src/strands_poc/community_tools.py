@@ -30,7 +30,7 @@ from __future__ import annotations
 import os
 import platform
 from collections.abc import Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
 # =============================================================================
@@ -174,10 +174,8 @@ class CommunityToolsBuilder:
     @staticmethod
     def _is_platform_compatible(tool_name: str) -> bool:
         """检查工具是否与当前平台兼容。"""
-        if tool_name in SHELL_TOOLS and platform.system() == "Windows":
-            # Shell 工具在 Windows 上不可用
-            return False
-        return True
+        # Shell 工具在 Windows 上不可用
+        return not (tool_name in SHELL_TOOLS and platform.system() == "Windows")
 
     def _should_include_tool(self, tool_name: str) -> bool:
         """检查工具是否应该被包含。"""
@@ -213,7 +211,7 @@ class CommunityToolsBuilder:
         import importlib
         module = importlib.import_module(module_path)
         tool = getattr(module, tool_name)
-        
+
         self._tool_cache[import_path] = tool
         return tool
 
@@ -256,12 +254,12 @@ class CommunityToolsBuilder:
         """根据类别列表构建工具。"""
         self._apply_bypass_consent()
         tools = []
-        
+
         for category in categories:
             cat_tools = CATEGORY_TO_TOOLS.get(category, {})
             if not cat_tools:
                 continue
-                
+
             for tool_name in cat_tools:
                 if self._should_include_tool(tool_name):
                     try:

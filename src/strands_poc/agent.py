@@ -19,7 +19,6 @@ from __future__ import annotations
 import asyncio
 import time
 from collections.abc import AsyncIterator
-from pathlib import Path
 from typing import Any
 
 from strands import Agent as StrandsAgent
@@ -40,7 +39,7 @@ telemetry.setup()
 
 # 尝试导入社区工具（可选依赖）
 try:
-    from .community_tools import build_community_tools, CommunityToolsConfig
+    from .community_tools import CommunityToolsConfig, build_community_tools
 
     COMMUNITY_TOOLS_AVAILABLE = True
 except ImportError:
@@ -82,7 +81,7 @@ class JsonlTraceHook:
     main-loop writes are independent.
     """
 
-    def __init__(self, logger: SessionLogger, consumer: "StreamConsumer | None" = None):
+    def __init__(self, logger: SessionLogger, consumer: StreamConsumer | None = None):
         self._logger = logger
         self._consumer = consumer  # optional: when set, tool_end chunks are pushed live
 
@@ -422,7 +421,7 @@ class Agent:
             return
 
         existing = {_tool_name(t) for t in self._tools}
-        from .tools import make_write_tool, make_edit_tool
+        from .tools import make_edit_tool, make_write_tool
 
         if "write" not in existing:
             self._tools.append(make_write_tool(self.config.agent_workspace))

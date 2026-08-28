@@ -69,7 +69,7 @@ def build_parser() -> argparse.ArgumentParser:
                         "protocol with read-only toolset.")
     p.add_argument("--env-file", type=Path, default=".env",
                    help="Path to .env file (default: .env).")
-    
+
     # Community tools options
     tool_group = p.add_argument_group("Community Tools")
     tool_group.add_argument("--use-community-tools", action="store_true",
@@ -81,7 +81,7 @@ def build_parser() -> argparse.ArgumentParser:
                    help="Specific community tool names to include (e.g., calculator current_time).")
     tool_group.add_argument("--list-tools", action="store_true",
                    help="List all available community tools and exit.")
-    
+
     return p
 
 
@@ -110,13 +110,13 @@ def display_tool_results_from_log(log_file: Path) -> None:
         return
 
     tool_calls = []
-    
+
     with log_file.open("r", encoding="utf-8") as f:
         for line in f:
             try:
                 record = json.loads(line.strip())
                 event = record.get("event", "")
-                
+
                 if event == "tool_call_start":
                     tool_calls.append({
                         "tool_call_id": record.get("tool_call_id", ""),
@@ -130,7 +130,7 @@ def display_tool_results_from_log(log_file: Path) -> None:
                     tool_call_id = record.get("tool_call_id", "")
                     result_str = record.get("result", "")
                     result_content, is_error = parse_result_content(result_str)
-                    
+
                     # Find matching tool call
                     for tc in tool_calls:
                         if tc["tool_call_id"] == tool_call_id and tc["result"] is None:
@@ -140,7 +140,7 @@ def display_tool_results_from_log(log_file: Path) -> None:
                             break
             except (json.JSONDecodeError, KeyError):
                 continue
-    
+
     # Display tool results
     for tc in tool_calls:
         print(f"\n{'='*60}")
@@ -148,15 +148,15 @@ def display_tool_results_from_log(log_file: Path) -> None:
         print(f"{'='*60}")
         print(f"   ID: {tc['tool_call_id']}")
         print(f"   Start: {tc['start_time']}")
-        
+
         if tc["arguments"]:
-            print(f"   Arguments:")
+            print("   Arguments:")
             for k, v in tc["arguments"].items():
                 v_str = str(v)
                 if len(v_str) > 200:
                     v_str = v_str[:200] + "..."
                 print(f"     {k}: {v_str}")
-        
+
         if tc["result"] is not None:
             print(f"   Result ({len(tc['result'])} chars):")
             result_lines = tc["result"].split("\n")
@@ -166,10 +166,10 @@ def display_tool_results_from_log(log_file: Path) -> None:
                 print(f"     {line}")
             if len(result_lines) > 30:
                 print(f"     ... ({len(result_lines)} total lines)")
-            
+
             if tc.get("is_error"):
-                print(f"   ❌ ERROR")
-        
+                print("   ❌ ERROR")
+
         print(f"   End: {tc['result_time']}")
 
 
@@ -211,7 +211,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"[WARN] workspace does not exist: {config.agent_workspace}", file=sys.stderr)
 
     logger = SessionLogger(session_id=session_id, log_dir=config.session_log_dir)
-    
+
     # Create agent with appropriate tool configuration
     agent_kwargs = {
         "config": config,
@@ -219,13 +219,13 @@ def main(argv: list[str] | None = None) -> int:
         "mode": args.mode,
         "use_community_tools": args.use_community_tools,
     }
-    
+
     if args.use_community_tools:
         if args.community_tool_names:
             agent_kwargs["community_tool_names"] = args.community_tool_names
         elif args.community_tool_categories:
             agent_kwargs["community_tool_categories"] = args.community_tool_categories
-    
+
     agent = Agent(**agent_kwargs)
 
     if args.stream:
@@ -251,12 +251,12 @@ def main(argv: list[str] | None = None) -> int:
                 elif chunk.kind == "done":
                     print()
                     print("=" * 60)
-                    print(f"✅ AGENT COMPLETED")
+                    print("✅ AGENT COMPLETED")
                     print(f"   Duration: {time.time() - t0:.1f}s")
                     print(f"   Result length: {len(chunk.result)} chars")
                     print(f"   Stop reason: {chunk.stop_reason}")
                     if chunk.is_error:
-                        print(f"   ❌ Error occurred")
+                        print("   ❌ Error occurred")
                     if chunk.usage:
                         print(f"   Tokens: input={chunk.usage.get('input', 'N/A')}, "
                               f"output={chunk.usage.get('output', 'N/A')}")
@@ -273,7 +273,7 @@ def main(argv: list[str] | None = None) -> int:
         print(result)
         print("=" * 60)
         print(f"[Done] elapsed={time.time() - t0:.1f}s")
-        
+
         # Display tool results from log
         if args.show_tools:
             print("\n" + "="*60)

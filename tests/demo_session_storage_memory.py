@@ -26,7 +26,6 @@ import logging
 import sys
 import time
 from pathlib import Path
-from typing import Any
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
@@ -39,8 +38,9 @@ def _reset_logger():
 
 
 def _make_model():
-    from strands.models.ollama import OllamaModel
     import os
+
+    from strands.models.ollama import OllamaModel
     return OllamaModel(
         host=os.getenv("OLLAMA_BASE_URL", "http://swiftechie.aa0.netvolante.jp:51434").rstrip("/"),
         model_id=os.getenv("OLLAMA_MODEL", "qwen3.8:27b"),
@@ -63,7 +63,6 @@ async def pattern_1_inmemory_storage() -> dict:
 
     # 读取
     data1 = await storage.read("session-1/msg-001")
-    data_missing = await storage.read("nonexistent") if False else None  # will raise
 
     # 列出 keys
     all_session_1 = await storage.list("session-1")
@@ -86,6 +85,7 @@ async def pattern_1_inmemory_storage() -> dict:
 async def pattern_2_local_file_storage() -> dict:
     """持久化到磁盘，跨进程可用。"""
     import tempfile
+
     from strands.storage import LocalFileStorage
 
     base_dir = Path(tempfile.mkdtemp(prefix="strands_storage_demo_"))
@@ -121,9 +121,10 @@ async def pattern_2_local_file_storage() -> dict:
 async def pattern_3_file_session_manager() -> dict:
     """用 FileSessionManager 让 Agent 的对话自动持久化。"""
     import tempfile
-    from strands.storage import LocalFileStorage
-    from strands.session import FileSessionManager
+
     from strands import Agent
+    from strands.session import FileSessionManager
+    from strands.storage import LocalFileStorage
     from strands_tools import calculator
 
     base_dir = Path(tempfile.mkdtemp(prefix="strands_session_demo_"))
@@ -159,9 +160,10 @@ async def pattern_3_file_session_manager() -> dict:
 async def pattern_4_snapshot_session() -> dict:
     """SnapshotSessionManager 支持版本化和 checkpoint 回滚。"""
     import tempfile
-    from strands.storage import LocalFileStorage
-    from strands.session import SnapshotSessionManager
+
     from strands import Agent
+    from strands.session import SnapshotSessionManager
+    from strands.storage import LocalFileStorage
     from strands_tools import calculator
 
     base_dir = Path(tempfile.mkdtemp(prefix="strands_snapshot_demo_"))
@@ -223,9 +225,10 @@ async def pattern_5_memory_manager() -> dict:
 async def pattern_6_persistent_agent() -> dict:
     """演示：同一个 session_id 创建两个 Agent 实例，第二个能继承第一个的消息。"""
     import tempfile
-    from strands.storage import LocalFileStorage
-    from strands.session import FileSessionManager
+
     from strands import Agent
+    from strands.session import FileSessionManager
+    from strands.storage import LocalFileStorage
     from strands_tools import calculator
 
     base_dir = Path(tempfile.mkdtemp(prefix="strands_persist_demo_"))

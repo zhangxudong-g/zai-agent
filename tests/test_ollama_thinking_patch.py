@@ -37,12 +37,12 @@ def test_patch_ollama_thinking_is_callable():
 def test_patch_ollama_thinking_is_idempotent():
     """Calling the patch twice must not stack multiple wrappers."""
     import strands.models.ollama as ollama_mod
+
     from strands_poc import llm
 
     cls = getattr(ollama_mod, "OllamaModel", None) or getattr(ollama_mod, "Ollama", None)
     if cls is None:
         pytest.skip("strands.models.ollama not installed")
-    original_stream = cls.stream
     llm.patch_ollama_thinking()
     after_first = cls.stream
     llm.patch_ollama_thinking()
@@ -58,10 +58,10 @@ async def test_patched_stream_yields_reasoning_content_delta(monkeypatch):
     """When ollama returns event.message.thinking, the patched stream
     must yield a contentBlockDelta with reasoningContent before the text."""
     import json
-    import uuid
     from unittest.mock import MagicMock
 
     import strands.models.ollama as ollama_mod
+
     from strands_poc import llm
 
     cls = getattr(ollama_mod, "OllamaModel", None) or getattr(ollama_mod, "Ollama", None)
@@ -155,6 +155,7 @@ async def test_patched_stream_yields_reasoning_content_delta(monkeypatch):
 async def test_patched_stream_does_not_emit_reasoning_when_model_has_none(monkeypatch):
     """When ollama returns no thinking field, no reasoning_content events."""
     import strands.models.ollama as ollama_mod
+
     from strands_poc import llm
 
     cls = getattr(ollama_mod, "OllamaModel", None) or getattr(ollama_mod, "Ollama", None)

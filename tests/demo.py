@@ -3,6 +3,7 @@ Strands Agent Demo - 简化版
 """
 # 加载项目根 .env（OTEL/Langfuse/Ollama 等配置都在里面）
 from pathlib import Path
+
 from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).resolve().parents[1] / ".env")
@@ -13,6 +14,7 @@ import os
 os.environ.setdefault("BYPASS_TOOL_CONSENT", "true")     # 跳过确认
 
 import logging
+
 from strands import Agent
 
 # --- OpenTelemetry trace（endpoint/auth 走 .env；不改代码就能在 Jaeger / Langfuse 之间切换） ---
@@ -24,8 +26,8 @@ StrandsTelemetry().setup_otlp_exporter()   # 从 OTEL_EXPORTER_OTLP_* 环境变�
 # 让 OTel SDK 自己的 debug 日志安静一点（你下面全局开了 DEBUG/INFO）
 logging.getLogger("opentelemetry").setLevel(logging.WARNING)
 
-from strands_tools import file_read, file_write, editor, http_request
 from strands.models.ollama import OllamaModel
+from strands_tools import editor, file_read, file_write, http_request
 
 # 设置日志记录
 logging.getLogger("strands").setLevel(logging.INFO)  # INFO 级别以上才打印
@@ -64,6 +66,7 @@ agent = Agent(
 
 # BatchSpanProcessor 默认攒着批量发，等 1 秒让后台线程把 span 刷到 Jaeger 再退出
 import time
+
 time.sleep(1)
 
 # print("\n")

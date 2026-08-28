@@ -18,7 +18,7 @@ Strands dict event shapes (per docs):
 from __future__ import annotations
 
 import asyncio
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 
@@ -116,7 +116,7 @@ class ToolResultCollector:
         """Get next tool_end chunk from queue, or None if queue is empty."""
         try:
             return await asyncio.wait_for(self._queue.get(), timeout=timeout)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return None
 
     def has_pending_results(self) -> bool:

@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import contextlib
 import shutil
 import subprocess
 import sys
@@ -77,11 +78,12 @@ def step3_mkdir() -> bool:
 
 
 def step4_ls() -> bool:
+    import pathlib
     import tempfile
     with tempfile.TemporaryDirectory() as td:
         # Create two files + one dir to test ls -1ap parsing
-        (Path := __import__("pathlib").Path(td) / "file.txt").write_text("x")
-        (Path := __import__("pathlib").Path(td) / "subdir").mkdir()
+        (pathlib.Path(td) / "file.txt").write_text("x")
+        (pathlib.Path(td) / "subdir").mkdir()
         proc = subprocess.run(
             ["bash", "-c", f"ls -1ap {td}"],
             capture_output=True, text=True, timeout=5,
@@ -89,8 +91,8 @@ def step4_ls() -> bool:
         if proc.returncode != 0:
             return check("ls -1ap 可用", False, proc.stderr[:200])
         names = [
-            l.rstrip("/") for l in proc.stdout.splitlines()
-            if l and l not in ("./", "../")
+            line.rstrip("/") for line in proc.stdout.splitlines()
+            if line and line not in ("./", "../")
         ]
         ok = set(names) >= {"file.txt", "subdir"}
     return check(
@@ -117,10 +119,9 @@ def step5_heredoc() -> bool:
             got = f.read()
         ok = got == payload
     finally:
-        try:
-            __import__("os").unlink(out_path)
-        except OSError:
-            pass
+        with contextlib.suppress(OSError):
+            import os
+            os.unlink(out_path)
     return check("heredoc + base64 写入", ok, f"round-trip {'OK' if ok else 'MISMATCH'}")
 
 

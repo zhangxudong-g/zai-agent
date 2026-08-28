@@ -20,7 +20,6 @@ import json
 import sys
 import time
 from pathlib import Path
-from typing import Any
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
@@ -32,8 +31,9 @@ def _make_model():
         from strands_poc.llm import build_ollama_model  # type: ignore
         return build_ollama_model(get_config())
     except ImportError:
-        from strands.models.ollama import OllamaModel
         import os
+
+        from strands.models.ollama import OllamaModel
         return OllamaModel(
             host=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/"),
             model_id=os.getenv("OLLAMA_MODEL", "qwen3:7b"),
@@ -46,6 +46,7 @@ def _make_model():
 def pattern_1_top_level() -> dict:
     """探索 AgentResult 的所有顶层字段。"""
     import dataclasses
+
     from strands import Agent
     from strands_tools import calculator
 
@@ -102,7 +103,7 @@ def pattern_2_message_blocks() -> dict:
     for i, block in enumerate(content):
         if not isinstance(block, dict):
             continue
-        for key in block.keys():
+        for key in block:
             if key not in block_types:
                 block_types[key] = {
                     "first_index": i,
@@ -124,9 +125,9 @@ def pattern_2_message_blocks() -> dict:
 # ============================================================================
 def pattern_3_stop_reason() -> dict:
     """枚举 stop_reason 的所有可能取值。"""
-    from strands.types.streaming import StopReason
-    import dataclasses
+
     from strands import Agent
+    from strands.types.streaming import StopReason
     from strands_tools import calculator
 
     # 1. StopReason 类型定义

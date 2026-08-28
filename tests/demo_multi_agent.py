@@ -26,15 +26,15 @@ import logging
 import sys
 import time
 from pathlib import Path
-from typing import Any
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 
 
 def _make_model():
-    from strands.models.ollama import OllamaModel
     import os
+
+    from strands.models.ollama import OllamaModel
     return OllamaModel(
         host=os.getenv("OLLAMA_BASE_URL", "http://swiftechie.aa0.netvolante.jp:51434").rstrip("/"),
         model_id=os.getenv("OLLAMA_MODEL", "qwen3.8:27b"),
@@ -109,8 +109,6 @@ def pattern_2_swarm_shared() -> dict:
 
     result = swarm("写一个 Python 函数计算斐波那契数列")
 
-    # 看 shared_context（如果有）
-    final_state = getattr(result, "results", {})
     return {
         "status": str(result.status),
         "node_history": [n.node_id for n in result.node_history],
@@ -238,9 +236,10 @@ def pattern_5_agent_as_tool() -> dict:
 # ============================================================================
 def pattern_6_result_inspection() -> dict:
     """探索 SwarmResult / GraphResult 的字段。"""
-    from strands import Agent
-    from strands.multiagent import Swarm, GraphBuilder
     import dataclasses
+
+    from strands import Agent
+    from strands.multiagent import GraphBuilder, Swarm
 
     a = Agent(model=_make_model(), name="a",
               system_prompt="只回答一个字：OK")

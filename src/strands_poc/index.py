@@ -14,7 +14,6 @@ and stamp ``last_hit_cache = False``; otherwise ``last_hit_cache = True``.
 
 from __future__ import annotations
 
-import json
 import os
 import time
 from dataclasses import dataclass, field

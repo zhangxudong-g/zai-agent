@@ -37,4 +37,4 @@ agent.load_snapshot(snapshot)
 print("================")
 
 # The agent is back to the state after "Hello!"
-print((agent.messages))  # Only the messages from before the jokes
+print(agent.messages)  # Only the messages from before the jokes

@@ -20,15 +20,15 @@ import json
 import sys
 import time
 from pathlib import Path
-from typing import Any
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 
 
 def _make_model():
-    from strands.models.ollama import OllamaModel
     import os
+
+    from strands.models.ollama import OllamaModel
     return OllamaModel(
         host=os.getenv("OLLAMA_BASE_URL", "http://swiftechie.aa0.netvolante.jp:51434").rstrip("/"),
         model_id=os.getenv("OLLAMA_MODEL", "qwen3.8:27b"),
@@ -53,8 +53,8 @@ def pattern_1_before_model() -> dict:
       - event.invocation_state: dict（可写，会传给后续 hook）
     """
     from strands import Agent
-    from strands_tools import calculator
     from strands.hooks import BeforeModelCallEvent
+    from strands_tools import calculator
 
     cancel_count = []
     projected_tokens = []
@@ -91,8 +91,8 @@ def pattern_2_after_model_retry() -> dict:
     注意：1.53.0 中 retry 标志会触发带 backoff 的重试。
     """
     from strands import Agent
-    from strands_tools import calculator
     from strands.hooks import AfterModelCallEvent
+    from strands_tools import calculator
 
     retry_count = []
 
@@ -127,8 +127,8 @@ def pattern_3_before_tool() -> dict:
       - event.selected_tool: 当前选中的工具（可换）
     """
     from strands import Agent
-    from strands_tools import calculator
     from strands.hooks import BeforeToolCallEvent
+    from strands_tools import calculator
 
     cancel_count = []
     rejected_calcs = []
@@ -169,8 +169,8 @@ def pattern_3_before_tool() -> dict:
 def pattern_4_after_tool_modify() -> dict:
     """在工具执行后修改结果。可以：覆盖 result / 触发 retry。"""
     from strands import Agent
-    from strands_tools import calculator
     from strands.hooks import AfterToolCallEvent
+    from strands_tools import calculator
 
     modifications = []
 
@@ -204,8 +204,8 @@ def pattern_4_after_tool_modify() -> dict:
 def pattern_5_invocation_events() -> dict:
     """InvocationEvent 在每次 agent() 调用前后触发（session-level）。"""
     from strands import Agent
+    from strands.hooks import AfterInvocationEvent, BeforeInvocationEvent
     from strands_tools import calculator
-    from strands.hooks import BeforeInvocationEvent, AfterInvocationEvent
 
     invocations = []
 
@@ -242,8 +242,8 @@ def pattern_5_invocation_events() -> dict:
 def pattern_6_message_added() -> dict:
     """MessageAddedEvent 在 messages 列表添加新消息时触发。"""
     from strands import Agent
-    from strands_tools import calculator
     from strands.hooks import MessageAddedEvent
+    from strands_tools import calculator
 
     messages_log = []
 
@@ -286,8 +286,8 @@ def pattern_7_hook_order() -> dict:
     数字越小越先执行。
     """
     from strands import Agent
-    from strands_tools import calculator
     from strands.hooks import BeforeModelCallEvent, HookOrder
+    from strands_tools import calculator
 
     execution_order = []
 

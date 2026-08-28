@@ -27,17 +27,17 @@ from typing import Any
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 
+import os
+
 from opentelemetry import trace as trace_api
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider as SDKTracerProvider
 from opentelemetry.sdk.trace.export import (
     BatchSpanProcessor,
-    ConsoleSpanExporter,
     SpanExporter,
     SpanExportResult,
 )
 from opentelemetry.trace import Span as OtelSpan
-import os
 
 print(
     repr(os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT"))
@@ -122,10 +122,10 @@ def _make_agent(**kwargs: Any) -> Any:
 
 def _run_agent(prompt: str, **agent_kwargs: Any) -> Any:
     attempt_errors: list[str] = []
-    for attempt in range(3):  # WSL DNS 会偶发抖动，重试兜底
+    for _attempt in range(3):  # WSL DNS 会偶发抖动，重试兜底
         try:
             return _run_agent_once(prompt, **agent_kwargs)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             if any(
                 s in repr(e) for s in ("ConnectError", "name resolution", "getaddrinfo")
             ):
@@ -244,7 +244,6 @@ def pattern_3_metrics_console() -> dict:
     # 再次触发导出（PeriodicExportingMetricReader 周期导出，这里强制触发一次）
     with redirect_stdout(buf):
         resource_metrics_provider = tel.tracer_provider  # noqa: F841  (仅保持引用)
-        meter_provider = None
         import opentelemetry.metrics as metrics_api
 
         mp = metrics_api.get_meter_provider()

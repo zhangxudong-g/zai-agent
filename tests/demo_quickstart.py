@@ -110,6 +110,7 @@ def section_2_stream_async() -> dict:
     注意：用 calculator 而不是 shell，避免 Windows GBK 终端下 Unicode 报错。
     """
     import sys
+
     from strands import Agent
     from strands_tools import calculator
 
@@ -151,12 +152,12 @@ def section_3_callback_handler() -> dict:
     注意：用 calculator 替代官方示例中的 shell（shell 依赖 Unix termios，
           无法在 Windows 上运行）。
     """
-    import logging
-    from strands import Agent
-    from strands_tools import calculator
-
     # 自定义 logger（输出到 StringIO 避免污染 stdout）
     import io
+    import logging
+
+    from strands import Agent
+    from strands_tools import calculator
 
     log_buf = io.StringIO()
     logger = logging.getLogger("demo_quickstart_callback")
@@ -182,7 +183,7 @@ def section_3_callback_handler() -> dict:
         callback_handler=callback_handler,
     )
 
-    result = agent("What is 144 divided by 12?")
+    agent("What is 144 divided by 12?")
     cb_log = log_buf.getvalue()
     return {
         "tool_calls_unique": len(tool_use_ids),
@@ -196,11 +197,11 @@ def section_4_debug_logging() -> dict:
 
     验证项：DEBUG 日志包含 ModelStreamChunkEvent、ToolUse 详情等。
     """
-    import logging
-    from strands import Agent
-
     # 关键：用 StringIO 捕获日志，不污染 stdout
     import io
+    import logging
+
+    from strands import Agent
 
     log_buf = io.StringIO()
     buf_handler = logging.StreamHandler(log_buf)
@@ -278,12 +279,11 @@ def section_6_string_model_id() -> dict:
 
     验证项：Agent 自动用 BedrockModel 包装字符串 model_id。
     """
-    from strands import Agent
-    import os
 
-    # 字符串 model_id 仅在 Bedrock 后端有意义；本地 Ollama 仍走显式 OllamaModel
-    bedrock_id = "global.anthropic.claude-sonnet-4-6"
-    print(f"[Info] 字符串 model_id 在 Bedrock 后端生效；当前用 Ollama，验证类型解析")
+    from strands import Agent
+
+    # 字符串 model_id 仅在 Bedrock 后端有意义；本地 Ollama 仍走显式 OllamaModel（如 "global.anthropic.claude-sonnet-4-6"）
+    print("[Info] 字符串 model_id 在 Bedrock 后端生效；当前用 Ollama，验证类型解析")
 
     # 改用 Ollama 字符串形式做对照
     ollama_id = os.getenv("OLLAMA_MODEL", "qwen3:7b")

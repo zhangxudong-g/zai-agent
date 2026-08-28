@@ -16,13 +16,11 @@
 from __future__ import annotations
 
 import argparse
-import io
 import json
 import logging
 import sys
 import time
 from pathlib import Path
-from typing import Any
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
@@ -35,8 +33,9 @@ def _make_model():
         from strands_poc.llm import build_ollama_model  # type: ignore
         return build_ollama_model(get_config())
     except ImportError:
-        from strands.models.ollama import OllamaModel
         import os
+
+        from strands.models.ollama import OllamaModel
         return OllamaModel(
             host=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/"),
             model_id=os.getenv("OLLAMA_MODEL", "qwen3:7b"),
@@ -129,8 +128,8 @@ def pattern_3_type_annotated() -> dict:
     """
     # ---- imports 在模块级，避开局部作用域陷阱 ----
     from strands import Agent
+    from strands.hooks import AfterModelCallEvent, BeforeModelCallEvent
     from strands_tools import calculator
-    from strands.hooks import BeforeModelCallEvent, AfterModelCallEvent
 
     before_model_calls = []
     after_model_calls = []
@@ -179,8 +178,8 @@ def pattern_4_multiple_callbacks() -> dict:
     模式 B：hooks 列表（每个 hook 是独立回调）
     """
     from strands import Agent
-    from strands_tools import calculator
     from strands.hooks import BeforeModelCallEvent
+    from strands_tools import calculator
 
     log_a = []
     log_b = []
@@ -262,6 +261,7 @@ def pattern_5_filter() -> dict:
 def pattern_6_jsonl_logger() -> dict:
     """把所有 callback 事件以 JSONL 格式落盘，用于审计/回放。"""
     import tempfile
+
     from strands import Agent
     from strands_tools import calculator
 
@@ -299,7 +299,7 @@ def pattern_6_jsonl_logger() -> dict:
 
     # 读取并汇总
     lines = log_path.read_text(encoding="utf-8").strip().split("\n")
-    parsed = [json.loads(l) for l in lines]
+    parsed = [json.loads(line) for line in lines]
     kinds = {}
     for p in parsed:
         kinds[p["kind"]] = kinds.get(p["kind"], 0) + 1

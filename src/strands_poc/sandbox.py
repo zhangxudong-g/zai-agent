@@ -60,7 +60,7 @@ logger = logging.getLogger(__name__)
 SANDBOX_MODES: tuple[str, ...] = ("host", "posix", "docker", "ssh")
 
 
-def build_sandbox(config: "Config") -> Sandbox:
+def build_sandbox(config: Config) -> Sandbox:
     """Build a Strands ``Sandbox`` instance from ``Config``.
 
     Args:
@@ -121,7 +121,7 @@ def build_sandbox(config: "Config") -> Sandbox:
 # --------------------------------------------------------------------- #
 # Mode implementations
 # --------------------------------------------------------------------- #
-def _build_posix_sandbox(config: "Config") -> Sandbox:
+def _build_posix_sandbox(config: Config) -> Sandbox:
     """Build a ``PosixShellSandbox`` backed by the local ``bash``.
 
     The SDK's ``PosixShellSandbox`` is abstract — it implements file I/O
@@ -130,7 +130,7 @@ def _build_posix_sandbox(config: "Config") -> Sandbox:
     the result runs without external dependencies beyond ``bash``.
     """
 
-    from strands.sandbox import PosixShellSandbox, StreamChunk, ExecutionResult
+    from strands.sandbox import ExecutionResult, PosixShellSandbox, StreamChunk
 
     class LocalBashSandbox(PosixShellSandbox):
         """``PosixShellSandbox`` backed by local ``bash`` via asyncio.subprocess.
@@ -228,11 +228,11 @@ def _build_posix_sandbox(config: "Config") -> Sandbox:
                 stdout_b, stderr_b = await asyncio.wait_for(
                     proc.communicate(), timeout=timeout,
                 )
-            except asyncio.TimeoutError:
+            except TimeoutError as e:
                 proc.kill()
                 await proc.wait()
                 from strands.sandbox.errors import SandboxTimeoutError
-                raise SandboxTimeoutError(command, timeout or 0.0)
+                raise SandboxTimeoutError(command, timeout or 0.0) from e
 
             # Always decode as utf-8 with errors='replace'. The subprocess
             # inherits the console codepage which on Windows may be GBK /
@@ -299,7 +299,7 @@ def _wslpath_windows_to_linux(win_path: str) -> str | None:
     return f"/mnt/{drive}/{rest}"
 
 
-def _build_docker_sandbox(config: "Config") -> Sandbox:
+def _build_docker_sandbox(config: Config) -> Sandbox:
     container = (getattr(config, "sandbox_container", "") or "").strip()
     if not container:
         raise ValueError(
@@ -323,7 +323,7 @@ def _build_docker_sandbox(config: "Config") -> Sandbox:
     )
 
 
-def _build_ssh_sandbox(config: "Config") -> Sandbox:
+def _build_ssh_sandbox(config: Config) -> Sandbox:
     host = (getattr(config, "sandbox_ssh_host", "") or "").strip()
     if not host:
         raise ValueError(

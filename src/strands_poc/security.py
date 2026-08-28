@@ -23,6 +23,7 @@ from running shell commands outside workspace) is the job of the SDK
 from __future__ import annotations
 
 from pathlib import Path
+from typing import ClassVar
 
 from strands.hooks import BeforeToolCallEvent, HookProvider, HookRegistry
 
@@ -39,7 +40,7 @@ class WorkspaceSandboxHook(HookProvider):
     # Tools whose ``input`` carries a path field we must inspect.
     # ``glob`` is anchored at workspace by design and has no path arg,
     # so it's intentionally not in this map.
-    _PATH_FIELDS: dict[str, str] = {
+    _PATH_FIELDS: ClassVar[dict[str, str]] = {
         "read": "file_path",
         "grep": "path",          # grep base directory (optional)
         "file_tree": "path",     # file_tree base directory (optional)

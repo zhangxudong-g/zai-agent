@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import contextlib
 import json
 import sys
 import time
@@ -135,13 +136,11 @@ def pattern_2_no_retry_foreign_exception() -> dict:
                 d = ev.as_dict() if hasattr(ev, "as_dict") else ev
                 if isinstance(d, dict) and d.get("force_stop"):
                     force_stops.append({k: d.get(k) for k in ("force_stop", "force_stop_reason")})
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             raised = e
         finally:
-            try:
+            with contextlib.suppress(Exception):
                 await agen.aclose()
-            except Exception:  # noqa: BLE001
-                pass
 
     asyncio.run(_collect())
 

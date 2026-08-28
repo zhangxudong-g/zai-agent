@@ -66,8 +66,9 @@ def test_module_does_not_duplicate_dataclass_import():
     field`` once at the top — a second bare ``from dataclasses import
     dataclass`` further down is dead noise that confuses readers.
     """
-    import strands_poc.community_tools as ct
     import inspect
+
+    import strands_poc.community_tools as ct
 
     src = inspect.getsource(ct)
     # Count top-level imports of dataclass (exclude re-exports).
