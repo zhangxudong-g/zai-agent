@@ -130,12 +130,55 @@ class StreamConsumer:
     Tracks in-progress tool calls so that incremental
     ``current_tool_use`` updates can be emitted as ``tool_input``
     chunks (matching the schema of claude-agent's StreamChunk).
+
+    Also exposes a side-channel queue for tool *results* (via
+    ``register_tool_result``) so the caller can drain them alongside
+    stream events — Strands does not emit a dedicated "tool_end" dict,
+    so the AfterToolCallEvent hook is the authoritative source for
+    tool results, and the consumer ferries them through here.
     """
 
     def __init__(self) -> None:
         self._pending_tools: dict[str, dict[str, Any]] = {}
-        self._emitted_tool_ends: set[str] = set()
+        self._tool_result_queue: asyncio.Queue[StreamChunk] = asyncio.Queue()
         self.done_emitted = False
+
+    def register_tool_result(
+        self,
+        tool_use_id: str,
+        tool_name: str,
+        result: str | Any,
+        is_error: bool = False,
+    ) -> StreamChunk:
+        """Queue a ``tool_end`` chunk for the streaming loop to yield.
+
+        Called from ``JsonlTraceHook.after_tool`` so the user sees the
+        result inline (instead of waiting for a post-run JSONL summary).
+        Returns the chunk that was queued (useful for tests).
+        """
+        chunk = StreamChunk(
+            kind="tool_end",
+            tool_use_id=tool_use_id,
+            tool_name=tool_name,
+            result=str(result)[:5000] if result else "",
+            is_error=is_error,
+        )
+        self._tool_result_queue.put_nowait(chunk)
+        return chunk
+
+    def drain_tool_results(self) -> list[StreamChunk]:
+        """Drain all currently-queued tool_end chunks (non-blocking).
+
+        Returns an empty list if nothing is pending. Order is FIFO.
+        Each call empties the queue — a second drain returns ``[]``.
+        """
+        out: list[StreamChunk] = []
+        while True:
+            try:
+                out.append(self._tool_result_queue.get_nowait())
+            except asyncio.QueueEmpty:
+                break
+        return out
 
     def feed(self, event: dict) -> list[StreamChunk]:
         """Translate one Strands dict event into zero or more StreamChunks."""

@@ -136,13 +136,12 @@ class CommunityToolsConfig:
         """设置默认值。"""
         if self.workspace is None:
             self.workspace = Path.cwd()
-        
-        # 默认跳过工具确认
-        if self.bypass_consent:
-            os.environ["BYPASS_TOOL_CONSENT"] = "true"
 
-
-from dataclasses import dataclass
+        # NOTE: BYPASS_TOOL_CONSENT is intentionally NOT set here.
+        # Setting it as a config-construction side effect mutates global
+        # process state and leaks across unrelated code paths. The flag
+        # is applied by ``CommunityToolsBuilder`` at tool-load time
+        # (see ``_apply_bypass_consent``).
 
 
 # =============================================================================
@@ -155,6 +154,22 @@ class CommunityToolsBuilder:
     def __init__(self, config: CommunityToolsConfig | None = None):
         self.config = config or CommunityToolsConfig()
         self._tool_cache: dict[str, object] = {}
+        self._bypass_applied: bool = False
+
+    def _apply_bypass_consent(self) -> None:
+        """Set BYPASS_TOOL_CONSENT only when actually loading tools.
+
+        The flag is required by ``strands_tools`` only when tools are
+        loaded (not when config is constructed). Setting it here keeps
+        the side effect scoped to the load step, so constructing a
+        ``CommunityToolsConfig`` alone does not mutate global env state.
+        Idempotent within this builder instance.
+        """
+        if self._bypass_applied:
+            return
+        if self.config.bypass_consent:
+            os.environ["BYPASS_TOOL_CONSENT"] = "true"
+        self._bypass_applied = True
 
     @staticmethod
     def _is_platform_compatible(tool_name: str) -> bool:
@@ -204,8 +219,9 @@ class CommunityToolsBuilder:
 
     def build(self) -> list[object]:
         """构建所有符合条件的工具列表。"""
+        self._apply_bypass_consent()
         tools = []
-        
+
         for tool_name, import_path in ALL_TOOLS.items():
             if self._should_include_tool(tool_name):
                 try:
@@ -221,8 +237,9 @@ class CommunityToolsBuilder:
 
     def build_names(self, names: Sequence[str]) -> list[object]:
         """根据名称列表构建工具。"""
+        self._apply_bypass_consent()
         tools = []
-        
+
         for name in names:
             if name in ALL_TOOLS and self._should_include_tool(name):
                 try:
@@ -237,6 +254,7 @@ class CommunityToolsBuilder:
 
     def build_categories(self, categories: Sequence[str]) -> list[object]:
         """根据类别列表构建工具。"""
+        self._apply_bypass_consent()
         tools = []
         
         for category in categories:
