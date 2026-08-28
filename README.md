@@ -17,6 +17,28 @@
 | **TypeScript 同步生态** | ✅ `@strands-agents/sdk`（未来前端/Web 化无缝衔接） |
 | **流式 API** | `agent.stream_async()` 异步生成器，yield `dict` 事件 |
 
+## 两层沙箱设计
+
+PoC 里两个看似重复、其实分工明确的沙箱：
+
+| 层 | 文件 | 职能 | 接入点 |
+|---|---|---|---|
+| **路径层** | `security.py` (`WorkspaceSandboxHook`) | 拒绝 workspace 外路径的工具调用 | `StrandsAgent(hooks=[...])` |
+| **执行层** | `sandbox.py` (`build_sandbox()`) | 代码 / shell / 文件 I/O 的运行时隔离 | `StrandsAgent(sandbox=...)` |
+
+**为什么不是同一个？** SDK 把“拦截坏意图”（路径跳出）和“隔离坏执行”（代码逸出）分开设计：
+
+- `WorkspaceSandboxHook` 在 `BeforeToolCallEvent` 上 veto —— 不能跨出 workspace，但代码本身在主机跑。
+- `Sandbox` 提供 SDK 原生 `Sandbox` 接口（host / posix / docker / ssh）——文件 / shell 在哪个环境跑。
+
+默认配置两层都在：路径层永远生效；执行层由 `EXECUTION_SANDBOX` 控制（`host` = 同主机零隔离，`docker` / `ssh` = 真正隔离）。
+
+要全隔离（生产推荐）：
+```bash
+EXECUTION_SANDBOX=docker
+SANDBOX_CONTAINER=strands-sandbox
+```
+
 ## 与 `claude-agent` 的差异
 
 | 维度 | claude-agent | strands-agent (本 PoC) |
