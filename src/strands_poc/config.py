@@ -29,6 +29,19 @@ class Config:
     ollama_auth_token: str = "ollama"
     allowed_tools: list[str] = field(default_factory=list)
 
+    # --- SDK Sandbox (execution-level isolation) ---
+    # See ``sandbox.py`` for the full mode matrix. ``host`` (default) means
+    # no isolation — WorkspaceSandboxHook (security.py) provides the only
+    # path-level enforcement. ``docker`` / ``ssh`` require the additional
+    # fields below to be set.
+    execution_sandbox: str = "host"
+    sandbox_container: str = ""
+    sandbox_container_workdir: str = ""
+    sandbox_container_user: str = ""
+    sandbox_ssh_host: str = ""
+    sandbox_ssh_user: str = ""
+    sandbox_ssh_port: int | None = None
+
 
 _DEFAULT_TOOLS = (
     "read",
@@ -64,6 +77,14 @@ def get_config(env_file: str | Path | None = ".env") -> Config:
     tools_raw = os.getenv("ALLOWED_TOOLS", ",".join(_DEFAULT_TOOLS))
     allowed = [t.strip().lower() for t in tools_raw.split(",") if t.strip()]
 
+    sandbox_mode = os.getenv("EXECUTION_SANDBOX", "host").strip().lower()
+
+    def _opt_str(key: str) -> str:
+        return os.getenv(key, "").strip()
+
+    ssh_port_raw = os.getenv("SANDBOX_SSH_PORT", "").strip()
+    ssh_port: int | None = int(ssh_port_raw) if ssh_port_raw else None
+
     return Config(
         ollama_base_url=base_url,
         ollama_model=model,
@@ -71,4 +92,11 @@ def get_config(env_file: str | Path | None = ".env") -> Config:
         agent_workspace=workspace,
         session_log_dir=log_dir,
         allowed_tools=allowed,
+        execution_sandbox=sandbox_mode,
+        sandbox_container=_opt_str("SANDBOX_CONTAINER"),
+        sandbox_container_workdir=_opt_str("SANDBOX_CONTAINER_WORKDIR"),
+        sandbox_container_user=_opt_str("SANDBOX_CONTAINER_USER"),
+        sandbox_ssh_host=_opt_str("SANDBOX_SSH_HOST"),
+        sandbox_ssh_user=_opt_str("SANDBOX_SSH_USER"),
+        sandbox_ssh_port=ssh_port,
     )
