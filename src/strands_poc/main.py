@@ -155,12 +155,13 @@ class REPL:
         "/clear": "清屏",
     }
 
-    def __init__(self, agent: Agent, logger: SessionLogger, stream: bool = False, max_retries: int = 3):
+    def __init__(self, agent: Agent, logger: SessionLogger, stream: bool = True, max_retries: int = 3):
         self.agent = agent
         self.logger = logger
         self.stream = stream
         self.max_retries = max_retries
         self.message_count = 0
+        self._loop = None  # Reuse event loop for streaming
 
     def print_welcome(self) -> None:
         print("\n" + "=" * 60)
@@ -192,8 +193,8 @@ class REPL:
         self.message_count += 1
         print(f"\n[{self.message_count}] 你: ", end="", flush=True)
 
-    async def run_streaming(self, prompt: str) -> None:
-        """Run agent with streaming output."""
+    async def _run_streaming_async(self, prompt: str) -> None:
+        """Run agent with streaming output (async)."""
         print()
         t0 = time.time()
         async for chunk in self.agent.run_streaming(prompt, max_retries=self.max_retries):
@@ -213,6 +214,13 @@ class REPL:
                     print(f"   Tokens: input={chunk.usage.get('input', 'N/A')}, "
                           f"output={chunk.usage.get('output', 'N/A')}")
         print()
+
+    def run_streaming(self, prompt: str) -> None:
+        """Run agent with streaming output (reuses event loop)."""
+        if self._loop is None or self._loop.is_closed():
+            self._loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(self._loop)
+        self._loop.run_until_complete(self._run_streaming_async(prompt))
 
     def run_sync(self, prompt: str) -> None:
         """Run agent synchronously."""
@@ -261,7 +269,7 @@ class REPL:
                 # Run agent
                 try:
                     if self.stream:
-                        asyncio.run(self.run_streaming(prompt))
+                        self.run_streaming(prompt)
                     else:
                         self.run_sync(prompt)
                 except KeyboardInterrupt:
@@ -274,6 +282,10 @@ class REPL:
             except KeyboardInterrupt:
                 print("\n\n再见!")
                 break
+
+        # Cleanup event loop
+        if self._loop is not None and not self._loop.is_closed():
+            self._loop.close()
 
         print(f"\n[Session log] {self.logger.log_file}")
 
@@ -297,8 +309,9 @@ def main(argv: list[str] | None = None) -> int:
     logger = SessionLogger(session_id=session_id, log_dir=config.session_log_dir)
     agent = Agent(config=config, logger=logger)
 
-    # Determine if we should run REPL
-    is_interactive = args.interactive or (args.prompt is None and sys.stdin.isatty())
+    # REPL mode when: explicitly requested OR no prompt given (regardless of isatty)
+    # This ensures `uv run agent` always enters REPL even in non-TTY environments
+    is_interactive = args.interactive or (args.prompt is None)
     # Streaming is the default; --sync disables it
     use_stream = not args.sync
 
