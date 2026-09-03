@@ -172,24 +172,36 @@ class StreamConsumer:
             ctu = event["current_tool_use"] or {}
             tool_use_id = str(ctu.get("toolUseId") or ctu.get("id") or "")
             name = str(ctu.get("name") or "")
-            input_args = ctu.get("input") or {}
+            raw_input = ctu.get("input")
+            # Strands emits input as a string (accumulated via deltas), not a dict
+            # Wrap string input in a dict for display
+            if isinstance(raw_input, str):
+                input_args = {"command": raw_input} if raw_input else {}
+            else:
+                input_args = raw_input if isinstance(raw_input, dict) else {}
+
             if name and tool_use_id not in self._pending_tools:
                 # First time seeing this tool → emit tool_start
-                self._pending_tools[tool_use_id] = {"name": name, "input": input_args}
+                self._pending_tools[tool_use_id] = {"name": name, "input": raw_input}
                 out.append(StreamChunk(
                     kind="tool_start",
                     tool_name=name,
                     tool_use_id=tool_use_id,
-                    input_args=input_args if isinstance(input_args, dict) else {},
+                    input_args=input_args,
                 ))
             elif tool_use_id in self._pending_tools:
                 # Subsequent update → emit tool_input (incremental args)
-                self._pending_tools[tool_use_id]["input"] = input_args
+                self._pending_tools[tool_use_id]["input"] = raw_input
+                # Update display args
+                if isinstance(raw_input, str):
+                    input_args = {"command": raw_input} if raw_input else {}
+                else:
+                    input_args = raw_input if isinstance(raw_input, dict) else {}
                 out.append(StreamChunk(
                     kind="tool_input",
                     tool_name=self._pending_tools[tool_use_id]["name"],
                     tool_use_id=tool_use_id,
-                    input_args=input_args if isinstance(input_args, dict) else {},
+                    input_args=input_args,
                 ))
 
         # --- tool_stream_event (rare; intermediate tool progress) ---
