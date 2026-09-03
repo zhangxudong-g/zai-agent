@@ -282,8 +282,6 @@ class REPL:
         if self._loop is not None and not self._loop.is_closed():
             self._loop.close()
 
-        print(f"\n📝 {self.logger.log_file}")
-
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
