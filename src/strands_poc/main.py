@@ -188,11 +188,11 @@ class REPL:
                 if has_text:
                     print()
                     has_text = False
-                # Show thinking indicator during tool execution
+                # Show thinking during tool execution
                 if thinking_buffer:
-                    tool_buffer.append(f"  🤔 {thinking_buffer[:60]}...")
+                    print(f"  🤔 {thinking_buffer[:60]}...", flush=True)
                     thinking_buffer = ""
-                # Format tool with args
+                # Format and print tool call immediately
                 if chunk.input_args:
                     args_list = []
                     for k, v in chunk.input_args.items():
@@ -201,26 +201,21 @@ class REPL:
                             v_str = v_str[:60] + "..."
                         args_list.append(f"{k}={v_str!r}")
                     args_str = "(" + ", ".join(args_list) + ")"
-                    tool_buffer.append(f"  🔧 {chunk.tool_name}{args_str}")
+                    print(f"  🔧 {chunk.tool_name}{args_str}", flush=True)
                 else:
-                    tool_buffer.append(f"  🔧 {chunk.tool_name}")
+                    print(f"  🔧 {chunk.tool_name}", flush=True)
             elif chunk.kind == "tool_end":
                 pass  # Tool result handled by JsonlTraceHook
             elif chunk.kind == "done":
-                # Print collected tool info
-                if tool_buffer:
-                    print("\n" + "\n".join(tool_buffer))
-                    tool_buffer = []
                 # Print any remaining thinking
                 if thinking_buffer:
                     print(f"\n🤔 {thinking_buffer[:80]}...")
-                    thinking_buffer = ""
                 elapsed = time.time() - t0
                 if chunk.usage:
                     tokens = chunk.usage.get("output", 0)
-                    print(f"✓ ({elapsed:.1f}s, {tokens} tokens)", flush=True)
+                    print(f"\n✓ ({elapsed:.1f}s, {tokens} tokens)", flush=True)
                 else:
-                    print(f"✓ ({elapsed:.1f}s)", flush=True)
+                    print(f"\n✓ ({elapsed:.1f}s)", flush=True)
 
     def run_streaming(self, prompt: str) -> None:
         """Run agent with streaming output (reuses event loop)."""
@@ -322,7 +317,6 @@ def main(argv: list[str] | None = None) -> int:
         if use_stream:
             async def run_stream():
                 t0 = time.time()
-                tool_buffer = []
                 thinking_buffer = ""
                 has_text = False
                 async for chunk in agent.run_streaming(prompt, max_retries=args.max_retries):
@@ -339,7 +333,7 @@ def main(argv: list[str] | None = None) -> int:
                             print()
                             has_text = False
                         if thinking_buffer:
-                            tool_buffer.append(f"  🤔 {thinking_buffer[:60]}...")
+                            print(f"  🤔 {thinking_buffer[:60]}...", flush=True)
                             thinking_buffer = ""
                         if chunk.input_args:
                             args_list = []
@@ -349,12 +343,12 @@ def main(argv: list[str] | None = None) -> int:
                                     v_str = v_str[:60] + "..."
                                 args_list.append(f"{k}={v_str!r}")
                             args_str = "(" + ", ".join(args_list) + ")"
-                            tool_buffer.append(f"  🔧 {chunk.tool_name}{args_str}")
+                            print(f"  🔧 {chunk.tool_name}{args_str}", flush=True)
                         else:
-                            tool_buffer.append(f"  🔧 {chunk.tool_name}")
+                            print(f"  🔧 {chunk.tool_name}", flush=True)
                     elif chunk.kind == "done":
-                        if tool_buffer:
-                            print("\n" + "\n".join(tool_buffer))
+                        if thinking_buffer:
+                            print(f"\n🤔 {thinking_buffer[:80]}...")
                         print(f"\n✓ ({time.time() - t0:.1f}s)", flush=True)
                 print()
             asyncio.run(run_stream())
