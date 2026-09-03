@@ -2,8 +2,7 @@
 
 Usage:
     uv run agent "你的问题"                    # 单次运行
-    uv run agent --interactive               # 交互式 REPL
-    uv run agent -i "你的问题" --stream      # 带初始 prompt 的交互模式
+    uv run agent                               # 交互式 REPL
 """
 
 from __future__ import annotations
@@ -33,17 +32,14 @@ def generate_session_id() -> str:
 
 
 def print_banner(config, session_id: str, interactive: bool = False) -> None:
-    print("=" * 60)
-    print("Strands Agent + Ollama")
-    print("=" * 60)
-    print(f"Model:     {config.ollama_model}")
-    print(f"URL:       {config.ollama_base_url}")
-    print(f"Workspace: {config.agent_workspace}")
-    print(f"Session:   {session_id}")
-    print(f"Log:       {config.session_log_dir / (session_id + '.jsonl')}")
+    print("╭─ Strands Agent ──────────────────────────────")
+    print(f"│ Model:     {config.ollama_model}")
+    print(f"│ Workspace: {config.agent_workspace}")
+    print(f"│ Session:   {session_id}")
     if interactive:
-        print("Mode:      Interactive (REPL)")
-    print("=" * 60)
+        print("│ Mode:      REPL (连续对话)")
+    print("╰────────────────────────────────────────────")
+    print()
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -51,7 +47,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("prompt", type=str, nargs="?", default=None,
                    help="Prompt (optional; reads from stdin if omitted).")
     p.add_argument("-i", "--interactive", action="store_true",
-                   help="Start interactive REPL mode (default when no prompt).")
+                   help="Start interactive REPL mode.")
     p.add_argument("--workspace", type=Path, default=None,
                    help="Workspace directory (defaults to $AGENT_WORKSPACE in .env).")
     p.add_argument("--sync", action="store_true",
@@ -114,34 +110,15 @@ def display_tool_results_from_log(log_file: Path) -> None:
                 continue
 
     for tc in tool_calls:
-        print(f"\n{'='*60}")
-        print(f"🔧 TOOL: {tc['tool_name']}")
-        print(f"{'='*60}")
-        print(f"   ID: {tc['tool_call_id']}")
-        print(f"   Start: {tc['start_time']}")
-
-        if tc["arguments"]:
-            print("   Arguments:")
-            for k, v in tc["arguments"].items():
-                v_str = str(v)
-                if len(v_str) > 200:
-                    v_str = v_str[:200] + "..."
-                print(f"     {k}: {v_str}")
-
-        if tc["result"] is not None:
-            print(f"   Result ({len(tc['result'])} chars):")
+        print(f"\n🔧 {tc['tool_name']}")
+        if tc["result"]:
             result_lines = tc["result"].split("\n")
-            for line in result_lines[:30]:
-                if len(line) > 150:
-                    line = line[:150] + "..."
-                print(f"     {line}")
-            if len(result_lines) > 30:
-                print(f"     ... ({len(result_lines)} total lines)")
-
-            if tc.get("is_error"):
-                print("   ❌ ERROR")
-
-        print(f"   End: {tc['result_time']}")
+            for line in result_lines[:10]:
+                if len(line) > 120:
+                    line = line[:120] + "..."
+                print(f"   {line}")
+            if len(result_lines) > 10:
+                print(f"   ... ({len(result_lines)} lines)")
 
 
 class REPL:
@@ -151,7 +128,7 @@ class REPL:
         "/exit": "退出",
         "/quit": "退出",
         "/q": "退出",
-        "/help": "显示帮助",
+        "/help": "帮助",
         "/clear": "清屏",
     }
 
@@ -161,59 +138,53 @@ class REPL:
         self.stream = stream
         self.max_retries = max_retries
         self.message_count = 0
-        self._loop = None  # Reuse event loop for streaming
+        self._loop = None
 
     def print_welcome(self) -> None:
-        print("\n" + "=" * 60)
-        print("Strands Agent REPL - 连续对话模式")
-        print("=" * 60)
-        print("命令:")
-        print("  /exit, /quit, /q  - 退出")
-        print("  /help              - 显示帮助")
-        print("  /clear             - 清屏")
-        print("=" * 60)
+        print()
+        print("╭─ Strands Agent REPL ─────────────────────────")
+        print("│ /help   显示帮助")
+        print("│ /clear  清屏")
+        print("│ /exit   退出")
+        print("╰─────────────────────────────────────────────")
         print()
 
     def print_help(self) -> None:
-        print("\n" + "=" * 60)
-        print("Strands Agent REPL 帮助")
-        print("=" * 60)
-        print("- 直接输入问题，与 Agent 连续对话")
-        print("- Agent 会记住当前会话的上下文")
-        print("- 使用 /exit 或 Ctrl+C 退出")
-        print("- 使用 /clear 清屏")
-        print("=" * 60)
+        print()
+        print("╭─ 帮助 ──────────────────────────────────────")
+        print("│ 输入问题，Agent 会记住上下文")
+        print("│ /clear - 清屏")
+        print("│ /exit  - 退出")
+        print("╰─────────────────────────────────────────────")
         print()
 
     def clear_screen(self) -> None:
-        print("\033[2J\033[H", end="")  # ANSI clear screen
+        print("\033[2J\033[H", end="")
         sys.stdout.flush()
 
     def print_prompt(self) -> None:
         self.message_count += 1
-        print(f"\n[{self.message_count}] 你: ", end="", flush=True)
+        print(f"\n[{self.message_count}] > ", end="", flush=True)
 
     async def _run_streaming_async(self, prompt: str) -> None:
-        """Run agent with streaming output (async)."""
-        print()
+        """Run agent with streaming output."""
         t0 = time.time()
         async for chunk in self.agent.run_streaming(prompt, max_retries=self.max_retries):
             if chunk.kind == "text":
                 print(chunk.text, end="", flush=True)
             elif chunk.kind == "thinking":
-                print(f"\n[thinking] {chunk.thinking}", flush=True)
+                print(f"\n🤔 {chunk.thinking[:100]}...", flush=True)
             elif chunk.kind == "tool_start":
-                print(chunk.format_tool_start(), flush=True)
+                print(f"\n🔧 {chunk.tool_name}...", flush=True)
             elif chunk.kind == "tool_end":
-                print(chunk.format_tool_end(), flush=True)
+                pass  # Skip individual tool_end output, already shown by agent
             elif chunk.kind == "done":
-                print()
-                print("=" * 60)
-                print(f"✅ 完成 ({time.time() - t0:.1f}s)")
+                elapsed = time.time() - t0
                 if chunk.usage:
-                    print(f"   Tokens: input={chunk.usage.get('input', 'N/A')}, "
-                          f"output={chunk.usage.get('output', 'N/A')}")
-        print()
+                    tokens = chunk.usage.get("output", 0)
+                    print(f"\n✓ ({elapsed:.1f}s, {tokens} tokens)", flush=True)
+                else:
+                    print(f"\n✓ ({elapsed:.1f}s)", flush=True)
 
     def run_streaming(self, prompt: str) -> None:
         """Run agent with streaming output (reuses event loop)."""
@@ -224,14 +195,11 @@ class REPL:
 
     def run_sync(self, prompt: str) -> None:
         """Run agent synchronously."""
-        print()
         t0 = time.time()
         result = self.agent.run(prompt)
-        print("=" * 60)
-        print(result)
-        print("=" * 60)
-        print(f"[完成] 耗时: {time.time() - t0:.1f}s")
         print()
+        print(result)
+        print(f"\n✓ ({time.time() - t0:.1f}s)")
 
     def run(self) -> None:
         """Start the REPL loop."""
@@ -242,31 +210,28 @@ class REPL:
             try:
                 line = sys.stdin.readline()
                 if not line:
-                    # EOF (Ctrl+D)
                     break
 
                 prompt = line.strip()
 
                 # Handle commands
                 if prompt.lower() in self.COMMANDS:
-                    if prompt.lower() in ("/exit", "/quit", "/q"):
-                        print("\n再见!")
+                    cmd = prompt.lower()
+                    if cmd in ("/exit", "/quit", "/q"):
                         break
-                    elif prompt.lower() == "/help":
+                    elif cmd == "/help":
                         self.print_help()
                         self.print_prompt()
                         continue
-                    elif prompt.lower() == "/clear":
+                    elif cmd == "/clear":
                         self.clear_screen()
                         self.print_prompt()
                         continue
 
-                # Skip empty input
                 if not prompt:
                     self.print_prompt()
                     continue
 
-                # Run agent
                 try:
                     if self.stream:
                         self.run_streaming(prompt)
@@ -275,19 +240,18 @@ class REPL:
                 except KeyboardInterrupt:
                     print("\n[中断]")
                 except Exception as e:
-                    print(f"\n❌ 错误: {e}")
+                    print(f"\n❌ {e}")
 
                 self.print_prompt()
 
             except KeyboardInterrupt:
-                print("\n\n再见!")
                 break
 
-        # Cleanup event loop
+        # Cleanup
         if self._loop is not None and not self._loop.is_closed():
             self._loop.close()
 
-        print(f"\n[Session log] {self.logger.log_file}")
+        print(f"\n📝 {self.logger.log_file}")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -298,29 +262,22 @@ def main(argv: list[str] | None = None) -> int:
         config.agent_workspace = args.workspace.resolve()
 
     session_id = generate_session_id()
-    print_banner(config, session_id, interactive=args.interactive or sys.stdin.isatty())
+    print_banner(config, session_id, interactive=args.interactive or (args.prompt is None))
 
     if not config.agent_workspace.exists():
         print(f"[WARN] workspace does not exist: {config.agent_workspace}", file=sys.stderr)
 
-    print(f"Using tools: {list(config.allowed_tools)}")
-    print()
-
     logger = SessionLogger(session_id=session_id, log_dir=config.session_log_dir)
     agent = Agent(config=config, logger=logger)
 
-    # REPL mode when: explicitly requested OR no prompt given (regardless of isatty)
-    # This ensures `uv run agent` always enters REPL even in non-TTY environments
+    # REPL mode when no prompt given
     is_interactive = args.interactive or (args.prompt is None)
-    # Streaming is the default; --sync disables it
     use_stream = not args.sync
 
     if is_interactive:
-        # REPL mode
         repl = REPL(agent=agent, logger=logger, stream=use_stream, max_retries=args.max_retries)
         repl.run()
     elif args.prompt is not None:
-        # Single prompt mode
         prompt = args.prompt.strip()
         if not prompt:
             print("[ERROR] empty prompt", file=sys.stderr)
@@ -333,37 +290,20 @@ def main(argv: list[str] | None = None) -> int:
                     if chunk.kind == "text":
                         print(chunk.text, end="", flush=True)
                     elif chunk.kind == "thinking":
-                        print(f"\n[thinking] {chunk.thinking}", flush=True)
-                    elif chunk.kind == "tool_start":
-                        print(chunk.format_tool_start(), flush=True)
-                    elif chunk.kind == "tool_end":
-                        print(chunk.format_tool_end(), flush=True)
+                        print(f"\n🤔 {chunk.thinking[:100]}...", flush=True)
                     elif chunk.kind == "done":
-                        print()
-                        print("=" * 60)
-                        print("✅ AGENT COMPLETED")
-                        print(f"   Duration: {time.time() - t0:.1f}s")
-                        print(f"   Result length: {len(chunk.result)} chars")
-                        if chunk.usage:
-                            print(f"   Tokens: input={chunk.usage.get('input', 'N/A')}, "
-                                  f"output={chunk.usage.get('output', 'N/A')}")
+                        print(f"\n✓ ({time.time() - t0:.1f}s)", flush=True)
                 print()
             asyncio.run(run_stream())
         else:
             t0 = time.time()
             result = agent.run(prompt)
-            print("=" * 60)
             print(result)
-            print("=" * 60)
-            print(f"[Done] elapsed={time.time() - t0:.1f}s")
-
-            # Display tool results from log
-            print("\n" + "="*60)
-            print("📋 TOOL CALLS SUMMARY")
-            print("="*60)
+            print(f"\n✓ ({time.time() - t0:.1f}s)")
+            print()
             display_tool_results_from_log(logger.log_file)
     else:
-        print("Reading prompt from stdin (Ctrl+D to finish):", file=sys.stderr)
+        print("Reading from stdin...", file=sys.stderr)
         prompt = sys.stdin.read().strip()
         if not prompt:
             print("[ERROR] empty prompt", file=sys.stderr)
@@ -371,12 +311,10 @@ def main(argv: list[str] | None = None) -> int:
 
         t0 = time.time()
         result = agent.run(prompt)
-        print("=" * 60)
         print(result)
-        print("=" * 60)
-        print(f"[Done] elapsed={time.time() - t0:.1f}s")
+        print(f"\n✓ ({time.time() - t0:.1f}s)")
 
-    print(f"\n[Session log] {logger.log_file}")
+    print(f"\n📝 {logger.log_file}")
     return 0
 
 
