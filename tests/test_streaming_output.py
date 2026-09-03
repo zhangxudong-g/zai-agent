@@ -225,7 +225,8 @@ def test_main_streaming_mode_renders_thinking(monkeypatch, capsys):
     monkeypatch.setattr(cli, "display_tool_results_from_log", lambda *a, **kw: None)
     monkeypatch.setattr(cli, "generate_session_id", lambda: "TEST")
 
-    cli.main(["--stream", "hi", "--workspace", "/tmp/w"])
+    # Streaming is now the default; no --stream flag needed
+    cli.main(["hi", "--workspace", "/tmp/w"])
     captured = capsys.readouterr().out
 
     assert "reasoning step" in captured, (
@@ -257,16 +258,17 @@ def test_main_streaming_mode_skips_jsonl_summary(monkeypatch):
     monkeypatch.setattr(cli, "display_tool_results_from_log", _spy_display)
     monkeypatch.setattr(cli, "generate_session_id", lambda: "TEST")
 
-    cli.main(["--stream", "hi", "--workspace", "/tmp/w"])
+    # Streaming is now the default; no --stream flag needed
+    cli.main(["hi", "--workspace", "/tmp/w"])
 
     assert called["count"] == 0, (
-        f"--stream mode must skip display_tool_results_from_log; "
+        f"streaming mode must skip display_tool_results_from_log; "
         f"called {called['count']} times"
     )
 
 
 def test_main_non_streaming_mode_still_shows_jsonl_summary(monkeypatch):
-    """Without --stream, the JSONL post-run summary MUST still run
+    """With --sync, the JSONL post-run summary MUST still run
     (it's the only way the user sees tool outcomes)."""
     from strands_poc import main as cli
 
@@ -287,10 +289,10 @@ def test_main_non_streaming_mode_still_shows_jsonl_summary(monkeypatch):
     monkeypatch.setattr(cli, "display_tool_results_from_log", _spy_display)
     monkeypatch.setattr(cli, "generate_session_id", lambda: "TEST")
 
-    cli.main(["hi", "--workspace", "/tmp/w"])
+    cli.main(["--sync", "hi", "--workspace", "/tmp/w"])
 
     assert called["count"] == 1, (
-        f"non-stream mode must call display_tool_results_from_log; "
+        f"sync mode must call display_tool_results_from_log; "
         f"called {called['count']} times"
     )
 

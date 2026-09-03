@@ -51,11 +51,11 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("prompt", type=str, nargs="?", default=None,
                    help="Prompt (optional; reads from stdin if omitted).")
     p.add_argument("-i", "--interactive", action="store_true",
-                   help="Start interactive REPL mode.")
+                   help="Start interactive REPL mode (default when no prompt).")
     p.add_argument("--workspace", type=Path, default=None,
                    help="Workspace directory (defaults to $AGENT_WORKSPACE in .env).")
-    p.add_argument("--stream", action="store_true",
-                   help="Enable streaming output.")
+    p.add_argument("--sync", action="store_true",
+                   help="Disable streaming output (default: streaming enabled).")
     p.add_argument("--max-retries", type=int, default=3,
                    help="Max retry attempts on connection errors (default: 3).")
     p.add_argument("--env-file", type=Path, default=".env",
@@ -299,10 +299,12 @@ def main(argv: list[str] | None = None) -> int:
 
     # Determine if we should run REPL
     is_interactive = args.interactive or (args.prompt is None and sys.stdin.isatty())
+    # Streaming is the default; --sync disables it
+    use_stream = not args.sync
 
     if is_interactive:
         # REPL mode
-        repl = REPL(agent=agent, logger=logger, stream=args.stream, max_retries=args.max_retries)
+        repl = REPL(agent=agent, logger=logger, stream=use_stream, max_retries=args.max_retries)
         repl.run()
     elif args.prompt is not None:
         # Single prompt mode
@@ -311,7 +313,7 @@ def main(argv: list[str] | None = None) -> int:
             print("[ERROR] empty prompt", file=sys.stderr)
             return 2
 
-        if args.stream:
+        if use_stream:
             async def run_stream():
                 t0 = time.time()
                 async for chunk in agent.run_streaming(prompt, max_retries=args.max_retries):

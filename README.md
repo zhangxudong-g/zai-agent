@@ -31,16 +31,15 @@ AGENT_WORKSPACE=./workspace
 # 冒烟测试
 uv run pytest -v
 
-# 单次运行
+# 单次运行（默认流式输出）
 uv run agent "列出当前目录结构"
 
-# 交互式 REPL（连续对话）
-uv run agent --interactive
+# 交互式 REPL（连续对话，默认流式）
+uv run agent
 uv run agent -i
 
-# 流式输出
-uv run agent "分析代码问题" --stream
-uv run agent --stream -i  # 交互模式 + 流式
+# 同步模式（禁用流式）
+uv run agent "列出目录" --sync
 ```
 
 ## 核心功能
@@ -94,10 +93,10 @@ strands-agent/
 
 ### CLI 参数
 
-| 参数 | 默认值 | 说明 |
-|------|--------|------|
-| `--max-retries` | 3 | 连接失败时最大重试次数 |
-| `--stream` | false | 启用流式输出 |
+| 参数 | 说明 |
+|------|------|
+| `--sync` | 禁用流式输出 |
+| `--max-retries` | 连接失败时最大重试次数（默认 3）|
 
 ## 交互模式
 
