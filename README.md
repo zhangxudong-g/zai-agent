@@ -1,147 +1,138 @@
-# Strands Agents SDK + Ollama Qwen3.8 PoC
+# Strands Agents SDK + Ollama
 
-## 概述
+基于 Strands Agents SDK 的 Agent Harness，支持 Ollama 本地模型。
 
-把 `claude-agent-sdk` 迁到 **Strands Agents SDK** 的最小验证项目。Strands 是 AWS 主推的开源 Agent SDK（Apache-2.0），提供 `strands.Agent` 纯 Python in-process API。
+## 快速开始
 
-> 配套设计文档: `../claude-agent/docs/MIGRATION_STRANDS.md`(完整迁移方案)
-> 横向对比: `../claude-agent/docs/MIGRATION_COMPARISON.md`(5 个候选对比)
+### 1. 环境准备
 
-## Strands 的独特卖点
+- Python 3.12+
+- [Ollama](https://ollama.ai/) 运行中（默认 `localhost:11434`）
+- 下载模型：`ollama pull qwen3:7b`
 
-| 维度 | Strands |
-|---|---|
-| **沙箱实施成本** | **最低** —— 一行 `event.cancel_tool = "reason"`，工具本身完全不动 |
-| **运行时** | 纯 Python in-process，无子进程 |
-| **长期维护** | **AWS 主推**，长期稳定 |
-| **TypeScript 同步生态** | ✅ `@strands-agents/sdk`（未来前端/Web 化无缝衔接） |
-| **流式 API** | `agent.stream_async()` 异步生成器，yield `dict` 事件 |
+### 2. 安装
 
-## 两层沙箱设计
-
-PoC 里两个看似重复、其实分工明确的沙箱：
-
-| 层 | 文件 | 职能 | 接入点 |
-|---|---|---|---|
-| **路径层** | `security.py` (`WorkspaceSandboxHook`) | 拒绝 workspace 外路径的工具调用 | `StrandsAgent(hooks=[...])` |
-| **执行层** | `sandbox.py` (`build_sandbox()`) | 代码 / shell / 文件 I/O 的运行时隔离 | `StrandsAgent(sandbox=...)` |
-
-**为什么不是同一个？** SDK 把“拦截坏意图”（路径跳出）和“隔离坏执行”（代码逸出）分开设计：
-
-- `WorkspaceSandboxHook` 在 `BeforeToolCallEvent` 上 veto —— 不能跨出 workspace，但代码本身在主机跑。
-- `Sandbox` 提供 SDK 原生 `Sandbox` 接口（host / posix / docker / ssh）——文件 / shell 在哪个环境跑。
-
-默认配置两层都在：路径层永远生效；执行层由 `EXECUTION_SANDBOX` 控制（`host` = 同主机零隔离，`docker` / `ssh` = 真正隔离）。
-
-要全隔离（生产推荐）：
 ```bash
-EXECUTION_SANDBOX=docker
-SANDBOX_CONTAINER=strands-sandbox
+cd D:/agent_harness_sdk_demo/strands-agent
+uv sync
+cp .env.example .env
 ```
 
-## 与 `claude-agent` 的差异
+编辑 `.env` 配置（如需）：
+```bash
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_MODEL=qwen3:7b
+AGENT_WORKSPACE=./workspace/sample_project
+```
 
-| 维度 | claude-agent | strands-agent (本 PoC) |
-|---|---|---|
-| SDK | `claude-agent-sdk` (子进程 CLI) | `strands-agents` (纯 Python in-process) |
-| 模型协议 | Ollama Anthropic-compat (`/v1/messages`) | `OllamaModel(host=, model_id=)` 走 Ollama 原生 `/api/chat` |
-| 沙箱 | PreToolUse hook 改 `decision: block` | **`BeforeToolCallEvent.cancel_tool = "reason"`**（一行否决） |
-| Hooks | SDK 子进程 4 个回调 | `agent.add_hook(cb, EventType)` 或 `HookProvider` 类 |
-| 流式事件 | 手写 SSE 解析 | `agent.stream_async()` yield `dict`（含 `data` / `current_tool_use` / `result` / `force_stop`） |
-| 流式类型安全 | — | ⚠️ dict（字段名写错运行时才 None） |
+### 3. 运行
+
+```bash
+# 冒烟测试（无需 Ollama）
+uv run pytest -v
+
+# 交互式运行
+uv run python -m strands_poc.main \
+  --workspace ./workspace/sample_project \
+  --prompt "列出项目目录结构"
+
+# 流式输出
+uv run python -m strands_poc.main \
+  --workspace ./workspace/sample_project \
+  --prompt "分析并发问题" \
+  --stream
+```
+
+## 核心功能
+
+### Agent 运行模式
+
+| 模式 | 方法 | 说明 |
+|------|------|------|
+| 同步 | `agent.run()` | 等待完成返回结果 |
+| 异步 | `agent.run_async()` | 异步协程 |
+| 流式 | `agent.run_streaming()` | yield 实时事件 |
+
+### 沙箱安全
+
+两层隔离设计：
+
+| 层 | 实现 | 作用 |
+|----|------|------|
+| 路径层 | `WorkspaceSandboxHook` | 阻止访问 workspace 外的路径 |
+| 执行层 | `Sandbox` (host/docker/ssh) | 运行时进程隔离 |
+
+默认启用路径层，零配置即可防御路径穿越。
+
+### 内置工具
+
+| 工具 | 功能 |
+|------|------|
+| `read` | 读取文件内容 |
+| `glob` | 文件模式匹配 |
+| `grep` | 内容搜索 |
+| `file_tree` | 目录树生成 |
+| `outline` | 代码大纲 |
+| `write` | 写入文件 |
+| `edit` | 编辑文件（diff 模式） |
 
 ## 项目结构
 
 ```
 strands-agent/
-├── pyproject.toml                # strands-agents[ollama]
-├── .env.example                  # 配置模板
-├── README.md                     # 本文件
-│
 ├── src/strands_poc/
-│   ├── __init__.py
-│   ├── config.py                 # env → Config dataclass
-│   ├── llm.py                    # OllamaModel factory
-│   ├── tools.py                  # @tool 装饰器 ReadTool / GlobTool / GrepTool / WriteTool / EditTool
-│   ├── security.py               # WorkspaceSandboxHook (BeforeToolCallEvent.cancel_tool)
-│   ├── trace.py                  # SessionLogger (JSONL 镜像)
-│   ├── stream.py                 # dict event → StreamChunk 翻译
-│   ├── agent.py                  # Agent 类 (run / run_async / run_streaming)
-│   └── main.py                   # argparse CLI
-│
-├── prompts/
-│   ├── init.txt                  # 系统提示 (项目结构分析)
-│   └── qa001_*.txt               # 示例用户任务 (并发编辑分析)
-│
-├── workspace/sample_project/     # 测试样本 (Java 项目，含 QA001 并发 bug)
-├── sessions/                     # JSONL 输出 (gitignored)
-└── tests/
-    └── test_smoke.py             # 冒烟测试 (不依赖 Ollama)
+│   ├── agent.py          # Agent 主类
+│   ├── config.py         # 配置管理
+│   ├── llm.py            # Ollama 模型封装
+│   ├── tools.py          # 工具定义
+│   ├── security.py       # 路径层沙箱
+│   ├── sandbox.py        # 执行层沙箱
+│   ├── stream.py         # 流式事件
+│   └── main.py           # CLI 入口
+├── prompts/              # 任务提示模板
+├── workspace/            # Agent 工作目录
+├── sessions/             # JSONL 会话日志
+└── tests/                # 测试用例
 ```
 
-## 安装
+## 配置说明
+
+| 环境变量 | 默认值 | 说明 |
+|----------|--------|------|
+| `OLLAMA_BASE_URL` | `http://localhost:11434` | Ollama 地址 |
+| `OLLAMA_MODEL` | `qwen3:7b` | 模型名称 |
+| `OLLAMA_AUTH_TOKEN` | `ollama` | 认证令牌 |
+| `AGENT_WORKSPACE` | `./workspace/sample_project` | 工作目录 |
+| `SESSION_LOG_DIR` | `./sessions` | 会话日志目录 |
+| `ALLOWED_TOOLS` | `read,glob,grep,file_tree,outline,write,edit` | 启用的工具 |
+| `EXECUTION_SANDBOX` | `host` | 执行沙箱模式（host/docker/ssh） |
+
+### 生产环境隔离
 
 ```bash
-cd D:\agent_harness_sdk_demo\strands-agent
-uv sync
-cp .env.example .env
-# 编辑 .env 调整 OLLAMA_BASE_URL 等
+# Docker 隔离
+EXECUTION_SANDBOX=docker
+SANDBOX_CONTAINER=strands-sandbox
+
+# SSH 隔离
+EXECUTION_SANDBOX=ssh
+SANDBOX_SSH_HOST=remote-host
+SANDBOX_SSH_USER=admin
 ```
 
-## 运行
+## 常见问题
 
-### 冒烟测试 (不需 Ollama)
+**Q: 工具调用被拦截？**  
+检查 `ALLOWED_TOOLS` 是否包含该工具名称。
 
-```bash
-uv run pytest -v
-```
+**Q: 路径越界错误？**  
+确保操作的文件在 `AGENT_WORKSPACE` 目录内。
 
-### 最小端到端 (需 Ollama 在跑)
-
-```bash
-uv run python -m strands_poc.main \
-  --workspace ./workspace/sample_project \
-  --prompt "请列出项目的目录结构。"
-```
-
-### 流式输出
-
-```bash
-uv run python -m strands_poc.main \
-  --workspace ./workspace/sample_project \
-  --prompt "请分析项目中可能的并发问题。" \
-  --stream
-```
-
-### 验证 JSONL 输出
-
-```bash
-# 用 ../claude-agent 的 validator 校验 (保持 schema 一致)
-uv run --project ../claude-agent python ../claude-agent/src/agent/validate_session.py sessions/<sid>.jsonl
-```
-
-## PoC 验证清单
-
-| # | 验证项 | 命令 | 期望结果 |
-|---|---|---|---|
-| 1 | 依赖装得上 | `uv sync` | 成功 |
-| 2 | SDK 可导入 | `uv run python -c "from strands import Agent; from strands.models.ollama import OllamaModel"` | 不报错 |
-| 3 | Config 加载 | `uv run pytest tests/test_smoke.py::test_config_*` | 绿 |
-| 4 | 沙箱拦截路径外 | `uv run pytest tests/test_smoke.py::test_sandbox_*` | 绿 |
-| 5 | JSONL schema 一致 | `uv run pytest tests/test_smoke.py::test_session_logger_*` | 绿 |
-| 6 | 端到端 (需 Ollama) | 见上方"最小端到端" | 产生 JSONL + final answer |
-
-## 已知限制 (PoC 阶段)
-
-- **未跑真实端到端** —— Ollama 连接未在本机验证
-- **`strands.models.ollama` 可能不存在** —— 早期版本可能在 `strands.models.ollama.OllamaModel` 或 `strands.models.ollama.Ollama`，以 `pip show strands-agents` 后实际目录为准
-- **`BeforeToolCallEvent` 字段名可能漂移** —— 早期文档显示 `tool_use["name"]` / `tool_use["input"]`，实际可能是 `tool_use["name"]` / `tool_use["input"]`，对照源码校对
-- **流式事件是 dict** —— 字段名写错运行时才 None，需手写 stub 或断言
+**Q: Ollama 连接失败？**  
+确认 Ollama 服务运行中：`curl http://localhost:11434/api/tags`
 
 ## 参考
 
-- 迁移方案: `../claude-agent/docs/MIGRATION_STRANDS.md`
-- Strands Agents: https://strandsagents.com/
-- Hooks 文档: https://strandsagents.com/docs/user-guide/concepts/agents/hooks/
-- Ollama 模型: https://strandsagents.com/docs/user-guide/concepts/model-providers/ollama
-- GitHub: https://github.com/strands-agents/sdk-python
+- [Strands Agents SDK](https://strandsagents.com/)
+- [Ollama 模型配置](https://strandsagents.com/docs/user-guide/concepts/model-providers/ollama)
+- [Hooks 系统](https://strandsagents.com/docs/user-guide/concepts/agents/hooks/)
