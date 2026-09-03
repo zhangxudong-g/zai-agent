@@ -49,6 +49,7 @@ _DEFAULT_TOOLS = (
     "grep",
     "file_tree",
     "outline",
+    "shell",
     "write",
     "edit",
 )

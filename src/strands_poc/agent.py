@@ -132,11 +132,13 @@ Available tools:
 - grep: 在文件中搜索内容，支持 context/output_mode 参数
 - file_tree: 获取目录结构（返回 JSON）
 - outline: 提取 Python 文件中的类和函数签名
+- shell: 执行 shell 命令（git, ls, find, grep, cat, tree 等）
 - write: 写入文件
 - edit: 编辑文件（diff 模式）
 
 Guidelines:
-- 使用合适的工具完成任务
+- 优先使用 read/glob/grep 等工具探索代码
+- 使用 shell 执行 git log、ls 等命令查看项目状态
 - 写文件时使用 no_disturb=True 避免干扰现有代码
 - 返回清晰、结构化的回答
 - 如遇错误，提供有用的诊断信息

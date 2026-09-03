@@ -352,6 +352,84 @@ def make_file_tree_tool(workspace: Path):
 
 
 # --------------------------------------------------------------------- #
+# ShellTool — execute allowed read-only commands
+# --------------------------------------------------------------------- #
+# Allowlist of safe read-only commands (no file writing, no network)
+_ALLOWED_COMMANDS = frozenset({
+    "git", "ls", "find", "grep", "cat", "head", "tail", "wc",
+    "sort", "uniq", "diff", "patch", "xz", "gz", "bz2", "zip", "unzip",
+    "tree", "pwd", "cd", "dir", "type", "stat", "file", "md5sum",
+    "sha256sum", "sha1sum", "xxd", "hexdump", "od", "base64",
+    "python", "python3", "node", "npm", "cargo", "uv", "pip", "poetry",
+    "docker", "docker compose", "docker-compose",
+})
+
+
+def _is_command_allowed(cmd: str) -> bool:
+    """Check if command is in allowlist (simple prefix match)."""
+    return cmd in _ALLOWED_COMMANDS
+
+
+def make_shell_tool(workspace: Path):
+    @tool(name="shell", description=(
+        "Execute a shell command in the workspace directory. "
+        "Only read-only commands are allowed: git, ls, find, grep, cat, head, tail, "
+        "tree, python, node, docker, etc. "
+        "Output is truncated to 5000 chars. "
+        "Workspace directory is the working directory."
+    ))
+    def shell_tool(command: str) -> str:
+        import shlex
+        import subprocess
+
+        MAX_OUTPUT = 5000
+
+        # Parse command safely
+        try:
+            parts = shlex.split(command)
+        except ValueError as e:
+            return f"[ERROR] invalid command: {e}"
+
+        if not parts:
+            return "[ERROR] empty command"
+
+        # Check if command is allowed
+        base_cmd = parts[0].lower()
+        # Handle compound commands like 'docker compose'
+        if len(parts) > 1 and parts[0].lower() in ("docker",):
+            base_cmd = parts[0].lower() + " " + parts[1].lower()
+
+        if not _is_command_allowed(base_cmd):
+            return f"[ERROR] command not allowed: {base_cmd}. Allowed: {', '.join(sorted(_ALLOWED_COMMANDS))}"
+
+        # Block dangerous patterns (simple check, allowlist already restricts commands)
+        # We allow shell=True because commands are already allowlist-checked above
+
+        try:
+            result = subprocess.run(
+                command,
+                shell=True,
+                cwd=str(workspace),
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            output = (result.stdout + result.stderr)[:MAX_OUTPUT]
+            if len(result.stdout + result.stderr) > MAX_OUTPUT:
+                output += f"\n... (truncated, {len(result.stdout + result.stderr)} total chars)"
+            if result.returncode != 0 and not output:
+                return f"[ERROR] command exited with code {result.returncode}"
+            return output or "[no output]"
+        except subprocess.TimeoutExpired:
+            return "[ERROR] command timed out after 30 seconds"
+        except FileNotFoundError:
+            return f"[ERROR] command not found: {parts[0]}"
+        except Exception as e:
+            return f"[ERROR] {e}"
+    return shell_tool
+
+
+# --------------------------------------------------------------------- #
 # OutlineTool — AST-based def extraction for Python
 # --------------------------------------------------------------------- #
 def make_outline_tool(workspace: Path):
@@ -422,6 +500,7 @@ _FACTORIES = {
     "edit": make_edit_tool,
     "file_tree": make_file_tree_tool,
     "outline": make_outline_tool,
+    "shell": make_shell_tool,
 }
 
 

@@ -63,7 +63,7 @@ def test_config_defaults(tmp_path: Path, monkeypatch) -> None:
     assert cfg.ollama_base_url == "http://localhost:11434"
     assert cfg.ollama_model == "qwen3:7b"
     assert cfg.allowed_tools == [
-        "read", "glob", "grep", "file_tree", "outline", "write", "edit",
+        "read", "glob", "grep", "file_tree", "outline", "shell", "write", "edit",
     ]
 
 
