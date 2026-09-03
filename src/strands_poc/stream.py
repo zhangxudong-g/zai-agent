@@ -18,6 +18,7 @@ Strands dict event shapes (per docs):
 from __future__ import annotations
 
 import asyncio
+import json
 from dataclasses import dataclass
 from typing import Any
 
@@ -173,12 +174,20 @@ class StreamConsumer:
             tool_use_id = str(ctu.get("toolUseId") or ctu.get("id") or "")
             name = str(ctu.get("name") or "")
             raw_input = ctu.get("input")
-            # Strands emits input as a string (accumulated via deltas), not a dict
-            # Wrap string input in a dict for display
-            if isinstance(raw_input, str):
+            # Strands accumulates tool input as a JSON string (e.g., '{"max_depth": 3}')
+            # Parse it to extract arguments for display
+            try:
+                if isinstance(raw_input, str) and raw_input.strip():
+                    input_args = json.loads(raw_input)
+                    if not isinstance(input_args, dict):
+                        input_args = {"value": input_args}
+                elif isinstance(raw_input, dict):
+                    input_args = raw_input
+                else:
+                    input_args = {}
+            except (json.JSONDecodeError, TypeError):
+                # Not JSON - treat as a command string (e.g., shell tool)
                 input_args = {"command": raw_input} if raw_input else {}
-            else:
-                input_args = raw_input if isinstance(raw_input, dict) else {}
 
             if name and tool_use_id not in self._pending_tools:
                 # First time seeing this tool → emit tool_start
@@ -192,11 +201,6 @@ class StreamConsumer:
             elif tool_use_id in self._pending_tools:
                 # Subsequent update → emit tool_input (incremental args)
                 self._pending_tools[tool_use_id]["input"] = raw_input
-                # Update display args
-                if isinstance(raw_input, str):
-                    input_args = {"command": raw_input} if raw_input else {}
-                else:
-                    input_args = raw_input if isinstance(raw_input, dict) else {}
                 out.append(StreamChunk(
                     kind="tool_input",
                     tool_name=self._pending_tools[tool_use_id]["name"],
