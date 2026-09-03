@@ -1,14 +1,8 @@
-"""Strands PoC — CLI entry point.
+"""Strands Agent — CLI entry point.
 
-Mirrors ``claude-agent/src/agent/main.py`` at a minimal level:
-
-    uv run python -m strands_poc.main \
-        --workspace ./workspace/sample_project \
-        --prompt "请列出项目结构。" \
-        --stream
-
-Only the surface needed for the PoC smoke run is implemented. Production
-migration will reuse the full ``main.py`` from ``claude-agent``.
+Usage:
+    uv run agent "你的问题"
+    uv run agent "分析并发问题" --stream
 """
 
 from __future__ import annotations
@@ -39,29 +33,24 @@ def generate_session_id() -> str:
 
 def print_banner(config, session_id: str) -> None:
     print("=" * 60)
-    print("Strands Agents SDK + Ollama Qwen3.8 PoC")
+    print("Strands Agent + Ollama")
     print("=" * 60)
-    print(f"Model:      {config.ollama_model}")
-    print(f"Base URL:   {config.ollama_base_url}")
-    print(f"Workspace:  {config.agent_workspace}")
-    print(f"Session ID: {session_id}")
-    print(f"Log file:   {config.session_log_dir / (session_id + '.jsonl')}")
+    print(f"Model:     {config.ollama_model}")
+    print(f"URL:       {config.ollama_base_url}")
+    print(f"Workspace: {config.agent_workspace}")
+    print(f"Session:   {session_id}")
+    print(f"Log:       {config.session_log_dir / (session_id + '.jsonl')}")
     print("=" * 60)
 
 
 def build_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(description="Strands PoC agent harness")
+    p = argparse.ArgumentParser(description="Strands Agent CLI")
     p.add_argument("prompt", type=str, nargs="?", default=None,
                    help="Prompt (optional; reads from stdin if omitted).")
     p.add_argument("--workspace", type=Path, default=None,
                    help="Workspace directory (defaults to $AGENT_WORKSPACE in .env).")
     p.add_argument("--stream", action="store_true",
                    help="Enable streaming output.")
-    p.add_argument("--show-tools", action="store_true", default=True,
-                   help="Show detailed tool calls and results.")
-    p.add_argument("--mode", type=str, default="qa_fault",
-                   choices=["analysis", "qa_fault"],
-                   help="Agent mode: qa_fault (5-stage analysis) or analysis (4-stage read-only).")
     p.add_argument("--env-file", type=Path, default=".env",
                    help="Path to .env file (default: .env).")
 
@@ -184,8 +173,8 @@ def main(argv: list[str] | None = None) -> int:
 
     logger = SessionLogger(session_id=session_id, log_dir=config.session_log_dir)
 
-    # Create agent with appropriate tool configuration
-    agent = Agent(config=config, logger=logger, mode=args.mode)
+    # Create agent
+    agent = Agent(config=config, logger=logger)
 
     if args.stream:
         async def run_stream():
@@ -245,11 +234,10 @@ def main(argv: list[str] | None = None) -> int:
         print(f"[Done] elapsed={time.time() - t0:.1f}s")
 
         # Display tool results from log
-        if args.show_tools:
-            print("\n" + "="*60)
-            print("📋 TOOL CALLS SUMMARY")
-            print("="*60)
-            display_tool_results_from_log(logger.log_file)
+        print("\n" + "="*60)
+        print("📋 TOOL CALLS SUMMARY")
+        print("="*60)
+        display_tool_results_from_log(logger.log_file)
 
     print(f"\n[Session log] {logger.log_file}")
     return 0

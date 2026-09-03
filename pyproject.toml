@@ -1,7 +1,7 @@
 [project]
 name = "strands-agent"
 version = "0.1.0"
-description = "Strands Agents SDK + Ollama Qwen3.8 Agent Harness (PoC)"
+description = "Strands Agent + Ollama: General-purpose coding agent"
 requires-python = ">=3.12"
 dependencies = [
     "strands-agents[ollama]>=1.0.0",

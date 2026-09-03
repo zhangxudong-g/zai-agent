@@ -1,6 +1,6 @@
-# Strands Agents SDK + Ollama
+# Strands Agent + Ollama
 
-基于 Strands Agents SDK 的 Agent Harness，支持 Ollama 本地模型。
+通用代码助手，基于 Strands Agents SDK + Ollama 本地模型。
 
 ## 快速开始
 
@@ -18,57 +18,29 @@ uv sync
 cp .env.example .env
 ```
 
-编辑 `.env` 配置（如需）：
+编辑 `.env`（如需）：
 ```bash
 OLLAMA_BASE_URL=http://localhost:11434
 OLLAMA_MODEL=qwen3:7b
-AGENT_WORKSPACE=./workspace/sample_project
+AGENT_WORKSPACE=./workspace
 ```
 
 ### 3. 运行
 
 ```bash
-# 冒烟测试（无需 Ollama）
+# 冒烟测试
 uv run pytest -v
 
-# 交互式运行（prompt 为位置参数）
-uv run agent "列出项目目录结构"
-
-# 指定 workspace
-uv run agent "分析并发问题" --workspace ./workspace/sample_project
+# 运行 agent
+uv run agent "列出当前目录结构"
 
 # 流式输出
-uv run agent "分析并发问题" --stream
+uv run agent "分析代码问题" --stream
 ```
-
-**命令简化说明：**
-| 旧命令 | 新命令 |
-|--------|--------|
-| `uv run python -m strands_poc.main --workspace ./x --prompt "..."` | `uv run agent "..." --workspace ./x` |
-| 必须指定 `--workspace` | 默认使用 `.env` 中的 `AGENT_WORKSPACE` |
-| 必须使用 `--prompt` | 直接作为位置参数 |
 
 ## 核心功能
 
-### Agent 运行模式
-
-| 模式 | 说明 |
-|------|------|
-| `qa_fault` | 5 阶段故障分析（含 HTML 输出），默认 |
-| `analysis` | 4 阶段代码分析（只读） |
-
-### 沙箱安全
-
-两层隔离设计：
-
-| 层 | 实现 | 作用 |
-|----|------|------|
-| 路径层 | `WorkspaceSandboxHook` | 阻止访问 workspace 外的路径 |
-| 执行层 | `Sandbox` (host/docker/ssh) | 运行时进程隔离 |
-
-默认启用路径层，零配置即可防御路径穿越。
-
-### 内置工具
+### 工具集
 
 | 工具 | 功能 |
 |------|------|
@@ -78,25 +50,31 @@ uv run agent "分析并发问题" --stream
 | `file_tree` | 目录树生成 |
 | `outline` | 代码大纲 |
 | `write` | 写入文件 |
-| `edit` | 编辑文件（diff 模式） |
+| `edit` | 编辑文件 |
+
+### 沙箱安全
+
+| 层 | 实现 |
+|----|------|
+| 路径层 | `WorkspaceSandboxHook` — 阻止访问 workspace 外路径 |
+| 执行层 | `Sandbox` (host/docker/ssh) — 运行时进程隔离 |
 
 ## 项目结构
 
 ```
 strands-agent/
 ├── src/strands_poc/
-│   ├── agent.py          # Agent 主类
-│   ├── config.py         # 配置管理
-│   ├── llm.py            # Ollama 模型封装
-│   ├── tools.py          # 工具定义
-│   ├── security.py       # 路径层沙箱
-│   ├── sandbox.py        # 执行层沙箱
-│   ├── stream.py         # 流式事件
-│   └── main.py           # CLI 入口
-├── prompts/              # 任务提示模板
-├── workspace/            # Agent 工作目录
-├── sessions/             # JSONL 会话日志
-└── tests/                # 测试用例
+│   ├── agent.py      # Agent 主类
+│   ├── config.py     # 配置管理
+│   ├── llm.py        # Ollama 模型封装
+│   ├── tools.py      # 工具定义
+│   ├── security.py   # 路径层沙箱
+│   ├── sandbox.py    # 执行层沙箱
+│   ├── stream.py     # 流式事件
+│   └── main.py       # CLI 入口
+├── workspace/        # Agent 工作目录
+├── sessions/         # JSONL 会话日志
+└── tests/            # 测试用例
 ```
 
 ## 配置说明
@@ -105,38 +83,22 @@ strands-agent/
 |----------|--------|------|
 | `OLLAMA_BASE_URL` | `http://localhost:11434` | Ollama 地址 |
 | `OLLAMA_MODEL` | `qwen3:7b` | 模型名称 |
-| `OLLAMA_AUTH_TOKEN` | `ollama` | 认证令牌 |
-| `AGENT_WORKSPACE` | `./workspace/sample_project` | 工作目录 |
-| `SESSION_LOG_DIR` | `./sessions` | 会话日志目录 |
+| `AGENT_WORKSPACE` | `./workspace` | 工作目录 |
+| `SESSION_LOG_DIR` | `./sessions` | 会话日志 |
 | `ALLOWED_TOOLS` | `read,glob,grep,file_tree,outline,write,edit` | 启用的工具 |
-| `EXECUTION_SANDBOX` | `host` | 执行沙箱模式（host/docker/ssh） |
-
-### 生产环境隔离
-
-```bash
-# Docker 隔离
-EXECUTION_SANDBOX=docker
-SANDBOX_CONTAINER=strands-sandbox
-
-# SSH 隔离
-EXECUTION_SANDBOX=ssh
-SANDBOX_SSH_HOST=remote-host
-SANDBOX_SSH_USER=admin
-```
 
 ## 常见问题
 
 **Q: 工具调用被拦截？**  
-检查 `ALLOWED_TOOLS` 是否包含该工具名称。
+检查 `ALLOWED_TOOLS` 是否包含该工具。
 
 **Q: 路径越界错误？**  
 确保操作的文件在 `AGENT_WORKSPACE` 目录内。
 
 **Q: Ollama 连接失败？**  
-确认 Ollama 服务运行中：`curl http://localhost:11434/api/tags`
+确认 Ollama 运行中：`curl http://localhost:11434/api/tags`
 
 ## 参考
 
 - [Strands Agents SDK](https://strandsagents.com/)
 - [Ollama 模型配置](https://strandsagents.com/docs/user-guide/concepts/model-providers/ollama)
-- [Hooks 系统](https://strandsagents.com/docs/user-guide/concepts/agents/hooks/)

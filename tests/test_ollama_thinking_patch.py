@@ -472,7 +472,7 @@ async def test_unreachable_agent_returns_clean_assistant_message(monkeypatch):
         session_log_dir=Path(ROOT / "sessions").resolve(),
     )
     logger = SessionLogger(session_id="unreach-test", log_dir=cfg.session_log_dir)
-    a = agent_mod.Agent(config=cfg, logger=logger, mode="qa_fault")
+    a = agent_mod.Agent(config=cfg, logger=logger)
 
     final_text = await a.run_async("hello")
     # No exception must leak — the unreachable Ollama is reported as a
