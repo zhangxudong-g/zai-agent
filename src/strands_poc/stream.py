@@ -37,43 +37,18 @@ class StreamChunk:
     stop_reason: str | None = None
     usage: dict | None = None
 
-    def format_tool_start(self) -> str:
-        """Format tool call start details for display."""
-        lines = []
-        lines.append(f"\n{'='*60}")
-        lines.append(f"🔧 TOOL CALL START: {self.tool_name}")
-        lines.append(f"{'='*60}")
-        if self.tool_use_id:
-            lines.append(f"   ID: {self.tool_use_id}")
+    def format_tool_call(self) -> str:
+        """Format tool call with args for display."""
+        args_str = ""
         if self.input_args:
-            lines.append("   Arguments:")
+            args_list = []
             for k, v in self.input_args.items():
                 v_str = str(v)
-                if len(v_str) > 300:
-                    v_str = v_str[:300] + "..."
-                lines.append(f"     {k}: {v_str}")
-        return "\n".join(lines)
-
-    def format_tool_end(self) -> str:
-        """Format tool call end details for display."""
-        lines = []
-        lines.append(f"\n{'='*60}")
-        lines.append(f"✅ TOOL CALL END: {self.tool_name}")
-        lines.append(f"{'='*60}")
-        if self.tool_use_id:
-            lines.append(f"   ID: {self.tool_use_id}")
-        if self.is_error:
-            lines.append(f"   ❌ ERROR: {self.result[:500]}")
-        elif self.result:
-            result_lines = self.result.split("\n")
-            lines.append(f"   Result ({len(result_lines)} chars, {len(result_lines)} lines):")
-            for line in result_lines[:50]:  # Show first 50 lines
-                if len(line) > 150:
-                    line = line[:150] + "..."
-                lines.append(f"     {line}")
-            if len(result_lines) > 50:
-                lines.append(f"     ... ({len(result_lines)} total lines)")
-        return "\n".join(lines)
+                if len(v_str) > 80:
+                    v_str = v_str[:80] + "..."
+                args_list.append(f"{k}={v_str!r}")
+            args_str = "(" + ", ".join(args_list) + ")"
+        return f"\n{self.tool_name}{args_str}"
 
 
 class ToolResultCollector:

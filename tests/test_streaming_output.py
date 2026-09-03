@@ -186,22 +186,6 @@ def _make_argv(**overrides):
     return SimpleNamespace(**defaults)
 
 
-def test_format_tool_end_includes_result_preview():
-    """format_tool_end must show the result so the user sees tool outcomes."""
-    chunk = StreamChunk(
-        kind="tool_end",
-        tool_name="read",
-        tool_use_id="t1",
-        result="line 1\nline 2\nline 3",
-        is_error=False,
-    )
-    formatted = chunk.format_tool_end()
-    assert "TOOL CALL END" in formatted
-    assert "read" in formatted
-    assert "line 1" in formatted
-    assert "line 3" in formatted
-
-
 def test_main_streaming_mode_renders_thinking(monkeypatch, capsys):
     """When the agent emits a 'thinking' chunk, main.py must print it
     (not silently drop it)."""
