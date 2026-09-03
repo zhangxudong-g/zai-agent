@@ -179,8 +179,30 @@ Guidelines:
     def run(self, prompt: str) -> str:
         return asyncio.run(self.run_async(prompt))
 
-    async def run_async(self, prompt: str) -> str:
-        """Run the agent synchronously and return final text."""
+    def _is_connection_error(self, exc: Exception) -> bool:
+        """Check if exception is a connection error that should trigger retry."""
+        error_msg = str(exc).lower()
+        return any(
+            keyword in error_msg
+            for keyword in [
+                "connect",
+                "connection",
+                "timeout",
+                "cannot reach",
+                "getaddrinfo",
+                "network",
+                "refused",
+                "unreachable",
+            ]
+        )
+
+    async def run_async(self, prompt: str, max_retries: int = 3) -> str:
+        """Run the agent synchronously and return final text.
+
+        Args:
+            prompt: User prompt
+            max_retries: Max retry attempts on connection errors (default: 3)
+        """
         self.logger.session_start()
         self.logger.user_prompt(prompt)
         self.logger.agent_start(prompt)
@@ -190,39 +212,59 @@ Guidelines:
         stop_reason = "end_turn"
         tokens: dict | None = None
         num_turns = 0
+        last_error: Exception | None = None
 
-        try:
-            if hasattr(self._inner, "invoke_async"):
-                result = await self._inner.invoke_async(prompt)
-            else:
-                result = await asyncio.to_thread(self._inner, prompt)
-            if isinstance(result, str):
-                final_text = result
-            else:
-                final_text = str(getattr(result, "message", None) or result or "")
-                metrics = getattr(result, "metrics", None)
-                if metrics is not None:
-                    inp = getattr(metrics, "input_tokens", 0) or 0
-                    out_t = getattr(metrics, "output_tokens", 0) or 0
-                    tokens = {"input": inp, "output": out_t, "total": inp + out_t}
-                stop_reason = str(
-                    getattr(result, "stop_reason", "end_turn") or "end_turn"
-                )
-                is_error = stop_reason == "error"
-        except Exception as e:
-            is_error = True
-            stop_reason = "exception"
-            self.logger.log_error(error=str(e), context={"phase": "agent_run"})
-            raise
-        finally:
-            self._finalize(
-                start_ms, final_text, tokens, num_turns, is_error, stop_reason
-            )
+        for attempt in range(max_retries):
+            try:
+                if hasattr(self._inner, "invoke_async"):
+                    result = await self._inner.invoke_async(prompt)
+                else:
+                    result = await asyncio.to_thread(self._inner, prompt)
+                if isinstance(result, str):
+                    final_text = result
+                else:
+                    final_text = str(getattr(result, "message", None) or result or "")
+                    metrics = getattr(result, "metrics", None)
+                    if metrics is not None:
+                        inp = getattr(metrics, "input_tokens", 0) or 0
+                        out_t = getattr(metrics, "output_tokens", 0) or 0
+                        tokens = {"input": inp, "output": out_t, "total": inp + out_t}
+                    stop_reason = str(
+                        getattr(result, "stop_reason", "end_turn") or "end_turn"
+                    )
+                    is_error = stop_reason == "error"
+                last_error = None
+                break
+            except Exception as e:
+                last_error = e
+                if self._is_connection_error(e) and attempt < max_retries - 1:
+                    wait_time = 2 ** attempt  # 1s, 2s, 4s
+                    print(f"[Retry {attempt + 1}/{max_retries}] Connection error: {e}")
+                    print(f"  Waiting {wait_time}s before retry...")
+                    await asyncio.sleep(wait_time)
+                    continue
+                is_error = True
+                stop_reason = "exception"
+                self.logger.log_error(error=str(e), context={"phase": "agent_run", "attempt": attempt + 1})
+                raise
+        else:
+            # All retries exhausted
+            if last_error:
+                raise last_error
+
+        self._finalize(
+            start_ms, final_text, tokens, num_turns, is_error, stop_reason
+        )
 
         return final_text or ""
 
-    async def run_streaming(self, prompt: str) -> AsyncIterator[StreamChunk]:
-        """Run the agent and yield ``StreamChunk`` events in real time."""
+    async def run_streaming(self, prompt: str, max_retries: int = 3) -> AsyncIterator[StreamChunk]:
+        """Run the agent and yield ``StreamChunk`` events in real time.
+
+        Args:
+            prompt: User prompt
+            max_retries: Max retry attempts on connection errors (default: 3)
+        """
         self.logger.session_start()
         self.logger.user_prompt(prompt)
         self.logger.agent_start(prompt)
@@ -233,11 +275,29 @@ Guidelines:
         stop_reason = "end_turn"
         tokens: dict | None = None
         num_turns = 0
+        last_error: Exception | None = None
 
-        try:
-            iter_events = self._inner.stream_async(prompt)
-        except (TypeError, AttributeError):
-            iter_events = None
+        for attempt in range(max_retries):
+            try:
+                iter_events = self._inner.stream_async(prompt)
+                last_error = None
+                break
+            except Exception as e:
+                last_error = e
+                if self._is_connection_error(e) and attempt < max_retries - 1:
+                    wait_time = 2 ** attempt
+                    print(f"[Retry {attempt + 1}/{max_retries}] Connection error: {e}")
+                    print(f"  Waiting {wait_time}s before retry...")
+                    await asyncio.sleep(wait_time)
+                    continue
+                # Non-connection error or retries exhausted
+                is_error = True
+                stop_reason = "exception"
+                self.logger.log_error(error=str(e), context={"phase": "agent_streaming", "attempt": attempt + 1})
+                raise
+        else:
+            if last_error:
+                raise last_error
 
         try:
             if iter_events is not None:

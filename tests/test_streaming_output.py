@@ -211,7 +211,7 @@ def test_main_streaming_mode_renders_thinking(monkeypatch, capsys):
     class _FakeAgent:
         def __init__(self, *a, **kw): pass
 
-        async def run_streaming(self, prompt):
+        async def run_streaming(self, prompt, max_retries=3):
             for c in [
                 StreamChunk(kind="thinking", thinking="reasoning step"),
                 StreamChunk(kind="text", text="answer"),
@@ -247,7 +247,7 @@ def test_main_streaming_mode_skips_jsonl_summary(monkeypatch):
     class _FakeAgent:
         def __init__(self, *a, **kw): pass
 
-        async def run_streaming(self, prompt):
+        async def run_streaming(self, prompt, max_retries=3):
             yield StreamChunk(kind="text", text="hi")
             yield StreamChunk(kind="done", result="hi")
 

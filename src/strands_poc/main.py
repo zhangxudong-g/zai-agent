@@ -51,6 +51,8 @@ def build_parser() -> argparse.ArgumentParser:
                    help="Workspace directory (defaults to $AGENT_WORKSPACE in .env).")
     p.add_argument("--stream", action="store_true",
                    help="Enable streaming output.")
+    p.add_argument("--max-retries", type=int, default=3,
+                   help="Max retry attempts on connection errors (default: 3).")
     p.add_argument("--env-file", type=Path, default=".env",
                    help="Path to .env file (default: .env).")
 
@@ -179,7 +181,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.stream:
         async def run_stream():
             t0 = time.time()
-            async for chunk in agent.run_streaming(prompt):
+            async for chunk in agent.run_streaming(prompt, max_retries=args.max_retries):
                 if chunk.kind == "text":
                     print(chunk.text, end="", flush=True)
                 elif chunk.kind == "thinking":

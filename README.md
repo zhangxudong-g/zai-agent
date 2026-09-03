@@ -87,6 +87,13 @@ strands-agent/
 | `SESSION_LOG_DIR` | `./sessions` | 会话日志 |
 | `ALLOWED_TOOLS` | `read,glob,grep,file_tree,outline,write,edit` | 启用的工具 |
 
+### CLI 参数
+
+| 参数 | 默认值 | 说明 |
+|------|--------|------|
+| `--max-retries` | 3 | 连接失败时最大重试次数 |
+| `--stream` | false | 启用流式输出 |
+
 ## 常见问题
 
 **Q: 工具调用被拦截？**  
