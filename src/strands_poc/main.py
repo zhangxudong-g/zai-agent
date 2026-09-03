@@ -1,8 +1,9 @@
 """Strands Agent — CLI entry point.
 
 Usage:
-    uv run agent "你的问题"
-    uv run agent "分析并发问题" --stream
+    uv run agent "你的问题"                    # 单次运行
+    uv run agent --interactive               # 交互式 REPL
+    uv run agent -i "你的问题" --stream      # 带初始 prompt 的交互模式
 """
 
 from __future__ import annotations
@@ -26,12 +27,12 @@ from .trace import SessionLogger
 
 
 def generate_session_id() -> str:
-    """Generate a ``YYYYMMDD_HHMMSS_XXXX`` session id (same as claude-agent)."""
+    """Generate a ``YYYYMMDD_HHMMSS_XXXX`` session id."""
     now = datetime.now(UTC)
     return f"{now.strftime('%Y%m%d_%H%M%S')}_{now.strftime('%f')[-4:]}"
 
 
-def print_banner(config, session_id: str) -> None:
+def print_banner(config, session_id: str, interactive: bool = False) -> None:
     print("=" * 60)
     print("Strands Agent + Ollama")
     print("=" * 60)
@@ -40,6 +41,8 @@ def print_banner(config, session_id: str) -> None:
     print(f"Workspace: {config.agent_workspace}")
     print(f"Session:   {session_id}")
     print(f"Log:       {config.session_log_dir / (session_id + '.jsonl')}")
+    if interactive:
+        print("Mode:      Interactive (REPL)")
     print("=" * 60)
 
 
@@ -47,6 +50,8 @@ def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description="Strands Agent CLI")
     p.add_argument("prompt", type=str, nargs="?", default=None,
                    help="Prompt (optional; reads from stdin if omitted).")
+    p.add_argument("-i", "--interactive", action="store_true",
+                   help="Start interactive REPL mode.")
     p.add_argument("--workspace", type=Path, default=None,
                    help="Workspace directory (defaults to $AGENT_WORKSPACE in .env).")
     p.add_argument("--stream", action="store_true",
@@ -73,13 +78,7 @@ def parse_result_content(result_str: str) -> tuple[str, bool]:
 
 
 def display_tool_results_from_log(log_file: Path) -> None:
-    """Read and display tool results from JSONL log file.
-
-    Only used in the non-streaming CLI branch. The streaming branch
-    renders tool results inline via ``JsonlTraceHook`` →
-    ``StreamConsumer`` → ``run_streaming`` drain, so re-printing from
-    the JSONL would duplicate the entire tool trace.
-    """
+    """Read and display tool results from JSONL log file."""
     if not log_file.exists():
         return
 
@@ -105,7 +104,6 @@ def display_tool_results_from_log(log_file: Path) -> None:
                     result_str = record.get("result", "")
                     result_content, is_error = parse_result_content(result_str)
 
-                    # Find matching tool call
                     for tc in tool_calls:
                         if tc["tool_call_id"] == tool_call_id and tc["result"] is None:
                             tc["result"] = result_content
@@ -115,7 +113,6 @@ def display_tool_results_from_log(log_file: Path) -> None:
             except (json.JSONDecodeError, KeyError):
                 continue
 
-    # Display tool results
     for tc in tool_calls:
         print(f"\n{'='*60}")
         print(f"🔧 TOOL: {tc['tool_name']}")
@@ -147,6 +144,140 @@ def display_tool_results_from_log(log_file: Path) -> None:
         print(f"   End: {tc['result_time']}")
 
 
+class REPL:
+    """Interactive REPL for continuous agent conversations."""
+
+    COMMANDS = {
+        "/exit": "退出",
+        "/quit": "退出",
+        "/q": "退出",
+        "/help": "显示帮助",
+        "/clear": "清屏",
+    }
+
+    def __init__(self, agent: Agent, logger: SessionLogger, stream: bool = False, max_retries: int = 3):
+        self.agent = agent
+        self.logger = logger
+        self.stream = stream
+        self.max_retries = max_retries
+        self.message_count = 0
+
+    def print_welcome(self) -> None:
+        print("\n" + "=" * 60)
+        print("Strands Agent REPL - 连续对话模式")
+        print("=" * 60)
+        print("命令:")
+        print("  /exit, /quit, /q  - 退出")
+        print("  /help              - 显示帮助")
+        print("  /clear             - 清屏")
+        print("=" * 60)
+        print()
+
+    def print_help(self) -> None:
+        print("\n" + "=" * 60)
+        print("Strands Agent REPL 帮助")
+        print("=" * 60)
+        print("- 直接输入问题，与 Agent 连续对话")
+        print("- Agent 会记住当前会话的上下文")
+        print("- 使用 /exit 或 Ctrl+C 退出")
+        print("- 使用 /clear 清屏")
+        print("=" * 60)
+        print()
+
+    def clear_screen(self) -> None:
+        print("\033[2J\033[H", end="")  # ANSI clear screen
+        sys.stdout.flush()
+
+    def print_prompt(self) -> None:
+        self.message_count += 1
+        print(f"\n[{self.message_count}] 你: ", end="", flush=True)
+
+    async def run_streaming(self, prompt: str) -> None:
+        """Run agent with streaming output."""
+        print()
+        t0 = time.time()
+        async for chunk in self.agent.run_streaming(prompt, max_retries=self.max_retries):
+            if chunk.kind == "text":
+                print(chunk.text, end="", flush=True)
+            elif chunk.kind == "thinking":
+                print(f"\n[thinking] {chunk.thinking}", flush=True)
+            elif chunk.kind == "tool_start":
+                print(chunk.format_tool_start(), flush=True)
+            elif chunk.kind == "tool_end":
+                print(chunk.format_tool_end(), flush=True)
+            elif chunk.kind == "done":
+                print()
+                print("=" * 60)
+                print(f"✅ 完成 ({time.time() - t0:.1f}s)")
+                if chunk.usage:
+                    print(f"   Tokens: input={chunk.usage.get('input', 'N/A')}, "
+                          f"output={chunk.usage.get('output', 'N/A')}")
+        print()
+
+    def run_sync(self, prompt: str) -> None:
+        """Run agent synchronously."""
+        print()
+        t0 = time.time()
+        result = self.agent.run(prompt)
+        print("=" * 60)
+        print(result)
+        print("=" * 60)
+        print(f"[完成] 耗时: {time.time() - t0:.1f}s")
+        print()
+
+    def run(self) -> None:
+        """Start the REPL loop."""
+        self.print_welcome()
+        self.print_prompt()
+
+        while True:
+            try:
+                line = sys.stdin.readline()
+                if not line:
+                    # EOF (Ctrl+D)
+                    break
+
+                prompt = line.strip()
+
+                # Handle commands
+                if prompt.lower() in self.COMMANDS:
+                    if prompt.lower() in ("/exit", "/quit", "/q"):
+                        print("\n再见!")
+                        break
+                    elif prompt.lower() == "/help":
+                        self.print_help()
+                        self.print_prompt()
+                        continue
+                    elif prompt.lower() == "/clear":
+                        self.clear_screen()
+                        self.print_prompt()
+                        continue
+
+                # Skip empty input
+                if not prompt:
+                    self.print_prompt()
+                    continue
+
+                # Run agent
+                try:
+                    if self.stream:
+                        asyncio.run(self.run_streaming(prompt))
+                    else:
+                        self.run_sync(prompt)
+                except KeyboardInterrupt:
+                    print("\n[中断]")
+                except Exception as e:
+                    print(f"\n❌ 错误: {e}")
+
+                self.print_prompt()
+
+            except KeyboardInterrupt:
+                print("\n\n再见!")
+                break
+
+        print(f"\n[Session log] {self.logger.log_file}")
+
+
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
 
@@ -154,92 +285,81 @@ def main(argv: list[str] | None = None) -> int:
     if args.workspace is not None:
         config.agent_workspace = args.workspace.resolve()
 
-    if args.prompt is not None:
-        prompt = args.prompt
-    else:
-        print("Reading prompt from stdin (Ctrl+D to finish):", file=sys.stderr)
-        prompt = sys.stdin.read()
-    prompt = prompt.strip()
-    if not prompt:
-        print("[ERROR] empty prompt", file=sys.stderr)
-        return 2
-
     session_id = generate_session_id()
-    print_banner(config, session_id)
-
-    # Print tool info
-    print(f"Using tools: {list(config.allowed_tools)}")
+    print_banner(config, session_id, interactive=args.interactive or sys.stdin.isatty())
 
     if not config.agent_workspace.exists():
         print(f"[WARN] workspace does not exist: {config.agent_workspace}", file=sys.stderr)
 
-    logger = SessionLogger(session_id=session_id, log_dir=config.session_log_dir)
+    print(f"Using tools: {list(config.allowed_tools)}")
+    print()
 
-    # Create agent
+    logger = SessionLogger(session_id=session_id, log_dir=config.session_log_dir)
     agent = Agent(config=config, logger=logger)
 
-    if args.stream:
-        async def run_stream():
+    # Determine if we should run REPL
+    is_interactive = args.interactive or (args.prompt is None and sys.stdin.isatty())
+
+    if is_interactive:
+        # REPL mode
+        repl = REPL(agent=agent, logger=logger, stream=args.stream, max_retries=args.max_retries)
+        repl.run()
+    elif args.prompt is not None:
+        # Single prompt mode
+        prompt = args.prompt.strip()
+        if not prompt:
+            print("[ERROR] empty prompt", file=sys.stderr)
+            return 2
+
+        if args.stream:
+            async def run_stream():
+                t0 = time.time()
+                async for chunk in agent.run_streaming(prompt, max_retries=args.max_retries):
+                    if chunk.kind == "text":
+                        print(chunk.text, end="", flush=True)
+                    elif chunk.kind == "thinking":
+                        print(f"\n[thinking] {chunk.thinking}", flush=True)
+                    elif chunk.kind == "tool_start":
+                        print(chunk.format_tool_start(), flush=True)
+                    elif chunk.kind == "tool_end":
+                        print(chunk.format_tool_end(), flush=True)
+                    elif chunk.kind == "done":
+                        print()
+                        print("=" * 60)
+                        print("✅ AGENT COMPLETED")
+                        print(f"   Duration: {time.time() - t0:.1f}s")
+                        print(f"   Result length: {len(chunk.result)} chars")
+                        if chunk.usage:
+                            print(f"   Tokens: input={chunk.usage.get('input', 'N/A')}, "
+                                  f"output={chunk.usage.get('output', 'N/A')}")
+                print()
+            asyncio.run(run_stream())
+        else:
             t0 = time.time()
-            async for chunk in agent.run_streaming(prompt, max_retries=args.max_retries):
-                if chunk.kind == "text":
-                    print(chunk.text, end="", flush=True)
-                elif chunk.kind == "thinking":
-                    # Render the model's reasoning inline so the user can
-                    # follow its decision-making. Prefixed so it doesn't
-                    # blend in with the final answer.
-                    print(f"\n[thinking] {chunk.thinking}", flush=True)
-                elif chunk.kind == "tool_start":
-                    print(chunk.format_tool_start(), flush=True)
-                elif chunk.kind == "tool_input":
-                    print(f"\n   ↳ Args updated: {chunk.input_args}", flush=True)
-                elif chunk.kind == "tool_end":
-                    # Tool result arrives live via JsonlTraceHook → consumer
-                    # queue → run_streaming drain. No need to re-print from
-                    # the JSONL log later — that would duplicate output.
-                    print(chunk.format_tool_end(), flush=True)
-                elif chunk.kind == "done":
-                    print()
-                    print("=" * 60)
-                    print("✅ AGENT COMPLETED")
-                    print(f"   Duration: {time.time() - t0:.1f}s")
-                    print(f"   Result length: {len(chunk.result)} chars")
-                    print(f"   Stop reason: {chunk.stop_reason}")
-                    if chunk.is_error:
-                        print("   ❌ Error occurred")
-                        # Connection-level failures are the most common
-                        # cause of an aborted session (DNS blip, host
-                        # offline, firewall). Surface a hint so the
-                        # user knows what to check instead of staring
-                        # at a raw traceback.
-                        if chunk.stop_reason == "force_stop":
-                            print("   ↳ The agent was force-stopped. Common causes:")
-                            print("     - OLLAMA_BASE_URL in .env is unreachable (host down / DNS / firewall)")
-                            print("     - OpenTelemetry OTLP endpoint (Langfuse/Jaeger) is not running")
-                            print("     - A community tool made an outbound call that failed")
-                            print("   ↳ Check the traceback below and the session JSONL for the exact site.")
-                    if chunk.usage:
-                        print(f"   Tokens: input={chunk.usage.get('input', 'N/A')}, "
-                              f"output={chunk.usage.get('output', 'N/A')}")
-            print()
-            # NOTE: do NOT call display_tool_results_from_log here — the
-            # streaming loop above already rendered every tool call's
-            # start/input/end inline. Re-printing from the JSONL would
-            # duplicate the entire tool trace.
-        asyncio.run(run_stream())
+            result = agent.run(prompt)
+            print("=" * 60)
+            print(result)
+            print("=" * 60)
+            print(f"[Done] elapsed={time.time() - t0:.1f}s")
+
+            # Display tool results from log
+            print("\n" + "="*60)
+            print("📋 TOOL CALLS SUMMARY")
+            print("="*60)
+            display_tool_results_from_log(logger.log_file)
     else:
+        print("Reading prompt from stdin (Ctrl+D to finish):", file=sys.stderr)
+        prompt = sys.stdin.read().strip()
+        if not prompt:
+            print("[ERROR] empty prompt", file=sys.stderr)
+            return 2
+
         t0 = time.time()
         result = agent.run(prompt)
         print("=" * 60)
         print(result)
         print("=" * 60)
         print(f"[Done] elapsed={time.time() - t0:.1f}s")
-
-        # Display tool results from log
-        print("\n" + "="*60)
-        print("📋 TOOL CALLS SUMMARY")
-        print("="*60)
-        display_tool_results_from_log(logger.log_file)
 
     print(f"\n[Session log] {logger.log_file}")
     return 0
