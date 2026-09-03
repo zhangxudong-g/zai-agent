@@ -51,36 +51,19 @@ def print_banner(config, session_id: str) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description="Strands PoC agent harness")
+    p.add_argument("prompt", type=str, nargs="?", default=None,
+                   help="Prompt (optional; reads from stdin if omitted).")
     p.add_argument("--workspace", type=Path, default=None,
-                   help="Workspace directory (defaults to $AGENT_WORKSPACE).")
-    p.add_argument("--prompt", type=str, default=None,
-                   help="Single-turn prompt. If omitted, reads from stdin.")
-    p.add_argument("--prompt-file", type=Path, default=None,
-                   help="Read prompt from a file (alternative to --prompt).")
+                   help="Workspace directory (defaults to $AGENT_WORKSPACE in .env).")
     p.add_argument("--stream", action="store_true",
                    help="Enable streaming output.")
     p.add_argument("--show-tools", action="store_true", default=True,
                    help="Show detailed tool calls and results.")
     p.add_argument("--mode", type=str, default="qa_fault",
                    choices=["analysis", "qa_fault"],
-                   help="Agent operating mode. Default: qa_fault "
-                        "(5-stage fault analysis with HTML output). "
-                        "Use 'analysis' for the original 4-stage code-analysis "
-                        "protocol with read-only toolset.")
+                   help="Agent mode: qa_fault (5-stage analysis) or analysis (4-stage read-only).")
     p.add_argument("--env-file", type=Path, default=".env",
                    help="Path to .env file (default: .env).")
-
-    # Community tools options
-    tool_group = p.add_argument_group("Community Tools")
-    tool_group.add_argument("--use-community-tools", action="store_true",
-                   help="Use strands-agents-tools community tools instead of custom tools.")
-    tool_group.add_argument("--community-tool-categories", type=str, nargs="+",
-                   choices=["base", "file", "web", "shell", "aws", "code", "agent", "rag"],
-                   help="Categories of community tools to include (e.g., base file).")
-    tool_group.add_argument("--community-tool-names", type=str, nargs="+",
-                   help="Specific community tool names to include (e.g., calculator current_time).")
-    tool_group.add_argument("--list-tools", action="store_true",
-                   help="List all available community tools and exit.")
 
     return p
 
@@ -176,19 +159,11 @@ def display_tool_results_from_log(log_file: Path) -> None:
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
 
-    # Handle --list-tools option
-    if args.list_tools:
-        from strands_poc.community_tools import get_tools_summary
-        print(get_tools_summary())
-        return 0
-
     config = get_config(env_file=args.env_file)
     if args.workspace is not None:
         config.agent_workspace = args.workspace.resolve()
 
-    if args.prompt_file is not None:
-        prompt = args.prompt_file.read_text(encoding="utf-8")
-    elif args.prompt is not None:
+    if args.prompt is not None:
         prompt = args.prompt
     else:
         print("Reading prompt from stdin (Ctrl+D to finish):", file=sys.stderr)
@@ -202,10 +177,7 @@ def main(argv: list[str] | None = None) -> int:
     print_banner(config, session_id)
 
     # Print tool info
-    if args.use_community_tools:
-        print(f"Using community tools: {args.community_tool_categories or args.community_tool_names or ['base', 'file']}")
-    else:
-        print(f"Using custom tools: {list(config.allowed_tools)}")
+    print(f"Using tools: {list(config.allowed_tools)}")
 
     if not config.agent_workspace.exists():
         print(f"[WARN] workspace does not exist: {config.agent_workspace}", file=sys.stderr)
@@ -213,20 +185,7 @@ def main(argv: list[str] | None = None) -> int:
     logger = SessionLogger(session_id=session_id, log_dir=config.session_log_dir)
 
     # Create agent with appropriate tool configuration
-    agent_kwargs = {
-        "config": config,
-        "logger": logger,
-        "mode": args.mode,
-        "use_community_tools": args.use_community_tools,
-    }
-
-    if args.use_community_tools:
-        if args.community_tool_names:
-            agent_kwargs["community_tool_names"] = args.community_tool_names
-        elif args.community_tool_categories:
-            agent_kwargs["community_tool_categories"] = args.community_tool_categories
-
-    agent = Agent(**agent_kwargs)
+    agent = Agent(config=config, logger=logger, mode=args.mode)
 
     if args.stream:
         async def run_stream():

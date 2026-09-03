@@ -31,27 +31,31 @@ AGENT_WORKSPACE=./workspace/sample_project
 # 冒烟测试（无需 Ollama）
 uv run pytest -v
 
-# 交互式运行
-uv run python -m strands_poc.main \
-  --workspace ./workspace/sample_project \
-  --prompt "列出项目目录结构"
+# 交互式运行（prompt 为位置参数）
+uv run agent "列出项目目录结构"
+
+# 指定 workspace
+uv run agent "分析并发问题" --workspace ./workspace/sample_project
 
 # 流式输出
-uv run python -m strands_poc.main \
-  --workspace ./workspace/sample_project \
-  --prompt "分析并发问题" \
-  --stream
+uv run agent "分析并发问题" --stream
 ```
+
+**命令简化说明：**
+| 旧命令 | 新命令 |
+|--------|--------|
+| `uv run python -m strands_poc.main --workspace ./x --prompt "..."` | `uv run agent "..." --workspace ./x` |
+| 必须指定 `--workspace` | 默认使用 `.env` 中的 `AGENT_WORKSPACE` |
+| 必须使用 `--prompt` | 直接作为位置参数 |
 
 ## 核心功能
 
 ### Agent 运行模式
 
-| 模式 | 方法 | 说明 |
-|------|------|------|
-| 同步 | `agent.run()` | 等待完成返回结果 |
-| 异步 | `agent.run_async()` | 异步协程 |
-| 流式 | `agent.run_streaming()` | yield 实时事件 |
+| 模式 | 说明 |
+|------|------|
+| `qa_fault` | 5 阶段故障分析（含 HTML 输出），默认 |
+| `analysis` | 4 阶段代码分析（只读） |
 
 ### 沙箱安全
 

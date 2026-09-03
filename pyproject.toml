@@ -16,6 +16,9 @@ dev = [
     "pytest-asyncio",
 ]
 
+[project.scripts]
+agent = "strands_poc.main:main"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
