@@ -20,3 +20,4 @@ sessions/*.jsonl
 workspace/*
 
 tests/sql/
+ollama-debug.jsonl
