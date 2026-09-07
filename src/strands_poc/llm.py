@@ -232,27 +232,48 @@ def patch_ollama_thinking() -> bool:
             global _ollama_debug_call_counter
             _ollama_debug_call_counter += 1
             try:
-                roles = [m.get("role") if isinstance(m, dict) else getattr(m, "role", "?")
-                         for m in (messages or [])]
-                user_count = roles.count("user")
-                first_user_content = ""
+                roles = []
+                content_kinds = []  # parallel list: per-message content summary
                 for m in (messages or []):
-                    if isinstance(m, dict) and m.get("role") == "user":
-                        content = m.get("content")
-                        if isinstance(content, list) and content and isinstance(content[0], dict):
-                            first_user_content = str(content[0].get("text", ""))[:200]
-                        else:
-                            first_user_content = str(content)[:200]
-                        break
+                    role = m.get("role", "?") if isinstance(m, dict) else getattr(m, "role", "?")
+                    roles.append(role)
+                    content = m.get("content") if isinstance(m, dict) else getattr(m, "content", None)
+                    if isinstance(content, list):
+                        kinds = []
+                        for blk in content:
+                            if isinstance(blk, dict):
+                                if "text" in blk:
+                                    kinds.append(f"text({len(str(blk['text']))})")
+                                elif "toolResult" in blk:
+                                    tr = blk["toolResult"]
+                                    status = tr.get("status", "?") if isinstance(tr, dict) else "?"
+                                    text_len = 0
+                                    if isinstance(tr, dict):
+                                        for c in tr.get("content", []) or []:
+                                            if isinstance(c, dict) and "text" in c:
+                                                text_len += len(str(c["text"]))
+                                    kinds.append(f"toolResult(status={status},len={text_len})")
+                                elif "toolUse" in blk:
+                                    tu = blk["toolUse"]
+                                    name = tu.get("name", "?") if isinstance(tu, dict) else "?"
+                                    kinds.append(f"toolUse({name})")
+                                else:
+                                    first_key = next(iter(blk.keys()), None) if blk else None
+                                    kinds.append(first_key or "empty")
+                            else:
+                                kinds.append(type(blk).__name__)
+                        content_kinds.append(kinds)
+                    elif isinstance(content, str):
+                        content_kinds.append([f"str(len={len(content)})"])
+                    else:
+                        content_kinds.append([type(content).__name__])
                 import json as _json
                 _ollama_debug_log.info(_json.dumps({
                     "call": _ollama_debug_call_counter,
                     "host": getattr(self, "host", "?"),
                     "n_messages": len(messages or []),
                     "roles": roles,
-                    "has_user": user_count > 0,
-                    "first_user_content": first_user_content,
-                    "system_prompt_len": len(system_prompt) if system_prompt else 0,
+                    "content_kinds": content_kinds,
                 }, ensure_ascii=False))
             except Exception as _e:
                 _ollama_debug_log.info("# debug-log error: %s", _e)
