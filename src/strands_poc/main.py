@@ -283,6 +283,22 @@ class REPL:
             self._loop.close()
 
 
+def run_cli(argv: list[str] | None = None) -> int:
+    """CLI entry point for global installation.
+
+    Automatically uses current directory as workspace when --workspace is not specified.
+    This function wraps main() with workspace defaults to current directory.
+    """
+    args = build_parser().parse_args(argv)
+
+    # Use current directory as default workspace if not specified
+    if args.workspace is None:
+        args.workspace = Path.cwd()
+
+    # Delegate to main() for all the existing logic
+    return main(argv)
+
+
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
 
