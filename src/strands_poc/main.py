@@ -28,14 +28,29 @@ def generate_session_id() -> str:
     return f"{now.strftime('%Y%m%d_%H%M%S')}_{now.strftime('%f')[-4:]}"
 
 
-def print_banner(config, session_id: str, interactive: bool = False) -> None:
-    print("╭─ Strands Agent ──────────────────────────────")
-    print(f"│ Model:     {config.ollama_model}")
-    print(f"│ Workspace: {config.agent_workspace}")
-    print(f"│ Session:   {session_id}")
+def print_banner(
+    config,
+    session_id: str,
+    *,
+    log_file: Path | None = None,
+    interactive: bool = False,
+) -> None:
+    """Print compact 2-line startup banner (Option A from docs/tui_mockup.md).
+
+    Layout::
+
+        ╭─ zai · <model> · <workspace> · session <id>
+        ╰─ 📝 <log-file-path>  ──  /help /clear /exit
+    """
+    title = f"zai · {config.ollama_model} · {config.agent_workspace} · session {session_id}"
+    print(f"╭─ {title}")
+    line2_parts: list[str] = []
+    if log_file is not None:
+        line2_parts.append(f"📝 {log_file}")
     if interactive:
-        print("│ Mode:      REPL (连续对话)")
-    print("╰────────────────────────────────────────────")
+        line2_parts.append("/help /clear /exit")
+    if line2_parts:
+        print(f"╰─ {'  ──  '.join(line2_parts)}")
     print()
 
 
@@ -281,28 +296,46 @@ async def _render_stream_chunks(chunk_stream, *, show_usage: bool = True) -> Non
             if thinking_buffer:
                 print(f"  \U0001f914 {thinking_buffer[:60]}...", flush=True)
                 thinking_buffer = ""
-            if chunk.input_args:
-                args_list = []
-                for k, v in chunk.input_args.items():
-                    v_str = str(v)
-                    if len(v_str) > 60:
-                        v_str = v_str[:60] + "..."
-                    args_list.append(f"{k}={v_str!r}")
-                args_str = "(" + ", ".join(args_list) + ")"
-                print(f"  \U0001f527 {chunk.tool_name}{args_str}", flush=True)
-            else:
-                print(f"  \U0001f527 {chunk.tool_name}", flush=True)
+            print(f"  \U0001f527 {_format_tool_call(chunk.tool_name, chunk.input_args)}", flush=True)
         elif chunk.kind == "tool_end":
             pass  # Tool result is rendered by JsonlTraceHook
         elif chunk.kind == "done":
             if thinking_buffer:
                 print(f"\n\U0001f914 {thinking_buffer[:80]}...")
             elapsed = time.time() - t0
-            if show_usage and chunk.usage:
-                tokens = chunk.usage.get("output", 0)
-                print(f"\n\u2713 ({elapsed:.1f}s, {tokens} tokens)", flush=True)
-            else:
-                print(f"\n\u2713 ({elapsed:.1f}s)", flush=True)
+            print(f"\n\u2713 {elapsed:.1f}s", flush=True)
+
+
+
+def _format_tool_call(tool_name: str, input_args: dict | None) -> str:
+    """Format a tool call for compact single-line display (Option A).
+
+    Display rules (see docs/tui_mockup.md):
+      - ``shell``:  skip tool name, show only the command (it's self-evident)
+      - single-arg tools (``read``/``write``/``edit``/``outline`` etc.):
+        ``<tool> <arg-value>``
+      - multi-arg tools (``grep`` etc.): ``<tool> key=val key=val`` (each val truncated)
+      - Long values truncated with ``\u2026`` (ellipsis) instead of ``...``.
+    """
+    if not input_args:
+        return tool_name
+    if tool_name == "shell":
+        cmd = str(input_args.get("command", ""))
+        if len(cmd) > 100:
+            cmd = cmd[:98] + "\u2026"
+        return cmd
+    if len(input_args) == 1:
+        v_str = str(next(iter(input_args.values())))
+        if len(v_str) > 100:
+            v_str = v_str[:98] + "\u2026"
+        return f"{tool_name} {v_str}"
+    parts: list[str] = []
+    for k, v in input_args.items():
+        v_str = str(v)
+        if len(v_str) > 40:
+            v_str = v_str[:38] + "\u2026"
+        parts.append(f"{k}={v_str!r}")
+    return f"{tool_name} " + " ".join(parts)
 
 
 def run_cli(argv: list[str] | None = None) -> int:
@@ -329,12 +362,16 @@ def _main(args: argparse.Namespace) -> int:
         config.ollama_model = args.model
 
     session_id = generate_session_id()
-    print_banner(config, session_id, interactive=args.interactive or (args.prompt is None))
+    logger = SessionLogger(session_id=session_id, log_dir=config.session_log_dir)
+    print_banner(
+        config,
+        session_id,
+        log_file=logger.log_file,
+        interactive=args.interactive or (args.prompt is None),
+    )
 
     if not config.agent_workspace.exists():
         print(f"[WARN] workspace does not exist: {config.agent_workspace}", file=sys.stderr)
-
-    logger = SessionLogger(session_id=session_id, log_dir=config.session_log_dir)
     agent = Agent(config=config, logger=logger)
 
     # REPL mode when no prompt given
@@ -377,7 +414,6 @@ def _main(args: argparse.Namespace) -> int:
         print(result)
         print(f"\n✓ ({time.time() - t0:.1f}s)")
 
-    print(f"\n📝 {logger.log_file}")
     return 0
 
 
