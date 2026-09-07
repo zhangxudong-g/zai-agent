@@ -50,6 +50,9 @@ uv tool install .
 
 # 或使用 pip
 pip install .
+
+# 卸载
+uv tool uninstall strands-agent
 ```
 
 #### 使用示例
