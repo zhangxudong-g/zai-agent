@@ -19,6 +19,7 @@ from typing import ClassVar
 
 from .agent import Agent
 from .config import get_config
+from .llm import _ollama_debug_path
 from .trace import SessionLogger
 
 
@@ -47,6 +48,8 @@ def print_banner(
     line2_parts: list[str] = []
     if log_file is not None:
         line2_parts.append(f"📝 {log_file}")
+    if _ollama_debug_path is not None:
+        line2_parts.append(f"🐛 {_ollama_debug_path}")
     if interactive:
         line2_parts.append("/help /clear /exit")
     if line2_parts:
