@@ -287,7 +287,6 @@ def run_cli(argv: list[str] | None = None) -> int:
     """CLI entry point for global installation.
 
     Automatically uses current directory as workspace when --workspace is not specified.
-    This function wraps main() with workspace defaults to current directory.
     """
     args = build_parser().parse_args(argv)
 
@@ -295,13 +294,17 @@ def run_cli(argv: list[str] | None = None) -> int:
     if args.workspace is None:
         args.workspace = Path.cwd()
 
-    # Delegate to main() for all the existing logic
-    return main(argv)
+    return _main(args)
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Original CLI entry point for uv run agent."""
     args = build_parser().parse_args(argv)
+    return _main(args)
 
+
+def _main(args: argparse.Namespace) -> int:
+    """Core implementation shared by main() and run_cli()."""
     config = get_config(env_file=args.env_file)
     if args.workspace is not None:
         config.agent_workspace = args.workspace.resolve()
