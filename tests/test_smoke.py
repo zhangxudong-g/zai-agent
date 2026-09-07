@@ -17,6 +17,7 @@ shape of the consumer without depending on the SDK runtime.
 from __future__ import annotations
 
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -32,6 +33,7 @@ import asyncio
 from strands_poc.config import get_config
 from strands_poc.security import WorkspaceSandboxHook
 from strands_poc.stream import StreamConsumer
+from strands_poc.tools import build_file_tree_entries
 from strands_poc.trace import SessionLogger
 
 
@@ -160,6 +162,38 @@ def test_sandbox_allows_grep_without_base(tmp_path: Path) -> None:
     )
     hook.before_tool(event)
     assert event.cancel_tool is None
+
+
+def test_file_tree_truncation_and_noise_skip(tmp_path: Path) -> None:
+    """file_tree must skip noise dirs and cap entry count (no multi-MB JSON)."""
+    for i in range(60):
+        sub = tmp_path / f"pkg{i:02d}"
+        sub.mkdir()
+        for j in range(10):
+            (sub / f"f{j}.txt").write_text("x")
+    noise = tmp_path / ".venv" / "site-packages"
+    noise.mkdir(parents=True)
+    (noise / "junk.py").write_text("x")
+
+    entries = build_file_tree_entries(tmp_path, 4, max_entries=50)
+    assert any(e.get("_truncated") for e in entries), "expected truncation marker"
+    assert len(entries) <= 60, f"entry cap exceeded: {len(entries)}"
+    assert not any(".venv" in e.get("path", "") for e in entries), ".venv must be skipped"
+
+
+def test_shell_tool_windows_translation_windows_only() -> None:
+    """ls/cat/pwd/find translate to cmd equivalents; allowlist unchanged."""
+    assert os.name == "nt", "translation only applies on Windows"
+    from strands_poc.tools import _is_command_allowed, _translate_for_windows
+
+    assert _translate_for_windows(["ls"]) == ["dir", "/b"]
+    assert _translate_for_windows(["ls", "-R"]) == ["dir", "/b", "-s"]
+    assert _translate_for_windows(["pwd"]) == ["cd"]
+    assert _translate_for_windows(["cat", "a.txt"]) == ["type", "a.txt"]
+    assert _translate_for_windows(["find", ".", "-name", "*.py"]) == ["dir", "/s", "/b", "*.py"]
+    # allowlist is keyed on the *original* command the model typed
+    assert _is_command_allowed("ls")
+    assert not _is_command_allowed("rm")
 
 
 def test_sandbox_case_insensitive_tool_name(tmp_path: Path) -> None:

@@ -14,6 +14,7 @@ from __future__ import annotations
 import ast
 import fnmatch
 import json
+import os
 import re
 from pathlib import Path
 from typing import Any
@@ -308,12 +309,28 @@ def make_edit_tool(workspace: Path):
 # --------------------------------------------------------------------- #
 # FileTreeTool — JSON tree, cheap pre-read orientation
 # --------------------------------------------------------------------- #
-def build_file_tree_entries(root: Path, max_depth: int) -> list[dict[str, Any]]:
-    """Canonical walker — used by ``make_file_tree_tool`` and ``ProjectIndex``."""
+def build_file_tree_entries(
+    root: Path,
+    max_depth: int,
+    max_entries: int = 2000,
+) -> list[dict[str, Any]]:
+    """Canonical walker — used by ``make_file_tree_tool`` and ``ProjectIndex``.
+
+    Skips well-known noise directories (``.venv``, ``node_modules``, …)
+    and caps the total number of entries at ``max_entries`` so a single
+    call can never dump megabytes of JSON into the model context.
+    """
+    noise_dirs = frozenset({
+        ".venv", "venv", "node_modules", "__pycache__", ".git",
+        ".mypy_cache", ".ruff_cache", ".pytest_cache", ".tox",
+        ".idea", ".vscode", "dist", "build", "target", "site-packages",
+    })
     entries: list[dict[str, Any]] = []
+    truncated_after = 0
 
     def _walk(p: Path, depth: int, prefix: str) -> None:
-        if depth < 0:
+        nonlocal truncated_after
+        if depth < 0 or truncated_after:
             return
         try:
             children = sorted(p.iterdir(), key=lambda x: (x.is_file(), x.name.lower()))
@@ -321,9 +338,17 @@ def build_file_tree_entries(root: Path, max_depth: int) -> list[dict[str, Any]]:
             entries.append({"path": prefix, "type": "dir", "size": None, "error": str(e)})
             return
         for child in children:
+            if truncated_after or len(entries) >= max_entries:
+                truncated_after = max_entries
+                break
             rel = f"{prefix}/{child.name}" if prefix else child.name
             if child.is_dir():
+                if child.name in noise_dirs:
+                    continue
                 entries.append({"path": rel, "type": "dir", "size": None})
+                if len(entries) >= max_entries:
+                    truncated_after = max_entries
+                    continue
                 _walk(child, depth - 1, rel)
             else:
                 try:
@@ -333,6 +358,11 @@ def build_file_tree_entries(root: Path, max_depth: int) -> list[dict[str, Any]]:
                 entries.append({"path": rel, "type": "file", "size": sz})
 
     _walk(root, max_depth, "")
+    if truncated_after:
+        entries.append({"_truncated": True, "_hint": (
+            f"only first {max_entries} entries listed; "
+            "re-call file_tree with 'path' to drill into a subdir"
+        )})
     return entries
 
 
@@ -341,7 +371,9 @@ def make_file_tree_tool(workspace: Path):
         "List files and directories under the workspace as a JSON list. "
         "Each entry has 'path' (relative POSIX), 'type' ('file'|'dir'), "
         "and 'size' (bytes; null for dirs). max_depth limits recursion "
-        "(default 4). Cheap: does NOT read file contents."
+        "(default 4). Noise dirs (.venv, node_modules, __pycache__, .git, …) "
+        "are skipped; results cap at 2000 entries — for bigger trees, call "
+        "with 'path' to drill into a subdir. Cheap: does NOT read contents."
     ))
     def file_tree_tool(max_depth: int = 4, path: str = "") -> str:
         if path:
@@ -354,7 +386,7 @@ def make_file_tree_tool(workspace: Path):
         if not base.exists():
             return f"[ERROR] path not found: {path or '.'}"
         entries = build_file_tree_entries(base, max_depth)
-        return json.dumps(entries, ensure_ascii=False, indent=2)
+        return json.dumps(entries, ensure_ascii=False)
     return file_tree_tool
 
 
@@ -377,11 +409,67 @@ def _is_command_allowed(cmd: str) -> bool:
     return cmd in _ALLOWED_COMMANDS
 
 
+def _translate_for_windows(parts: list[str]) -> list[str]:
+    """Translate common Unix shell idioms to cmd.exe equivalents.
+
+    The model is trained mostly on bash; ``ls`` / ``cat`` / ``pwd`` are
+    not native to Windows cmd, so without translation every first tool
+    call fails and the model wastes a turn recovering.
+
+    Returns the rewritten command parts; the original list if the
+    command is not recognized (or passes through unchanged on POSIX).
+    """
+    if os.name != "nt" or not parts:
+        return parts
+    cmd = parts[0].lower()
+    args = parts[1:]
+
+    if cmd == "ls":
+        # ls → dir.  Preserve detail level and recursion.
+        recursive = any(a in ("-R", "-r", "--recursive") for a in args)
+        short = any(a.startswith("-l") or a == "-a" for a in args)
+        # -l/-la/-a are "detailed" → full dir; otherwise bare names
+        rewritten = ["dir"]
+        if not short:
+            rewritten.append("/b")
+        if recursive:
+            rewritten.append("-s")
+        # pass through non-flag args (e.g. a directory path)
+        rewritten.extend(a for a in args if not a.startswith("-"))
+        return rewritten
+
+    if cmd == "pwd":
+        # plain `cd` with no args prints the current directory in cmd
+        return ["cd"]
+
+    if cmd == "cat":
+        non_flags = [a for a in args if not a.startswith("-")]
+        if non_flags:
+            return ["type", *non_flags]
+        return parts
+
+    if cmd == "find":
+        # `find . -name PATTERN` → `dir /s /b PATTERN`
+        if "-name" in args:
+            i = args.index("-name")
+            if i + 1 < len(args):
+                return ["dir", "/s", "/b", args[i + 1]]
+        # bare `find .` → `dir /b .`
+        positional = [a for a in args if not a.startswith("-")]
+        if positional:
+            return ["dir", "/b", *positional]
+        return parts
+
+    return parts
+
+
 def make_shell_tool(workspace: Path):
     @tool(name="shell", description=(
         "Execute a shell command in the workspace directory. "
         "Only read-only commands are allowed: git, ls, find, grep, cat, head, tail, "
         "tree, python, node, docker, etc. "
+        "Unix idioms (ls, cat, pwd, find -name) are auto-translated to "
+        "Windows equivalents, so they work cross-platform. "
         "Output is truncated to 5000 chars. "
         "Workspace directory is the working directory."
     ))
@@ -408,6 +496,11 @@ def make_shell_tool(workspace: Path):
 
         if not _is_command_allowed(base_cmd):
             return f"[ERROR] command not allowed: {base_cmd}. Allowed: {', '.join(sorted(_ALLOWED_COMMANDS))}"
+
+        # Translate Unix idioms to cmd equivalents on Windows.
+        parts = _translate_for_windows(parts)
+        # cmd.exe: double-quote args that contain spaces
+        command = " ".join(f'"{p}"' if " " in p else p for p in parts)
 
         # Block dangerous patterns (simple check, allowlist already restricts commands)
         # We allow shell=True because commands are already allowlist-checked above
