@@ -24,9 +24,47 @@ from __future__ import annotations
 import contextlib
 import functools
 import importlib
+import logging
+import os
+from pathlib import Path
 from typing import Any
 
 from .config import Config
+
+# Debug logging for Ollama requests — set ZAI_DEBUG_OLLAMA=1 to enable.
+# Writes one log line per model invocation so we can see exactly what
+# message array is being sent (especially useful when Ollama returns
+# "no user query found in messages").
+_ollama_debug_log = logging.getLogger("zai.ollama_debug")
+_ollama_debug_log.setLevel(logging.DEBUG)
+_ollama_debug_log.propagate = False
+_ollama_debug_handler: logging.Handler | None = None
+_ollama_debug_call_counter = 0
+
+
+def _setup_ollama_debug() -> None:
+    """Enable per-request debug logging if ZAI_DEBUG_OLLAMA is set.
+
+    Writes JSON-line entries to ``~/.cache/zai-ollama-debug.log`` so we can
+    inspect the messages array sent to Ollama on every cycle (first call
+    + after every tool result).
+    """
+    global _ollama_debug_handler
+    if _ollama_debug_handler is not None or os.getenv("ZAI_DEBUG_OLLAMA") != "1":
+        return
+    try:
+        log_path = Path(os.path.expanduser("~/.cache/zai-ollama-debug.log"))
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        h = logging.FileHandler(log_path, encoding="utf-8")
+        h.setFormatter(logging.Formatter("%(message)s"))
+        _ollama_debug_log.addHandler(h)
+        _ollama_debug_handler = h
+        _ollama_debug_log.info("# ZAI Ollama debug enabled; path=%s", log_path)
+    except OSError:
+        pass
+
+
+_setup_ollama_debug()
 
 
 # ---------------------------------------------------------------- #
@@ -181,6 +219,36 @@ def patch_ollama_thinking() -> bool:
         # Delegate request formatting to upstream — keeps parity with
         # whatever Strands's current shape is (options/keep_alive/etc.).
         request = self.format_request(messages, tool_specs, system_prompt)
+
+        # --- DEBUG: log per-call messages structure ---
+        if _ollama_debug_handler is not None:
+            global _ollama_debug_call_counter
+            _ollama_debug_call_counter += 1
+            try:
+                roles = [m.get("role") if isinstance(m, dict) else getattr(m, "role", "?")
+                         for m in (messages or [])]
+                user_count = roles.count("user")
+                first_user_content = ""
+                for m in (messages or []):
+                    if isinstance(m, dict) and m.get("role") == "user":
+                        content = m.get("content")
+                        if isinstance(content, list) and content and isinstance(content[0], dict):
+                            first_user_content = str(content[0].get("text", ""))[:200]
+                        else:
+                            first_user_content = str(content)[:200]
+                        break
+                import json as _json
+                _ollama_debug_log.info(_json.dumps({
+                    "call": _ollama_debug_call_counter,
+                    "host": getattr(self, "host", "?"),
+                    "n_messages": len(messages or []),
+                    "roles": roles,
+                    "has_user": user_count > 0,
+                    "first_user_content": first_user_content,
+                    "system_prompt_len": len(system_prompt) if system_prompt else 0,
+                }, ensure_ascii=False))
+            except Exception as _e:
+                _ollama_debug_log.info("# debug-log error: %s", _e)
 
         tool_requested = False
         last_event = None
