@@ -18,6 +18,7 @@ dev = [
 
 [project.scripts]
 agent = "strands_poc.main:main"
+strands-agent = "strands_poc.main:run_cli"
 
 [build-system]
 requires = ["hatchling"]
