@@ -50,6 +50,8 @@ def build_parser() -> argparse.ArgumentParser:
                    help="Start interactive REPL mode.")
     p.add_argument("--workspace", type=Path, default=None,
                    help="Workspace directory (defaults to $AGENT_WORKSPACE in .env).")
+    p.add_argument("--model", type=str, default=None,
+                   help="Ollama model name (default: qwen3:latest).")
     p.add_argument("--sync", action="store_true",
                    help="Disable streaming output (default: streaming enabled).")
     p.add_argument("--max-retries", type=int, default=3,
@@ -308,6 +310,8 @@ def _main(args: argparse.Namespace) -> int:
     config = get_config(env_file=args.env_file)
     if args.workspace is not None:
         config.agent_workspace = args.workspace.resolve()
+    if args.model is not None:
+        config.ollama_model = args.model
 
     session_id = generate_session_id()
     print_banner(config, session_id, interactive=args.interactive or (args.prompt is None))

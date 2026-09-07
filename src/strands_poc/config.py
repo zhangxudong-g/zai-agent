@@ -69,7 +69,7 @@ def get_config(env_file: str | Path | None = ".env") -> Config:
         load_dotenv(env_file)
 
     base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/")
-    model = os.getenv("OLLAMA_MODEL", "qwen3:7b")
+    model = os.getenv("OLLAMA_MODEL", "qwen3:latest")
     auth = os.getenv("OLLAMA_AUTH_TOKEN", "ollama") or "ollama"
 
     workspace = Path(os.getenv("AGENT_WORKSPACE", "./workspace/sample_project")).resolve()
