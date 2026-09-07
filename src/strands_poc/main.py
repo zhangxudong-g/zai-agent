@@ -9,16 +9,13 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import contextlib
 import json
 import sys
 import time
 from datetime import UTC, datetime
 from pathlib import Path
-
-if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-if hasattr(sys.stderr, "reconfigure"):
-    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+from typing import ClassVar
 
 from .agent import Agent
 from .config import get_config
@@ -126,7 +123,7 @@ def display_tool_results_from_log(log_file: Path) -> None:
 class REPL:
     """Interactive REPL for continuous agent conversations."""
 
-    COMMANDS = {
+    COMMANDS: ClassVar[dict[str, str]] = {
         "/exit": "退出",
         "/quit": "退出",
         "/q": "退出",
@@ -168,63 +165,16 @@ class REPL:
         self.message_count += 1
         print(f"\n[{self.message_count}] > ", end="", flush=True)
 
-    async def _run_streaming_async(self, prompt: str) -> None:
-        """Run agent with streaming output."""
-        t0 = time.time()
-        tool_buffer = []
-        thinking_buffer = ""
-        has_text = False
-
-        async for chunk in self.agent.run_streaming(prompt, max_retries=self.max_retries):
-            if chunk.kind == "text":
-                # Show thinking before text if any
-                if thinking_buffer:
-                    print(f"🤔 {thinking_buffer[:80]}...", flush=True)
-                    thinking_buffer = ""
-                print(chunk.text, end="", flush=True)
-                has_text = True
-            elif chunk.kind == "thinking":
-                thinking_buffer = chunk.thinking
-            elif chunk.kind == "tool_start":
-                # Flush text before tool
-                if has_text:
-                    print()
-                    has_text = False
-                # Show thinking during tool execution
-                if thinking_buffer:
-                    print(f"  🤔 {thinking_buffer[:60]}...", flush=True)
-                    thinking_buffer = ""
-                # Format and print tool call immediately
-                if chunk.input_args:
-                    args_list = []
-                    for k, v in chunk.input_args.items():
-                        v_str = str(v)
-                        if len(v_str) > 60:
-                            v_str = v_str[:60] + "..."
-                        args_list.append(f"{k}={v_str!r}")
-                    args_str = "(" + ", ".join(args_list) + ")"
-                    print(f"  🔧 {chunk.tool_name}{args_str}", flush=True)
-                else:
-                    print(f"  🔧 {chunk.tool_name}", flush=True)
-            elif chunk.kind == "tool_end":
-                pass  # Tool result handled by JsonlTraceHook
-            elif chunk.kind == "done":
-                # Print any remaining thinking
-                if thinking_buffer:
-                    print(f"\n🤔 {thinking_buffer[:80]}...")
-                elapsed = time.time() - t0
-                if chunk.usage:
-                    tokens = chunk.usage.get("output", 0)
-                    print(f"\n✓ ({elapsed:.1f}s, {tokens} tokens)", flush=True)
-                else:
-                    print(f"\n✓ ({elapsed:.1f}s)", flush=True)
-
     def run_streaming(self, prompt: str) -> None:
         """Run agent with streaming output (reuses event loop)."""
         if self._loop is None or self._loop.is_closed():
             self._loop = asyncio.new_event_loop()
             asyncio.set_event_loop(self._loop)
-        self._loop.run_until_complete(self._run_streaming_async(prompt))
+        self._loop.run_until_complete(
+            _render_stream_chunks(
+                self.agent.run_streaming(prompt, max_retries=self.max_retries),
+            )
+        )
 
     def run_sync(self, prompt: str) -> None:
         """Run agent synchronously."""
@@ -294,10 +244,65 @@ def _harden_stdio() -> None:
     instead of raising UnicodeEncodeError and killing the REPL.
     """
     for stream in (sys.stdout, sys.stderr):
-        try:
+        with contextlib.suppress(AttributeError, ValueError, OSError):
             stream.reconfigure(errors="replace")
-        except (AttributeError, ValueError, OSError):
-            pass
+
+
+
+async def _render_stream_chunks(chunk_stream, *, show_usage: bool = True) -> None:
+    """Render a stream of StreamChunks to stdout (text, thinking, tool calls).
+
+    Shared by the REPL's streaming path and the one-shot ``--stream``
+    path in ``_main`` so chunk-handling logic lives in exactly one place.
+
+    Args:
+        chunk_stream: Async iterator of StreamChunk from
+            ``agent.run_streaming(...)``.
+        show_usage: If True, include output-token count in the final
+            final line. One-shot mode sets this to False.
+    """
+    t0 = time.time()
+    thinking_buffer = ""
+    has_text = False
+
+    async for chunk in chunk_stream:
+        if chunk.kind == "text":
+            if thinking_buffer:
+                print(f"\U0001f914 {thinking_buffer[:80]}...", flush=True)
+                thinking_buffer = ""
+            print(chunk.text, end="", flush=True)
+            has_text = True
+        elif chunk.kind == "thinking":
+            thinking_buffer = chunk.thinking
+        elif chunk.kind == "tool_start":
+            if has_text:
+                print()
+                has_text = False
+            if thinking_buffer:
+                print(f"  \U0001f914 {thinking_buffer[:60]}...", flush=True)
+                thinking_buffer = ""
+            if chunk.input_args:
+                args_list = []
+                for k, v in chunk.input_args.items():
+                    v_str = str(v)
+                    if len(v_str) > 60:
+                        v_str = v_str[:60] + "..."
+                    args_list.append(f"{k}={v_str!r}")
+                args_str = "(" + ", ".join(args_list) + ")"
+                print(f"  \U0001f527 {chunk.tool_name}{args_str}", flush=True)
+            else:
+                print(f"  \U0001f527 {chunk.tool_name}", flush=True)
+        elif chunk.kind == "tool_end":
+            pass  # Tool result is rendered by JsonlTraceHook
+        elif chunk.kind == "done":
+            if thinking_buffer:
+                print(f"\n\U0001f914 {thinking_buffer[:80]}...")
+            elapsed = time.time() - t0
+            if show_usage and chunk.usage:
+                tokens = chunk.usage.get("output", 0)
+                print(f"\n\u2713 ({elapsed:.1f}s, {tokens} tokens)", flush=True)
+            else:
+                print(f"\n\u2713 ({elapsed:.1f}s)", flush=True)
 
 
 def run_cli(argv: list[str] | None = None) -> int:
@@ -346,43 +351,13 @@ def _main(args: argparse.Namespace) -> int:
             return 2
 
         if use_stream:
-            async def run_stream():
-                t0 = time.time()
-                thinking_buffer = ""
-                has_text = False
-                async for chunk in agent.run_streaming(prompt, max_retries=args.max_retries):
-                    if chunk.kind == "text":
-                        if thinking_buffer:
-                            print(f"🤔 {thinking_buffer[:80]}...")
-                            thinking_buffer = ""
-                        print(chunk.text, end="", flush=True)
-                        has_text = True
-                    elif chunk.kind == "thinking":
-                        thinking_buffer = chunk.thinking
-                    elif chunk.kind == "tool_start":
-                        if has_text:
-                            print()
-                            has_text = False
-                        if thinking_buffer:
-                            print(f"  🤔 {thinking_buffer[:60]}...", flush=True)
-                            thinking_buffer = ""
-                        if chunk.input_args:
-                            args_list = []
-                            for k, v in chunk.input_args.items():
-                                v_str = str(v)
-                                if len(v_str) > 60:
-                                    v_str = v_str[:60] + "..."
-                                args_list.append(f"{k}={v_str!r}")
-                            args_str = "(" + ", ".join(args_list) + ")"
-                            print(f"  🔧 {chunk.tool_name}{args_str}", flush=True)
-                        else:
-                            print(f"  🔧 {chunk.tool_name}", flush=True)
-                    elif chunk.kind == "done":
-                        if thinking_buffer:
-                            print(f"\n🤔 {thinking_buffer[:80]}...")
-                        print(f"\n✓ ({time.time() - t0:.1f}s)", flush=True)
-                print()
-            asyncio.run(run_stream())
+            asyncio.run(
+                _render_stream_chunks(
+                    agent.run_streaming(prompt, max_retries=args.max_retries),
+                    show_usage=False,
+                )
+            )
+            print()
         else:
             t0 = time.time()
             result = agent.run(prompt)

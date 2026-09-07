@@ -52,54 +52,6 @@ class StreamChunk:
         return f"\n{self.tool_name}{args_str}"
 
 
-class ToolResultCollector:
-    """Collects tool results from AfterToolCallEvent callbacks.
-
-    Used to capture tool execution results and emit them as
-    StreamChunk events for detailed display.
-    """
-
-    def __init__(self) -> None:
-        self._results: dict[str, dict[str, Any]] = {}  # tool_use_id -> result data
-        self._queue: asyncio.Queue[StreamChunk] = asyncio.Queue()
-        self._pending_inputs: dict[str, dict[str, Any]] = {}  # tool_use_id -> input args
-
-    def record_input(self, tool_use_id: str, tool_name: str, input_args: dict) -> None:
-        """Record tool input arguments for later pairing with results."""
-        self._pending_inputs[tool_use_id] = {
-            "tool_name": tool_name,
-            "input_args": input_args,
-        }
-
-    def record_result(self, tool_use_id: str, tool_name: str, result: str, is_error: bool = False) -> None:
-        """Record tool execution result and queue a tool_end chunk."""
-        # Get input args if available
-        input_args = {}
-        if tool_use_id in self._pending_inputs:
-            input_args = self._pending_inputs.pop(tool_use_id, {}).get("input_args", {})
-
-        chunk = StreamChunk(
-            kind="tool_end",
-            tool_name=tool_name,
-            tool_use_id=tool_use_id,
-            input_args=input_args,
-            result=result,
-            is_error=is_error,
-        )
-        self._queue.put_nowait(chunk)
-
-    async def get_next_chunk(self, timeout: float = 0.1) -> StreamChunk | None:
-        """Get next tool_end chunk from queue, or None if queue is empty."""
-        try:
-            return await asyncio.wait_for(self._queue.get(), timeout=timeout)
-        except TimeoutError:
-            return None
-
-    def has_pending_results(self) -> bool:
-        """Check if there are pending tool_end chunks."""
-        return not self._queue.empty()
-
-
 class StreamConsumer:
     """Stateful translator from Strands dict events to StreamChunks.
 
