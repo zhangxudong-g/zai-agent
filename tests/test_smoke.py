@@ -602,7 +602,7 @@ def test_posix_mode_works_from_native_windows() -> None:
         check=True, timeout=10,
     )
 
-    from strands_poc.sandbox import build_sandbox, _wslpath_windows_to_linux
+    from strands_poc.sandbox import _wslpath_windows_to_linux, build_sandbox
 
     # Build a sandbox pointed at a Windows-style workspace
     with tempfile.TemporaryDirectory() as td:
