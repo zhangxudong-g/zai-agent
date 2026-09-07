@@ -230,6 +230,20 @@ def patch_ollama_thinking() -> bool:
         # whatever Strands's current shape is (options/keep_alive/etc.).
         request = self.format_request(messages, tool_specs, system_prompt)
 
+        # OLLAMA-SPECIFIC: convert role='tool' to role='user'.
+        # strands/models/ollama.py:_format_request_message_contents emits tool
+        # results with role='tool' (OpenAI/Anthropic convention), but Ollama's
+        # chat API only accepts user/assistant/system. After tool results in
+        # role='tool' with no follow-up user message, Ollama returns 500
+        # "no user query found in messages". Demote them to 'user' so Ollama
+        # sees the tool results as continuation user input.
+        for _m in request.get("messages", []):
+            if _m.get("role") == "tool":
+                _m["role"] = "user"
+            elif _m.get("role") == "assistant" and "tool_calls" in _m:
+                # Ollama expects content="" alongside tool_calls, not missing.
+                _m.setdefault("content", "")
+
         # --- DEBUG: log the actual formatted request that goes to Ollama ---
         if _ollama_debug_handler is not None:
             try:
