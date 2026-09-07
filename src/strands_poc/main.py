@@ -1,4 +1,4 @@
-"""Strands Agent — CLI entry point.
+"""Zai Agent — CLI entry point.
 
 Usage:
     uv run agent "你的问题"                    # 单次运行
@@ -58,7 +58,7 @@ def print_banner(
 
 
 def build_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(description="Strands Agent CLI")
+    p = argparse.ArgumentParser(description="Zai Agent CLI")
     p.add_argument("prompt", type=str, nargs="?", default=None,
                    help="Prompt (optional; reads from stdin if omitted).")
     p.add_argument("-i", "--interactive", action="store_true",
@@ -159,7 +159,7 @@ class REPL:
 
     def print_welcome(self) -> None:
         print()
-        print("╭─ Strands Agent REPL ─────────────────────────")
+        print("╭─ Zai Agent REPL ─────────────────────────")
         print("│ /help   显示帮助")
         print("│ /clear  清屏")
         print("│ /exit   退出")

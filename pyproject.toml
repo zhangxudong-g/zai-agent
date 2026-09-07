@@ -1,7 +1,7 @@
 [project]
-name = "strands-agent"
+name = "zai-agent"
 version = "0.1.0"
-description = "Strands Agent + Ollama: General-purpose coding agent"
+description = "Zai Agent + Ollama: General-purpose coding agent"
 requires-python = ">=3.12"
 dependencies = [
     "strands-agents[ollama]>=1.0.0",
