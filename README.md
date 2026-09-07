@@ -42,7 +42,7 @@ uv run agent --workspace ./my-project
 
 ### 全局安装（可选）
 
-安装后可在任意目录使用 `strands-agent` 命令，自动以当前目录为 workspace：
+安装后可在任意目录使用 `zai` 命令，自动以当前目录为 workspace：
 
 ```bash
 # 使用 uv 安装（推荐）
@@ -57,13 +57,13 @@ pip install .
 ```bash
 # 任意目录直接运行，当前目录自动作为 workspace
 cd /my/project
-strands-agent "分析这个项目"
+zai "分析这个项目"
 
 # 交互模式
-strands-agent -i
+zai -i
 
 # 指定 workspace（可选，会覆盖当前目录）
-strands-agent --workspace ./other-project "分析代码"
+zai --workspace ./other-project "分析代码"
 ```
 
 ## 使用示例
