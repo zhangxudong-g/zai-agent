@@ -215,6 +215,9 @@ def patch_ollama_thinking() -> bool:
     @functools.wraps(original_stream)
     async def patched_stream(self, messages, tool_specs=None, system_prompt=None,
                               *, tool_choice=None, **kwargs: Any):
+        global _ollama_debug_call_counter
+        import json as _json
+
         import ollama as _ollama_pkg
         from strands.models.ollama import (
             ContextWindowOverflowException,
@@ -227,9 +230,36 @@ def patch_ollama_thinking() -> bool:
         # whatever Strands's current shape is (options/keep_alive/etc.).
         request = self.format_request(messages, tool_specs, system_prompt)
 
+        # --- DEBUG: log the actual formatted request that goes to Ollama ---
+        if _ollama_debug_handler is not None:
+            try:
+                fmt_messages = request.get("messages", [])
+                fmt_roles = []
+                fmt_summary = []
+                for m in fmt_messages:
+                    r = m.get("role", "?")
+                    fmt_roles.append(r)
+                    c = m.get("content")
+                    tc = m.get("tool_calls")
+                    if tc:
+                        names = [t.get("function", {}).get("name", "?") for t in tc]
+                        fmt_summary.append(f"{r}+tool_calls({names})")
+                    elif isinstance(c, str):
+                        fmt_summary.append(f"{r}(text,len={len(c)})")
+                    else:
+                        fmt_summary.append(f"{r}(content_type={type(c).__name__})")
+                _ollama_debug_log.info(_json.dumps({
+                    "_type": "formatted_request",
+                    "call": _ollama_debug_call_counter,
+                    "n_formatted": len(fmt_messages),
+                    "formatted_roles": fmt_roles,
+                    "formatted_summary": fmt_summary,
+                }, ensure_ascii=False))
+            except Exception as _e:
+                _ollama_debug_log.info("# formatted-request log error: %s", _e)
+
         # --- DEBUG: log per-call messages structure ---
         if _ollama_debug_handler is not None:
-            global _ollama_debug_call_counter
             _ollama_debug_call_counter += 1
             try:
                 roles = []
@@ -267,7 +297,6 @@ def patch_ollama_thinking() -> bool:
                         content_kinds.append([f"str(len={len(content)})"])
                     else:
                         content_kinds.append([type(content).__name__])
-                import json as _json
                 _ollama_debug_log.info(_json.dumps({
                     "call": _ollama_debug_call_counter,
                     "host": getattr(self, "host", "?"),
