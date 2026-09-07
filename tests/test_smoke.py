@@ -602,7 +602,7 @@ def test_posix_mode_works_from_native_windows() -> None:
         check=True, timeout=10,
     )
 
-    from strands_poc.sandbox import build_sandbox
+    from strands_poc.sandbox import build_sandbox, _wslpath_windows_to_linux
 
     # Build a sandbox pointed at a Windows-style workspace
     with tempfile.TemporaryDirectory() as td:
@@ -627,10 +627,13 @@ def test_posix_mode_works_from_native_windows() -> None:
             assert data == b"posix-win-probe\n"
 
             # 2. read_file Windows path (auto-translated)
-            # Create the file first
+            # Create the file first — WSL needs its own path form (/mnt/<drive>/...),
+            # not a bare Windows path (C:/...), so reuse the project's translator.
             win_target = __import__("pathlib").Path(td) / "_win_probe.txt"
+            wsl_target = _wslpath_windows_to_linux(str(win_target))
+            assert wsl_target is not None, f"could not translate {win_target}"
             subprocess.run(
-                ["bash", "-c", f"echo win-translated > {win_target.as_posix()}"],
+                ["bash", "-c", f"echo win-translated > {wsl_target}"],
                 check=True, timeout=10,
             )
             data = await sb.read_file(str(win_target))
