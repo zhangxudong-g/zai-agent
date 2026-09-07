@@ -285,6 +285,21 @@ class REPL:
             self._loop.close()
 
 
+def _harden_stdio() -> None:
+    """Make console/pipe output crash-proof on any codepage.
+
+    Keeps the platform encoding (GBK on Chinese Windows, etc.) so text
+    still displays correctly, but turns undisplayable characters (e.g.
+    U+FFFD from a lossy-decoded tool result) into a replacement char
+    instead of raising UnicodeEncodeError and killing the REPL.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(errors="replace")
+        except (AttributeError, ValueError, OSError):
+            pass
+
+
 def run_cli(argv: list[str] | None = None) -> int:
     """CLI entry point for global installation.
 
@@ -301,6 +316,7 @@ def run_cli(argv: list[str] | None = None) -> int:
 
 def _main(args: argparse.Namespace) -> int:
     """Core implementation shared by main() and run_cli()."""
+    _harden_stdio()
     config = get_config(env_file=args.env_file)
     if args.workspace is not None:
         config.agent_workspace = args.workspace.resolve()

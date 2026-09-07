@@ -289,7 +289,14 @@ def make_edit_tool(workspace: Path):
         if isinstance(target_or_err, str):
             return target_or_err
         target = target_or_err
-        src = target.read_text(encoding="utf-8")
+        try:
+            src = target.read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            return (
+                f"[ERROR] {file_path} is not valid UTF-8. Refusing to edit "
+                "because a lossy decode would corrupt the file. Convert it "
+                "to UTF-8 first, or edit it with an external editor."
+            )
         replaced = src.replace(old_string, new_string)
         if replaced == src:
             return f"[no match for old_string in {file_path}]"
@@ -411,12 +418,25 @@ def make_shell_tool(workspace: Path):
                 shell=True,
                 cwd=str(workspace),
                 capture_output=True,
-                text=True,
                 timeout=30,
             )
-            output = (result.stdout + result.stderr)[:MAX_OUTPUT]
-            if len(result.stdout + result.stderr) > MAX_OUTPUT:
-                output += f"\n... (truncated, {len(result.stdout + result.stderr)} total chars)"
+
+            def _decode(b: bytes) -> str:
+                if not b:
+                    return ""
+                # Try UTF-8 first (git and most tools emit UTF-8); fall back
+                # to the locale encoding (e.g. GBK on Chinese Windows) for
+                # children that encode stdout via the console codepage.
+                try:
+                    return b.decode("utf-8")
+                except UnicodeDecodeError:
+                    import locale
+                    return b.decode(locale.getpreferredencoding(False), errors="replace")
+
+            decoded = _decode(result.stdout) + _decode(result.stderr)
+            output = decoded[:MAX_OUTPUT]
+            if len(decoded) > MAX_OUTPUT:
+                output += f"\n... (truncated, {len(decoded)} total chars)"
             if result.returncode != 0 and not output:
                 return f"[ERROR] command exited with code {result.returncode}"
             return output or "[no output]"
