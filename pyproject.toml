@@ -17,7 +17,6 @@ dev = [
 ]
 
 [project.scripts]
-agent = "strands_poc.main:main"
 zai = "strands_poc.main:run_cli"
 
 [build-system]

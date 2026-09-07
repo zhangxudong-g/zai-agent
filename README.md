@@ -31,16 +31,16 @@ cp .env.example .env
 
 ```bash
 # 交互模式（连续对话）
-uv run agent
+uv run zai
 
 # 单次问答
-uv run agent "分析项目结构"
+uv run zai "分析项目结构"
 
 # 指定工作目录
-uv run agent --workspace ./my-project
+uv run zai --workspace ./my-project
 ```
 
-### 全局安装（可选）
+### 全局安装（推荐）
 
 安装后可在任意目录使用 `zai` 命令，自动以当前目录为 workspace：
 
@@ -72,7 +72,7 @@ zai --workspace ./other-project "分析代码"
 ## 使用示例
 
 ```bash
-$ uv run agent
+$ zai
 ╭─ Strands Agent ──────────────────────────────
 │ Model:     qwen3.8:27b
 │ Workspace: ./workspace
@@ -191,7 +191,7 @@ strands-agent/
 **Q: 连接 Ollama 失败？**
 ```bash
 curl http://localhost:11434/api/tags
-uv run agent "问题" --max-retries 5
+uv run zai "问题" --max-retries 5
 ```
 
 **Q: 工具调用被拦截？**

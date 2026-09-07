@@ -51,7 +51,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--workspace", type=Path, default=None,
                    help="Workspace directory (defaults to $AGENT_WORKSPACE in .env).")
     p.add_argument("--model", type=str, default=None,
-                   help="Ollama model name (default: qwen3:latest).")
+                   help="Ollama model name (default: qwen3.8:27b).")
     p.add_argument("--sync", action="store_true",
                    help="Disable streaming output (default: streaming enabled).")
     p.add_argument("--max-retries", type=int, default=3,
@@ -299,12 +299,6 @@ def run_cli(argv: list[str] | None = None) -> int:
     return _main(args)
 
 
-def main(argv: list[str] | None = None) -> int:
-    """Original CLI entry point for uv run agent."""
-    args = build_parser().parse_args(argv)
-    return _main(args)
-
-
 def _main(args: argparse.Namespace) -> int:
     """Core implementation shared by main() and run_cli()."""
     config = get_config(env_file=args.env_file)
@@ -397,4 +391,4 @@ def _main(args: argparse.Namespace) -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(run_cli())
