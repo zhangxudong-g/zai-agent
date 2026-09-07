@@ -70,6 +70,54 @@ def _setup_ollama_debug() -> None:
     except OSError:
         pass
 
+    # --- DEBUG: monkey-patch Agent._append_messages to log every message added ---
+    try:
+        from strands.agent.agent import Agent as _StrandsAgent
+        if getattr(_StrandsAgent._append_messages, "_zai_debug_patched", False):
+            return
+        import json as _append_json
+        import traceback as _tb
+        original_append = _StrandsAgent._append_messages
+
+        @functools.wraps(original_append)
+        async def _patched_append(self, *messages):
+            for _msg in messages:
+                try:
+                    _role = _msg.get("role", "?") if isinstance(_msg, dict) else getattr(_msg, "role", "?")
+                    _content = _msg.get("content", []) if isinstance(_msg, dict) else getattr(_msg, "content", [])
+                    _summary = []
+                    if isinstance(_content, list):
+                        for _blk in _content:
+                            if isinstance(_blk, dict):
+                                if "text" in _blk:
+                                    _summary.append(f"text({len(str(_blk['text']))})")
+                                elif "toolUse" in _blk:
+                                    _tu = _blk["toolUse"]
+                                    _summary.append(f"toolUse({_tu.get('name', '?') if isinstance(_tu, dict) else '?'})")
+                                elif "toolResult" in _blk:
+                                    _summary.append("toolResult")
+                                elif "reasoningContent" in _blk:
+                                    _summary.append("reasoningContent")
+                                else:
+                                    _summary.append(next(iter(_blk.keys())) if _blk else "empty")
+                            else:
+                                _summary.append(type(_blk).__name__)
+                    _ollama_debug_log.info(_append_json.dumps({
+                        "_type": "append_message",
+                        "role": _role,
+                        "content_kinds": _summary,
+                        "n_after": len(self.messages) + 1,
+                        "stack": _tb.extract_stack()[-6:-1],  # last 5 frames
+                    }, ensure_ascii=False, default=str))
+                except Exception:
+                    pass
+            return await original_append(self, *messages)
+
+        _patched_append._zai_debug_patched = True
+        _StrandsAgent._append_messages = _patched_append
+    except Exception as _e:
+        _ollama_debug_log.info("# failed to patch _append_messages: %s", _e)
+
 
 _setup_ollama_debug()
 
