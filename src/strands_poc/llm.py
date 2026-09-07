@@ -287,7 +287,12 @@ def patch_ollama_thinking() -> bool:
             yield self.format_chunk({"chunk_type": "message_start"})
             yield self.format_chunk({"chunk_type": "content_start", "data_type": "text"})
 
+            stop_reason_seen: str | None = None
             async for event in response:
+                # Capture model's final stop_reason for the debug log.
+                sr = getattr(event, "done_reason", None) or getattr(event, "stop_reason", None)
+                if sr:
+                    stop_reason_seen = sr
                 # Tool calls (unchanged from upstream shape).
                 for tool_call in event.message.tool_calls or []:
                     yield self.format_chunk(
@@ -323,6 +328,20 @@ def patch_ollama_thinking() -> bool:
                 )
 
                 last_event = event
+
+            if _ollama_debug_handler is not None:
+                try:
+                    n_tools = 0
+                    if last_event is not None and tool_requested:
+                        n_tools = len(getattr(last_event.message, "tool_calls", []) or [])
+                    _ollama_debug_log.info(_json.dumps({
+                        "_type": "response_done",
+                        "call": _ollama_debug_call_counter,
+                        "stop_reason": stop_reason_seen or "?",
+                        "n_tool_calls": n_tools,
+                    }, ensure_ascii=False))
+                except Exception:
+                    pass
         except _ollama_pkg.ResponseError as error:
             if any(message in str(error).lower() for message in self.OVERFLOW_MESSAGES):
                 raise ContextWindowOverflowException(str(error)) from error
