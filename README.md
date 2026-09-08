@@ -1,36 +1,50 @@
 # Zai Agent
 
-基于 Strands Agents SDK + Ollama 的通用代码助手。
+> 🤖 基于 Ollama 本地模型的智能代码助手，安全、隐私、可扩展
 
-## 特性
+[![Python Version](https://img.shields.io/badge/python-3.12%2B-blue)](https://www.python.org/)
+[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![strands-agents](https://img.shields.io/badge/strands--agents-sdk-v1.0.0-purple)](https://strandsagents.com/)
 
-- 🤖 **Ollama 本地模型** - 无需云服务，数据不离开本地
-- 🔒 **沙箱安全** - 两层隔离，防止恶意操作
-- 💬 **连续对话** - REPL 模式支持多轮对话，上下文保持
-- 📡 **流式输出** - 实时看到模型思考过程和工具调用
-- 🔄 **自动重试** - 连接失败自动重试 3 次
-- ⚡ **Shell 命令** - 执行 git、ls 等命令
+**Zai Agent** 是一个基于 [Strands Agents SDK](https://strandsagents.com/) 和 [Ollama](https://ollama.ai/) 的通用代码助手。无需云服务，数据不离开本地，让 AI 编程更加安全私密。
 
-## 快速开始
+## ✨ 特性
 
-### 1. 环境准备
+| 特性 | 说明 |
+|------|------|
+| 🔒 **本地优先** | 完全离线运行，数据不离开你的机器 |
+| 🛡️ **双层沙箱** | 路径验证 + 执行隔离，防范恶意操作 |
+| 💬 **连续对话** | REPL 模式保持上下文，多轮协作 |
+| 📡 **实时流式** | 即时看到模型思考过程和工具调用 |
+| 🔄 **智能重试** | 连接失败自动重试，稳定可靠 |
+| ⚡ **Shell 集成** | 原生支持 git、ls、find 等命令 |
+
+## 🚀 快速开始
+
+### 环境要求
 
 - Python 3.12+
 - [Ollama](https://ollama.ai/) 运行中
-- 下载模型：`ollama pull qwen3:7b`
+- 推荐的模型: `qwen3:7b` 或 `qwen3:27b`
 
-### 2. 安装
+### 安装
 
 ```bash
-cd D:/agent_harness_sdk_demo/zai-agent
+# 克隆项目
+git clone https://github.com/your-org/zai-agents.git
+cd zai-agents
+
+# 安装依赖
 uv sync
+
+# 复制环境配置
 cp .env.example .env
 ```
 
-### 3. 运行
+### 运行
 
 ```bash
-# 交互模式（连续对话）
+# 交互模式（推荐）
 uv run zai
 
 # 单次问答
@@ -40,99 +54,60 @@ uv run zai "分析项目结构"
 uv run zai --workspace ./my-project
 ```
 
-### 全局安装（推荐）
-
-安装后可在任意目录使用 `zai` 命令，自动以当前目录为 workspace：
+### 全局安装
 
 ```bash
 # 使用 uv 安装（推荐）
 uv tool install .
 
-# 或使用 pip
-pip install .
+# 之后可在任意目录使用
+zai "分析这个项目"
+zai -i  # 交互模式
+zai --workspace ./other-project "分析代码"
 
 # 卸载
 uv tool uninstall zai
 ```
 
-#### 使用示例
-
-```bash
-# 任意目录直接运行，当前目录自动作为 workspace
-cd /my/project
-zai "分析这个项目"
-
-# 交互模式
-zai -i
-
-# 指定 workspace（可选，会覆盖当前目录）
-zai --workspace ./other-project "分析代码"
-```
-
-## 使用示例
+## 📖 使用示例
 
 ```bash
 $ zai
 ╭─ Zai Agent ──────────────────────────────
-│ Model:     qwen3.8:27b
+│ Model:     qwen3:8b
 │ Workspace: ./workspace
-│ Session:   20260903_100000_0001
-│ Mode:      REPL (连续对话)
-╰────────────────────────────────────────────
-
-╭─ Zai Agent REPL ─────────────────────────
-│ /help   显示帮助
-│ /clear  清屏
-│ /exit   退出
-╰─────────────────────────────────────────────
+│ Session:   20250908_100000_0001
+│ Mode:      REPL
+╰────────────────────────────────────────
 
 [1] > 分析这个项目
 
 🤔 思考中...
   🔧 file_tree(max_depth=3)
   🔧 read(file_path="README.md")
-  🔧 grep(pattern="TODO")
 这个项目是...
 
 ✓ (3.2s)
 
-[2] > 最近有哪些提交？
-  🔧 shell(command="git log -5 --oneline")
-abc123 feat: add new feature
-def456 fix: resolve bug
-...
-
-✓ (0.5s)
-
-[3] > /exit
+[2] > /exit
 ```
 
-## 工具列表
+## 🛠️ 工具集
 
-| 工具 | 功能 |
-|------|------|
-| `read` | 读取文件内容，支持 offset/limit/max_bytes |
-| `glob` | 按模式搜索文件路径 |
-| `grep` | 文件内容正则搜索 |
-| `file_tree` | 目录树结构（JSON） |
-| `outline` | Python 代码大纲（类/函数签名） |
-| `shell` | 执行 shell 命令（git, ls, find 等） |
-| `write` | 写入文件 |
-| `edit` | 编辑文件 |
+| 工具 | 功能 | 示例 |
+|------|------|------|
+| `read` | 读取文件内容 | `read("src/main.py", offset=1, limit=50)` |
+| `glob` | 按模式搜索文件 | `glob("**/*.py")` |
+| `grep` | 内容正则搜索 | `grep(pattern="TODO", file_pattern="*.py")` |
+| `file_tree` | 目录树结构 | `file_tree(max_depth=3)` |
+| `outline` | Python 代码大纲 | `outline("src/utils.py")` |
+| `shell` | 执行 shell 命令 | `shell(command="git status")` |
+| `write` | 写入文件 | `write("path", content)` |
+| `edit` | 编辑文件 | `edit("path", old_text, new_text)` |
 
-## 命令行参数
+## ⚙️ 配置
 
-| 参数 | 说明 |
-|------|------|
-| `-i, --interactive` | 启动交互式 REPL |
-| `--sync` | 禁用流式输出 |
-| `--workspace PATH` | 指定工作目录 |
-| `--max-retries N` | 连接失败重试次数（默认 3） |
-| `--env-file FILE` | 指定 .env 文件 |
-
-## 配置
-
-### 环境变量 (.env)
+### 环境变量
 
 | 变量 | 默认值 | 说明 |
 |------|--------|------|
@@ -140,18 +115,8 @@ def456 fix: resolve bug
 | `OLLAMA_MODEL` | `qwen3:7b` | 模型名称 |
 | `AGENT_WORKSPACE` | `./workspace` | 工作目录 |
 | `SESSION_LOG_DIR` | `./sessions` | 会话日志目录 |
-| `ALLOWED_TOOLS` | `read,glob,grep,file_tree,outline,shell,write,edit` | 启用的工具 |
+| `ALLOWED_TOOLS` | 全部工具 | 启用的工具列表 |
 | `EXECUTION_SANDBOX` | `host` | 执行沙箱模式 |
-
-### Shell 工具
-
-仅允许白名单中的命令：
-```
-git, ls, find, grep, cat, head, tail, tree, 
-python, node, npm, docker, ...
-```
-
-安全限制：输出限 5000 字符，超时 30 秒。
 
 ### 沙箱模式
 
@@ -168,48 +133,61 @@ EXECUTION_SANDBOX=ssh
 SANDBOX_SSH_HOST=remote-host
 ```
 
-## 项目结构
+## 📁 项目结构
 
 ```
-zai-agent/
+zai-agents/
 ├── src/zai/
-│   ├── agent.py       # Agent 主类
-│   ├── config.py      # 配置管理
-│   ├── llm.py         # Ollama 模型封装
-│   ├── tools.py       # 工具定义
-│   ├── security.py     # 路径层沙箱
-│   ├── sandbox.py      # 执行层沙箱
-│   ├── stream.py       # 流式事件处理
-│   └── main.py        # CLI 入口
-├── workspace/          # Agent 工作目录
-├── sessions/          # JSONL 会话日志
-└── tests/            # 测试用例
+│   ├── __init__.py      # 包入口
+│   ├── agent.py         # Agent 核心逻辑
+│   ├── config.py        # 配置管理
+│   ├── llm.py           # Ollama 模型封装
+│   ├── tools.py         # 工具定义
+│   ├── security.py      # 路径层沙箱
+│   ├── sandbox.py       # 执行层沙箱
+│   ├── stream.py        # 流式事件处理
+│   └── main.py          # CLI 入口
+├── tests/               # 测试用例
+├── docs/                # 文档
+├── prompts/             # 提示词模板
+├── LICENSE              # MIT 许可证
+├── CONTRIBUTING.md      # 贡献指南
+└── CHANGELOG.md         # 变更日志
 ```
 
-## 常见问题
-
-**Q: 连接 Ollama 失败？**
-```bash
-curl http://localhost:11434/api/tags
-uv run zai "问题" --max-retries 5
-```
-
-**Q: 工具调用被拦截？**
-检查 `ALLOWED_TOOLS` 是否包含该工具。
-
-**Q: 路径越界错误？**
-确保操作的文件在 `AGENT_WORKSPACE` 目录内。
-
-**Q: 想看详细日志？**
-会话日志保存在 `sessions/` 目录。
-
-## 测试
+## 🧪 测试
 
 ```bash
 uv run pytest -v
 ```
 
-## 参考
+## ❓ 常见问题
+
+**Q: 连接 Ollama 失败？**
+```bash
+# 检查 Ollama 服务
+curl http://localhost:11434/api/tags
+
+# 增加重试次数
+uv run zai "问题" --max-retries 5
+```
+
+**Q: 工具调用被拦截？**
+检查 `ALLOWED_TOOLS` 环境变量是否包含该工具。
+
+**Q: 路径越界错误？**
+确保操作的文件在 `AGENT_WORKSPACE` 目录内。
+
+## 🤝 贡献
+
+欢迎提交 Issue 和 Pull Request！请参阅 [CONTRIBUTING.md](CONTRIBUTING.md)。
+
+## 📄 许可证
+
+本项目基于 [MIT License](LICENSE) 开源。
+
+## 🔗 参考
 
 - [Strands Agents SDK](https://strandsagents.com/)
 - [Ollama](https://ollama.ai/)
+- [uv 包管理器](https://github.com/astral-sh/uv)

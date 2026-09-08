@@ -1,8 +1,33 @@
 [project]
 name = "zai-agent"
 version = "0.1.0"
-description = "Zai Agent + Ollama: General-purpose coding agent"
+description = "Zai Agent: Local AI coding assistant powered by Ollama"
+readme = "README.md"
+license = { text = "MIT" }
 requires-python = ">=3.12"
+authors = [
+    { name = "Zai Agents Team", email = "team@zai-agents.dev" }
+]
+keywords = [
+    "ai",
+    "coding-assistant",
+    "ollama",
+    "strands-agents",
+    "local-llm",
+    "code-generation",
+    "developer-tools"
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Coding Assistants",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
 dependencies = [
     "strands-agents[ollama]>=1.0.0",
     "python-dotenv>=1.0.0",
@@ -12,12 +37,21 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-    "pytest",
-    "pytest-asyncio",
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+    "ruff>=0.11.0",
 ]
 
 [project.scripts]
 zai = "zai.main:run_cli"
+
+[project.urls]
+Homepage = "https://github.com/your-org/zai-agents"
+Documentation = "https://github.com/your-org/zai-agents#readme"
+Repository = "https://github.com/your-org/zai-agents"
+Issues = "https://github.com/your-org/zai-agents/issues"
+Changelog = "https://github.com/your-org/zai-agents/blob/main/CHANGELOG.md"
+"Bug Tracker" = "https://github.com/your-org/zai-agents/issues"
 
 [build-system]
 requires = ["hatchling"]
@@ -34,14 +68,12 @@ src = ["src", "tests"]
 select = ["E", "W", "F", "I", "B", "UP", "SIM", "RUF"]
 ignore = [
     "E501",
-    "RUF001",  # fullwidth characters in Chinese prompts
-    "RUF002",  # fullwidth characters in Chinese comments
-    "RUF003",  # fullwidth characters in Chinese docstrings
+    "RUF001",
+    "RUF002",
+    "RUF003",
 ]
 
 [tool.ruff.lint.per-file-ignores]
-# Test / demo scripts insert the src path into sys.path BEFORE importing
-# project modules — the import-after-code pattern is intentional there.
 "tests/*.py" = ["E402"]
 
 [tool.pytest.ini_options]
