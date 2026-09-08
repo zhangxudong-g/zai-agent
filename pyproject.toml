@@ -37,19 +37,6 @@ Repository = "https://github.com/zhangxudong-g/zai-agent"
 Issues = "https://github.com/zhangxudong-g/zai-agent/issues"
 Changelog = "https://github.com/zhangxudong-g/zai-agent/blob/main/CHANGELOG.md"
 
-# 发布到 GitHub Packages 的配置
-[tool.hatch.build.targets.sdist]
-include = ["src", "prompts", "README.md", "LICENSE"]
-
-[tool.hatch.build.targets.wheel]
-packages = ["src/zai"]
-dependencies = [
-    "strands-agents[ollama]>=1.0.0",
-    "python-dotenv>=1.0.0",
-    "strands-agents-tools>=0.8.6",
-    "opentelemetry-exporter-otlp-proto-http>=1.44.0",
-]
-
 [project.optional-dependencies]
 dev = [
     "pytest>=9.1.1",
