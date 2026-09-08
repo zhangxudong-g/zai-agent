@@ -376,6 +376,9 @@ def _main(args: argparse.Namespace) -> int:
         print("To configure, edit:", get_zai_env_file())
         return 0
     
+    # Initialize default config if not exists
+    init_zai_config()
+    
     config = get_config(env_file=args.env_file)
     
     # Setup ollama debug if enabled
