@@ -1,0 +1,88 @@
+[project]
+name = "zai-agent"
+version = "0.1.0"
+description = "Zai Agent: Local AI coding assistant powered by Ollama"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.12"
+authors = [
+    { name = "Zai Agents Team", email = "team@zai-agents.dev" }
+]
+keywords = [
+    "ai",
+    "coding-assistant",
+    "ollama",
+    "strands-agents",
+    "local-llm",
+    "code-generation",
+    "developer-tools"
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Coding Assistants",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+dependencies = [
+    "strands-agents[ollama]>=1.0.0",
+    "python-dotenv>=1.0.0",
+    "strands-agents-tools>=0.8.6",
+    "opentelemetry-exporter-otlp-proto-http>=1.44.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+    "ruff>=0.11.0",
+]
+
+[project.scripts]
+zai = "zai.main:run_cli"
+
+[project.urls]
+Homepage = "https://github.com/zhangxudong-g/zai-agent"
+Documentation = "https://github.com/zhangxudong-g/zai-agent#readme"
+Repository = "https://github.com/zhangxudong-g/zai-agent"
+Issues = "https://github.com/zhangxudong-g/zai-agent/issues"
+Changelog = "https://github.com/zhangxudong-g/zai-agent/blob/main/CHANGELOG.md"
+"Bug Tracker" = "https://github.com/zhangxudong-g/zai-agent/issues"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/zai"]
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "B", "UP", "SIM", "RUF"]
+ignore = [
+    "E501",
+    "RUF001",
+    "RUF002",
+    "RUF003",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*.py" = ["E402"]
+
+[tool.pytest.ini_options]
+addopts = ["--strict-markers", "-ra"]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+]
