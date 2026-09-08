@@ -168,6 +168,14 @@ export ZAI_HOME=/path/to/my-zai
 export ZAI_HOME=/custom/path
 ```
 
+### 调试选项
+
+| 变量 | 默认值 | 说明 |
+|------|--------|------|
+| `ZAI_DEBUG_OLLAMA` | `0` | 设为 `1` 启用 Ollama 请求调试日志 |
+
+启用后，日志保存在 `~/.zai/sessions/ollama-debug.jsonl`
+
 ## ⚙️ 配置
 
 ### 环境变量

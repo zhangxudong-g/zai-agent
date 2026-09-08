@@ -31,13 +31,14 @@ from typing import Any
 
 from .config import Config
 
-# Debug logging for Ollama requests — opt-out via ZAI_DEBUG_OLLAMA=0.
-# Always writes a JSONL line per Ollama call to the session log dir so we
+# Debug logging for Ollama requests — opt-in via ZAI_DEBUG_OLLAMA=1.
+# Writes a JSONL line per Ollama call to the session log dir so we
 # can inspect the messages array sent to Ollama on every cycle (first call
 # + after every tool result). This was added to debug the recurring
 # "no user query found in messages" 500 from Ollama.
 #
-# Set ZAI_DEBUG_OLLAMA=0 to disable. File path: <session_log_dir>/ollama-debug.jsonl.
+# Set ZAI_DEBUG_OLLAMA=1 to enable. File path: <session_log_dir>/ollama-debug.jsonl.
+# Default: disabled.
 _ollama_debug_log = logging.getLogger("zai.ollama_debug")
 _ollama_debug_log.setLevel(logging.DEBUG)
 _ollama_debug_log.propagate = False
@@ -46,22 +47,29 @@ _ollama_debug_call_counter = 0
 _ollama_debug_path: Path | None = None
 
 
-def _setup_ollama_debug() -> None:
-    """Enable per-request debug logging unless explicitly disabled.
+def _setup_ollama_debug(log_dir: Path | None = None) -> None:
+    """Enable per-request debug logging when ZAI_DEBUG_OLLAMA=1.
 
-    Writes one JSON line per Ollama call to ``<cwd>/ollama-debug.jsonl``
-    (overwritten on each invocation). When this module is imported from a
-    different working directory, write to that directory.
+    Writes one JSON line per Ollama call to ``<log_dir>/ollama-debug.jsonl``
+    (overwritten on each invocation).
 
-    Set ``ZAI_DEBUG_OLLAMA=0`` to disable.
+    Set ``ZAI_DEBUG_OLLAMA=1`` to enable. Default: disabled.
     """
     global _ollama_debug_handler, _ollama_debug_path
     if _ollama_debug_handler is not None:
         return
-    if os.getenv("ZAI_DEBUG_OLLAMA") == "0":
+    
+    # Only enable if explicitly set to 1
+    debug_value = os.getenv("ZAI_DEBUG_OLLAMA", "0")
+    if debug_value != "1":
         return
+    
+    if log_dir is None:
+        log_dir = Path.cwd() / "sessions"
+    
     try:
-        log_path = Path.cwd() / "ollama-debug.jsonl"
+        log_dir.mkdir(parents=True, exist_ok=True)
+        log_path = log_dir / "ollama-debug.jsonl"
         h = logging.FileHandler(log_path, mode="w", encoding="utf-8")
         h.setFormatter(logging.Formatter("%(message)s\n"))
         _ollama_debug_log.addHandler(h)

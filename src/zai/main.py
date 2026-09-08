@@ -19,7 +19,7 @@ from typing import ClassVar
 
 from .agent import Agent
 from .config import get_config
-from .llm import _ollama_debug_path
+from .llm import _ollama_debug_path, _setup_ollama_debug
 from .paths import get_zai_home, get_zai_config_dir, get_zai_env_file, print_zai_info
 from .trace import SessionLogger
 
@@ -377,6 +377,9 @@ def _main(args: argparse.Namespace) -> int:
         return 0
     
     config = get_config(env_file=args.env_file)
+    
+    # Setup ollama debug if enabled
+    _setup_ollama_debug(log_dir=config.session_log_dir)
     if args.workspace is not None:
         config.agent_workspace = args.workspace.resolve()
     if args.model is not None:
