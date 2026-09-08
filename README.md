@@ -29,13 +29,14 @@
 
 ### 安装方式
 
-**方式一：pip 安装（推荐）**
+**方式一：GitHub 直接安装（推荐，无需 PyPI 账号）**
 
 ```bash
-pip install zai-agent
+# 使用 uv 安装（推荐，自动安装到全局）
+uv tool install git+https://github.com/zhangxudong-g/zai-agent.git
 
-# 或使用 uv（更快的包管理器）
-uv tool install zai-agent
+# 或使用 pip
+pip install git+https://github.com/zhangxudong-g/zai-agent.git
 ```
 
 **方式二：Docker 运行**
@@ -65,6 +66,16 @@ uv tool install .
 
 # 或使用 pip
 pip install .
+```
+
+### 卸载
+
+```bash
+# uv 卸载
+uv tool uninstall zai
+
+# pip 卸载
+pip uninstall zai-agent
 ```
 
 ### 运行
