@@ -12,6 +12,7 @@ official "veto a tool call" pattern.
 from __future__ import annotations
 
 import ast
+import contextlib
 import fnmatch
 import json
 import os
@@ -103,6 +104,41 @@ def _looks_binary(data: bytes, *, sample: int = 8192) -> bool:
     return b"\x00" in chunk
 
 
+def _detect_encoding(raw: bytes) -> tuple[str, float]:
+    """Detect encoding from raw bytes using charset-normalizer if available.
+
+    Returns (encoding_name, confidence). Falls back to UTF-8 with 0.5 confidence.
+    """
+    # Try BOM detection first
+    if raw.startswith(b"\xef\xbb\xbf"):
+        return ("utf-8-sig", 1.0)
+    if raw.startswith(b"\xff\xfe\x00\x00") or raw.startswith(b"\x00\x00\xfe\xff"):
+        return ("utf-32", 1.0)
+    if raw.startswith(b"\xff\xfe") or raw.startswith(b"\xfe\xff"):
+        return ("utf-16", 1.0)
+
+    try:
+        from charset_normalizer import from_bytes
+
+        best = from_bytes(raw).best()
+        if best is not None and best.encoding:
+            return (best.encoding, float(getattr(best, "chaos", 0.5) or 0.5))
+    except ImportError:
+        pass
+
+    # Heuristic: check if bytes are valid UTF-8
+    try:
+        raw.decode("utf-8")
+        return ("utf-8", 0.9)
+    except UnicodeDecodeError:
+        # Common fallbacks
+        try:
+            raw.decode("gbk")
+            return ("gbk", 0.7)
+        except UnicodeDecodeError:
+            return ("latin-1", 0.3)
+
+
 def make_read_tool(workspace: Path):
     @tool(
         name="read",
@@ -110,7 +146,8 @@ def make_read_tool(workspace: Path):
             "Read a file. Path is relative to the workspace unless absolute. "
             "Optional: offset (1-based start line), limit (max lines), "
             "max_bytes (cap on bytes returned). Binary files return a sentinel "
-            "'[binary, N bytes]' without raising."
+            "'[binary, N bytes]' without raising. Encoding is auto-detected "
+            "(UTF-8 / GBK / UTF-16 / Latin-1)."
         ),
     )
     def read_tool(
@@ -123,6 +160,11 @@ def make_read_tool(workspace: Path):
         if isinstance(target_or_err, str):
             return target_or_err
         target = target_or_err
+
+        # Default cap if user didn't specify one
+        DEFAULT_MAX_BYTES = 1_000_000  # 1 MB
+        effective_max = max_bytes if max_bytes > 0 else DEFAULT_MAX_BYTES
+
         try:
             raw = target.read_bytes()
         except FileNotFoundError:
@@ -130,10 +172,37 @@ def make_read_tool(workspace: Path):
         except OSError as e:
             return f"[ERROR] {e}"
 
+        # Large file protection
+        if len(raw) > effective_max:
+            preview_bytes = raw[:effective_max]
+            if _looks_binary(preview_bytes):
+                return (
+                    f"[LARGE BINARY FILE, {len(raw)} bytes; "
+                    f"showing first {effective_max} bytes as preview]\n"
+                    f"[binary, {effective_max} bytes of {len(raw)}]"
+                )
+            # Preview first N bytes
+            encoding, _conf = _detect_encoding(preview_bytes)
+            try:
+                preview_text = preview_bytes.decode(encoding, errors="replace")
+            except (UnicodeDecodeError, LookupError):
+                preview_text = preview_bytes.decode("utf-8", errors="replace")
+            preview_text += (
+                f"\n\n[...truncated; file is {len(raw)} bytes. "
+                f"Use offset/limit or increase max_bytes to read more]"
+            )
+            return preview_text
+
         if _looks_binary(raw):
             return f"[binary, {len(raw)} bytes] (use outline for structure)"
 
-        text = raw.decode("utf-8", errors="replace")
+        # Detect encoding for text files
+        encoding, _confidence = _detect_encoding(raw)
+        try:
+            text = raw.decode(encoding, errors="replace")
+        except (UnicodeDecodeError, LookupError):
+            text = raw.decode("utf-8", errors="replace")
+            encoding = "utf-8"
 
         # Slice by line range if offset/limit given.
         if offset or limit:
@@ -147,6 +216,10 @@ def make_read_tool(workspace: Path):
             encoded = text.encode("utf-8")[:max_bytes]
             text = encoded.decode("utf-8", errors="ignore")
             text += f"\n[...truncated at {max_bytes} bytes; original {len(raw)} bytes]"
+
+        # Add encoding hint for non-UTF-8 files
+        if encoding not in ("utf-8", "utf-8-sig"):
+            text = f"[encoding: {encoding}]\n{text}"
 
         return text
 
@@ -320,19 +393,60 @@ def make_write_tool(workspace: Path):
 # --------------------------------------------------------------------- #
 # EditTool  (sandbox check is done by WorkspaceSandboxHook, not here)
 # --------------------------------------------------------------------- #
+def _atomic_write(target: Path, content: str, encoding: str = "utf-8") -> None:
+    """Write content to ``target`` atomically via a sibling temp file + rename.
+
+    On POSIX, ``os.replace`` is atomic. On Windows, ``Path.replace`` is also
+    atomic if both paths are on the same filesystem.
+    """
+    tmp = target.with_suffix(target.suffix + ".tmp")
+    try:
+        tmp.write_text(content, encoding=encoding, newline="")
+        os.replace(tmp, target)
+    finally:
+        with contextlib.suppress(OSError):
+            if tmp.exists():
+                tmp.unlink()
+
+
+def _make_diff(old: str, new: str, file_path: str, context: int = 3) -> str:
+    """Return a unified diff string between ``old`` and ``new``."""
+    import difflib
+
+    diff_lines = difflib.unified_diff(
+        old.splitlines(keepends=True),
+        new.splitlines(keepends=True),
+        fromfile=f"a/{file_path}",
+        tofile=f"b/{file_path}",
+        n=context,
+        lineterm="",
+    )
+    return "".join(diff_lines)
+
+
 def make_edit_tool(workspace: Path):
     @tool(
         name="edit",
         description=(
-            "Edit a file via find/replace. Returns 'No match' if old_string "
-            "is not found. Workspace enforcement is done by a hook."
+            "Edit a file via find/replace. By default requires old_string to "
+            "match exactly once; set replace_all=True to replace all occurrences. "
+            "Set dry_run=True to see the diff without writing. Writes are atomic. "
+            "Returns 'No match' / 'Multiple matches' if old_string is missing "
+            "or ambiguous."
         ),
     )
-    def edit_tool(file_path: str, old_string: str, new_string: str) -> str:
+    def edit_tool(
+        file_path: str,
+        old_string: str,
+        new_string: str,
+        replace_all: bool = False,
+        dry_run: bool = False,
+    ) -> str:
         target_or_err = _resolve_within_sandbox(workspace, file_path, label="file_path")
         if isinstance(target_or_err, str):
             return target_or_err
         target = target_or_err
+
         try:
             src = target.read_text(encoding="utf-8")
         except UnicodeDecodeError:
@@ -341,11 +455,57 @@ def make_edit_tool(workspace: Path):
                 "because a lossy decode would corrupt the file. Convert it "
                 "to UTF-8 first, or edit it with an external editor."
             )
-        replaced = src.replace(old_string, new_string)
-        if replaced == src:
-            return f"[no match for old_string in {file_path}]"
-        target.write_text(replaced, encoding="utf-8")
-        return f"Edited {file_path} ({len(new_string)} chars)"
+        except FileNotFoundError:
+            return f"[ERROR] file not found: {file_path}"
+
+        count = src.count(old_string)
+
+        if count == 0:
+            return (
+                f"[ERROR] No match for old_string in {file_path}. "
+                "Verify the exact text (including whitespace and indentation)."
+            )
+        if count > 1 and not replace_all:
+            # Find line numbers of each occurrence
+            lines = src.splitlines(keepends=False)
+            line_nums = []
+            offset = 0
+            for _i, _line in enumerate(lines, 1):
+                while True:
+                    idx = src.find(old_string, offset)
+                    if idx < 0:
+                        break
+                    # Determine which line this is in
+                    line_idx = src[:idx].count("\n")
+                    line_nums.append(line_idx + 1)
+                    offset = idx + 1
+                    if len(line_nums) >= count:
+                        break
+            return (
+                f"[ERROR] old_string matches {count} times in {file_path} at "
+                f"line(s) {', '.join(map(str, line_nums))}. "
+                "Provide more context to make it unique, or set replace_all=True."
+            )
+
+        if replace_all:
+            replaced = src.replace(old_string, new_string)
+            actual_count = count
+        else:
+            replaced = src.replace(old_string, new_string, 1)
+            actual_count = 1
+
+        # Dry run: return diff without writing
+        if dry_run:
+            diff = _make_diff(src, replaced, file_path)
+            return f"[DRY RUN] Diff for {file_path}:\n{diff}"
+
+        # Atomic write
+        try:
+            _atomic_write(target, replaced, encoding="utf-8")
+        except OSError as e:
+            return f"[ERROR] Failed to write {file_path}: {e}"
+
+        return f"Edited {file_path} ({actual_count} replacement{'s' if actual_count != 1 else ''})"
 
     return edit_tool
 
@@ -436,6 +596,61 @@ def build_file_tree_entries(
             }
         )
     return _to_json_safe(entries)
+
+
+# --------------------------------------------------------------------- #
+# DiffTool — preview find/replace without writing
+# --------------------------------------------------------------------- #
+def make_diff_tool(workspace: Path):
+    @tool(
+        name="diff",
+        description=(
+            "Preview the result of an edit without writing to disk. "
+            "Returns a unified diff between the current file contents and "
+            "what they would look like after replacing old_string with "
+            "new_string. Useful for verifying changes before committing them."
+        ),
+    )
+    def diff_tool(
+        file_path: str,
+        old_string: str,
+        new_string: str,
+        replace_all: bool = False,
+        context: int = 3,
+    ) -> str:
+        target_or_err = _resolve_within_sandbox(workspace, file_path, label="file_path")
+        if isinstance(target_or_err, str):
+            return target_or_err
+        target = target_or_err
+
+        try:
+            src = target.read_text(encoding="utf-8")
+        except FileNotFoundError:
+            return f"[ERROR] file not found: {file_path}"
+        except UnicodeDecodeError:
+            return f"[ERROR] {file_path} is not valid UTF-8"
+
+        count = src.count(old_string)
+        if count == 0:
+            return f"[ERROR] No match for old_string in {file_path}"
+        if count > 1 and not replace_all:
+            return (
+                f"[ERROR] old_string matches {count} times in {file_path}. "
+                "Provide more context or set replace_all=True."
+            )
+
+        if replace_all:
+            new_content = src.replace(old_string, new_string)
+        else:
+            new_content = src.replace(old_string, new_string, 1)
+
+        if new_content == src:
+            return "[no changes]"
+
+        diff = _make_diff(src, new_content, file_path, context=context)
+        return diff or "[no diff]"
+
+    return diff_tool
 
 
 def make_file_tree_tool(workspace: Path):
@@ -586,15 +801,18 @@ def make_shell_tool(workspace: Path):
             "tree, python, node, docker, etc. "
             "Unix idioms (ls, cat, pwd, find -name) are auto-translated to "
             "Windows equivalents, so they work cross-platform. "
-            "Output is truncated to 5000 chars. "
+            "Output is truncated to 5000 chars (configurable via max_output). "
+            "stderr is reported separately. Non-zero exit codes are surfaced. "
             "Workspace directory is the working directory."
         ),
     )
-    def shell_tool(command: str) -> str:
+    def shell_tool(
+        command: str,
+        timeout: int = 30,
+        max_output: int = 5000,
+    ) -> str:
         import shlex
         import subprocess
-
-        MAX_OUTPUT = 5000
 
         # Parse command safely
         try:
@@ -619,16 +837,13 @@ def make_shell_tool(workspace: Path):
         # cmd.exe: double-quote args that contain spaces
         command = " ".join(f'"{p}"' if " " in p else p for p in parts)
 
-        # Block dangerous patterns (simple check, allowlist already restricts commands)
-        # We allow shell=True because commands are already allowlist-checked above
-
         try:
             result = subprocess.run(
                 command,
                 shell=True,
                 cwd=str(workspace),
                 capture_output=True,
-                timeout=30,
+                timeout=timeout,
             )
 
             def _decode(b: bytes) -> str:
@@ -644,15 +859,32 @@ def make_shell_tool(workspace: Path):
 
                     return b.decode(locale.getpreferredencoding(False), errors="replace")
 
-            decoded = _decode(result.stdout) + _decode(result.stderr)
-            output = decoded[:MAX_OUTPUT]
-            if len(decoded) > MAX_OUTPUT:
-                output += f"\n... (truncated, {len(decoded)} total chars)"
-            if result.returncode != 0 and not output:
-                return f"[ERROR] command exited with code {result.returncode}"
+            stdout = _decode(result.stdout)
+            stderr = _decode(result.stderr)
+
+            # Truncate each side independently so we don't drop stderr when
+            # stdout is huge.
+            def _truncate(text: str, label: str) -> str:
+                if len(text) > max_output:
+                    return text[:max_output] + f"\n... ({label} truncated, {len(text)} total chars)"
+                return text
+
+            parts_out = []
+            if stdout:
+                parts_out.append(_truncate(stdout, "stdout"))
+            if stderr:
+                parts_out.append(_truncate(stderr, "stderr"))
+
+            output = "\n".join(parts_out) if parts_out else ""
+
+            # Always include exit code for non-zero failures
+            if result.returncode != 0:
+                prefix = f"[exit code: {result.returncode}]\n"
+                output = prefix + (output or "(no output)")
+
             return output or "[no output]"
         except subprocess.TimeoutExpired:
-            return "[ERROR] command timed out after 30 seconds"
+            return f"[ERROR] command timed out after {timeout} seconds"
         except FileNotFoundError:
             return f"[ERROR] command not found: {parts[0]}"
         except Exception as e:
@@ -737,6 +969,7 @@ _FACTORIES = {
     "grep": make_grep_tool,
     "write": make_write_tool,
     "edit": make_edit_tool,
+    "diff": make_diff_tool,
     "file_tree": make_file_tree_tool,
     "outline": make_outline_tool,
     "shell": make_shell_tool,
