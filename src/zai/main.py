@@ -50,23 +50,22 @@ def print_banner(
         ╭─ zai · <model> · <workspace> · session <id>
         ╰─ 📁 ~/.zai  📝 <log-file-path>  ──  /help /clear /exit
     """
-    title = f"zai · {config.ollama_model} · {config.agent_workspace} · session {session_id}"
-    print(f"╭─ {title}")
-    line2_parts: list[str] = []
+    from .tui import print_banner_v2
 
-    # Show zai home
     zai_home = get_zai_home()
-    line2_parts.append(f"📁 {zai_home}")
-
-    if log_file is not None:
-        line2_parts.append(f"📝 {log_file}")
+    extra_parts: list[str] = []
     if _ollama_debug_path is not None:
-        line2_parts.append(f"🐛 {_ollama_debug_path}")
-    if interactive:
-        line2_parts.append("/help /clear /exit")
-    if line2_parts:
-        print(f"╰─ {'  ──  '.join(line2_parts)}")
-    print()
+        extra_parts.append(f"🐛 {_ollama_debug_path}")
+
+    print_banner_v2(
+        model=config.ollama_model,
+        workspace=config.agent_workspace,
+        session_id=session_id,
+        log_file=log_file,
+        zai_home=zai_home,
+        interactive=interactive,
+        extra_parts=extra_parts,
+    )
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -165,15 +164,14 @@ def display_tool_results_from_log(log_file: Path) -> None:
                 continue
 
     for tc in tool_calls:
-        print(f"\n🔧 {tc['tool_name']}")
-        if tc["result"]:
-            result_lines = tc["result"].split("\n")
-            for line in result_lines[:10]:
-                if len(line) > 120:
-                    line = line[:120] + "..."
-                print(f"   {line}")
-            if len(result_lines) > 10:
-                print(f"   ... ({len(result_lines)} lines)")
+        from .tui import print_tool_result
+
+        print()
+        print_tool_result(
+            name=tc["tool_name"],
+            result=tc["result"] or "",
+            is_error=tc.get("is_error", False),
+        )
 
 
 class REPL:
@@ -198,21 +196,35 @@ class REPL:
         self._loop = None
 
     def print_welcome(self) -> None:
+        from .tui import print_box
+
         print()
-        print("╭─ Zai Agent REPL ─────────────────────────")
-        print("│ /help   显示帮助")
-        print("│ /clear  清屏")
-        print("│ /exit   退出")
-        print("╰─────────────────────────────────────────────")
+        print_box(
+            "Zai Agent REPL",
+            [
+                "/help   显示帮助",
+                "/clear  清屏",
+                "/exit   退出",
+            ],
+            color="cyan",
+            width=42,
+        )
         print()
 
     def print_help(self) -> None:
+        from .tui import print_box
+
         print()
-        print("╭─ 帮助 ──────────────────────────────────────")
-        print("│ 输入问题，Agent 会记住上下文")
-        print("│ /clear - 清屏")
-        print("│ /exit  - 退出")
-        print("╰─────────────────────────────────────────────")
+        print_box(
+            "帮助",
+            [
+                "输入问题，Agent 会记住上下文",
+                "/clear - 清屏",
+                "/exit  - 退出",
+            ],
+            color="cyan",
+            width=45,
+        )
         print()
 
     def clear_screen(self) -> None:
@@ -318,6 +330,8 @@ async def _render_stream_chunks(chunk_stream, *, show_usage: bool = True) -> Non
         show_usage: If True, include output-token count in the final
             final line. One-shot mode sets this to False.
     """
+    from .tui import print_done, print_thinking, print_tool_start
+
     t0 = time.time()
     thinking_buffer = ""
     has_text = False
@@ -325,7 +339,7 @@ async def _render_stream_chunks(chunk_stream, *, show_usage: bool = True) -> Non
     async for chunk in chunk_stream:
         if chunk.kind == "text":
             if thinking_buffer:
-                print(f"\U0001f914 {thinking_buffer[:80]}...", flush=True)
+                print_thinking(thinking_buffer)
                 thinking_buffer = ""
             print(chunk.text, end="", flush=True)
             has_text = True
@@ -336,49 +350,16 @@ async def _render_stream_chunks(chunk_stream, *, show_usage: bool = True) -> Non
                 print()
                 has_text = False
             if thinking_buffer:
-                print(f"  \U0001f914 {thinking_buffer[:60]}...", flush=True)
+                print_thinking(thinking_buffer, max_chars=60)
                 thinking_buffer = ""
-            print(
-                f"  \U0001f527 {_format_tool_call(chunk.tool_name, chunk.input_args)}", flush=True
-            )
+            print_tool_start(chunk.tool_name, chunk.input_args)
         elif chunk.kind == "tool_end":
             pass  # Tool result is rendered by JsonlTraceHook
         elif chunk.kind == "done":
             if thinking_buffer:
-                print(f"\n\U0001f914 {thinking_buffer[:80]}...")
+                print_thinking(thinking_buffer)
             elapsed = time.time() - t0
-            print(f"\n\u2713 {elapsed:.1f}s", flush=True)
-
-
-def _format_tool_call(tool_name: str, input_args: dict | None) -> str:
-    """Format a tool call for compact single-line display (Option A).
-
-    Display rules (see docs/tui_mockup.md):
-      - ``shell``:  skip tool name, show only the command (it's self-evident)
-      - single-arg tools (``read``/``write``/``edit``/``outline`` etc.):
-        ``<tool> <arg-value>``
-      - multi-arg tools (``grep`` etc.): ``<tool> key=val key=val`` (each val truncated)
-      - Long values truncated with ``\u2026`` (ellipsis) instead of ``...``.
-    """
-    if not input_args:
-        return tool_name
-    if tool_name == "shell":
-        cmd = str(input_args.get("command", ""))
-        if len(cmd) > 100:
-            cmd = cmd[:98] + "\u2026"
-        return cmd
-    if len(input_args) == 1:
-        v_str = str(next(iter(input_args.values())))
-        if len(v_str) > 100:
-            v_str = v_str[:98] + "\u2026"
-        return f"{tool_name} {v_str}"
-    parts: list[str] = []
-    for k, v in input_args.items():
-        v_str = str(v)
-        if len(v_str) > 40:
-            v_str = v_str[:38] + "\u2026"
-        parts.append(f"{k}={v_str!r}")
-    return f"{tool_name} " + " ".join(parts)
+            print_done(elapsed)
 
 
 def run_cli(argv: list[str] | None = None) -> int:

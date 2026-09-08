@@ -10,9 +10,10 @@ Public surface
 - :func:`patch_ollama_thinking` \u2014 Strands monkey-patch for qwen3 reasoning
 - :mod:`telemetry` \u2014 OpenTelemetry auto-activation from .env
 - :mod:`paths` \u2014 Zai home directory management
+- :mod:`tui` \u2014 Terminal UI helpers (colors, spinners, boxes)
 """
 
-from . import telemetry
+from . import telemetry, tui
 from .agent import Agent
 from .config import Config, get_config
 from .llm import patch_ollama_thinking
@@ -47,4 +48,5 @@ __all__ = [
     "patch_ollama_thinking",
     "print_zai_info",
     "telemetry",
+    "tui",
 ]
