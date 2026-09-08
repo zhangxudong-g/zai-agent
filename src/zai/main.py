@@ -20,7 +20,7 @@ from typing import ClassVar
 from .agent import Agent
 from .config import get_config
 from .llm import _ollama_debug_path, _setup_ollama_debug
-from .paths import get_zai_home, get_zai_config_dir, get_zai_env_file, print_zai_info
+from .paths import get_zai_home, get_zai_config_dir, get_zai_env_file, init_zai_config, print_zai_info
 from .trace import SessionLogger
 
 
