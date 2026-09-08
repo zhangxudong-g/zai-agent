@@ -81,6 +81,8 @@ def build_parser() -> argparse.ArgumentParser:
                    help="Path to .env file (default: .env).")
     p.add_argument("--info", action="store_true",
                    help="Show Zai home directory information and exit.")
+    p.add_argument("-uninstall", "--uninstall", action="store_true",
+                   help="Uninstall zai-agent and remove user data.")
 
     return p
 
@@ -355,6 +357,60 @@ def run_cli(argv: list[str] | None = None) -> int:
     Automatically uses current directory as workspace when --workspace is not specified.
     """
     args = build_parser().parse_args(argv)
+    
+    # Handle -uninstall flag: spawn a new process to uninstall and exit
+    if args.uninstall:
+        import shutil
+        import subprocess
+        import time
+        
+        print("Uninstalling zai-agent...")
+        print()
+        
+        # Get zai home directory
+        from .paths import get_zai_home
+        zai_home = str(get_zai_home())
+        
+        # Spawn uninstall process and exit immediately
+        uninstall_cmd = [
+            sys.executable, "-c",
+            f""
+import subprocess, sys, shutil, os, time
+zai_home = r'{zai_home}'
+
+# Confirm
+print(f'Delete user data at {{zai_home}}? [y/N]: ', end='', flush=True)
+try:
+    response = input().strip().lower()
+    if response not in ('y', 'yes'):
+        print('Cancelled')
+        sys.exit(0)
+except EOFError:
+    pass
+
+# Wait a bit for parent process to exit
+time.sleep(0.5)
+
+# Uninstall pip package
+print('Uninstalling pip package...')
+subprocess.run([sys.executable, '-m', 'pip', 'uninstall', 'zai-agent', '-y'], 
+               capture_output=True)
+
+# Remove user data
+if os.path.exists(zai_home):
+    print(f'Deleting {{zai_home}}...')
+    shutil.rmtree(zai_home)
+
+print()
+print('Uninstall complete!')
+"""
+        ]
+        
+        # Start uninstall in background and exit
+        subprocess.Popen(uninstall_cmd)
+        return 0
+    
+    return _main(args)
 
     # Use current directory as default workspace if not specified
     if args.workspace is None:

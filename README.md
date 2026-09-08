@@ -48,10 +48,10 @@ pip install .
 
 ```bash
 # 完整卸载（包括用户数据）
-zai-uninstall
+zai -uninstall
 
-# 仅卸载 pip 包
-pip uninstall zai-agent -y
+# 或
+zai-uninstall
 ```
 
 ### 运行
