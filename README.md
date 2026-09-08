@@ -31,7 +31,7 @@
 
 ```bash
 # 克隆项目
-git clone https://github.com/your-org/zai-agents.git
+git clone https://github.com/zhangxudong-g/zai-agent.git
 cd zai-agents
 
 # 安装依赖

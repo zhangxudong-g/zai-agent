@@ -6,8 +6,8 @@
 
 ```bash
 # 克隆仓库
-git clone https://github.com/your-org/zai-agents.git
-cd zai-agents
+git clone https://github.com/zhangxudong-g/zai-agent.git
+cd zai-agent
 
 # 安装依赖
 uv sync

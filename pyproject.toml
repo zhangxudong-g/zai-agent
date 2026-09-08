@@ -46,12 +46,12 @@ dev = [
 zai = "zai.main:run_cli"
 
 [project.urls]
-Homepage = "https://github.com/your-org/zai-agents"
-Documentation = "https://github.com/your-org/zai-agents#readme"
-Repository = "https://github.com/your-org/zai-agents"
-Issues = "https://github.com/your-org/zai-agents/issues"
-Changelog = "https://github.com/your-org/zai-agents/blob/main/CHANGELOG.md"
-"Bug Tracker" = "https://github.com/your-org/zai-agents/issues"
+Homepage = "https://github.com/zhangxudong-g/zai-agent"
+Documentation = "https://github.com/zhangxudong-g/zai-agent#readme"
+Repository = "https://github.com/zhangxudong-g/zai-agent"
+Issues = "https://github.com/zhangxudong-g/zai-agent/issues"
+Changelog = "https://github.com/zhangxudong-g/zai-agent/blob/main/CHANGELOG.md"
+"Bug Tracker" = "https://github.com/zhangxudong-g/zai-agent/issues"
 
 [build-system]
 requires = ["hatchling"]
