@@ -23,10 +23,10 @@ def get_zai_home() -> Path:
 def run_uninstall() -> int:
     """Run uninstallation: remove package and user data."""
     zai_home = get_zai_home()
-    
+
     print("Uninstalling zai-agent...")
     print()
-    
+
     # Ask for confirmation
     try:
         response = input(f"Delete user data {zai_home}? [y/N]: ").strip().lower()
@@ -36,7 +36,7 @@ def run_uninstall() -> int:
     except EOFError:
         # Non-interactive mode, assume yes
         pass
-    
+
     # Uninstall the pip package
     print("Uninstalling pip package...")
     result = subprocess.run(
@@ -48,7 +48,7 @@ def run_uninstall() -> int:
         print("[OK] pip package removed")
     else:
         print("[WARN] pip returned non-zero (may already be uninstalled)")
-    
+
     # Remove user data directory
     if zai_home.exists():
         print(f"Deleting user data: {zai_home}")
@@ -59,7 +59,7 @@ def run_uninstall() -> int:
             print(f"[WARN] Failed to delete user data: {e}")
     else:
         print("[OK] user data directory does not exist")
-    
+
     print()
     print("Uninstall complete!")
     return 0

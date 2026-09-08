@@ -58,15 +58,15 @@ def _setup_ollama_debug(log_dir: Path | None = None) -> None:
     global _ollama_debug_handler, _ollama_debug_path
     if _ollama_debug_handler is not None:
         return
-    
+
     # Only enable if explicitly set to 1
     debug_value = os.getenv("ZAI_DEBUG_OLLAMA", "0")
     if debug_value != "1":
         return
-    
+
     if log_dir is None:
         log_dir = Path.cwd() / "sessions"
-    
+
     try:
         log_dir.mkdir(parents=True, exist_ok=True)
         log_path = log_dir / "ollama-debug.jsonl"

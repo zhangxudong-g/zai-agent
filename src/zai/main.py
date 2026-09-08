@@ -20,7 +20,13 @@ from typing import ClassVar
 from .agent import Agent
 from .config import get_config
 from .llm import _ollama_debug_path, _setup_ollama_debug
-from .paths import get_zai_home, get_zai_config_dir, get_zai_env_file, init_zai_config, print_zai_info
+from .paths import (
+    get_zai_config_dir,
+    get_zai_env_file,
+    get_zai_home,
+    init_zai_config,
+    print_zai_info,
+)
 from .trace import SessionLogger
 
 
@@ -47,11 +53,11 @@ def print_banner(
     title = f"zai · {config.ollama_model} · {config.agent_workspace} · session {session_id}"
     print(f"╭─ {title}")
     line2_parts: list[str] = []
-    
+
     # Show zai home
     zai_home = get_zai_home()
     line2_parts.append(f"📁 {zai_home}")
-    
+
     if log_file is not None:
         line2_parts.append(f"📝 {log_file}")
     if _ollama_debug_path is not None:
@@ -360,16 +366,15 @@ def run_cli(argv: list[str] | None = None) -> int:
 
     # Handle -uninstall flag
     if args.uninstall:
-        import shutil
         import subprocess
         import tempfile
-        
+
         from .paths import get_zai_home
         zai_home = str(get_zai_home())
-        
+
         print("Uninstalling zai-agent...")
         print()
-        
+
         # Ask for confirmation
         try:
             response = input(f"Delete user data {zai_home}? [y/N]: ").strip().lower()
@@ -378,7 +383,7 @@ def run_cli(argv: list[str] | None = None) -> int:
                 return 0
         except EOFError:
             pass
-        
+
         # Create a temp script to do actual uninstall (zai.exe gets deleted during pip uninstall)
         script = f'''
 import subprocess, sys, shutil, os, time
@@ -395,14 +400,14 @@ else:
 print()
 print("Uninstall complete!")
 '''
-        
+
         with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False, encoding='utf-8') as f:
             f.write(script)
             script_path = f.name
-        
+
         # Start uninstall script in new console and exit
         if sys.platform == 'win32':
-            subprocess.Popen(['cmd', '/c', 'python', script_path, '&&', 'pause'], 
+            subprocess.Popen(['cmd', '/c', 'python', script_path, '&&', 'pause'],
                            creationflags=subprocess.CREATE_NEW_CONSOLE)
         else:
             subprocess.Popen([sys.executable, script_path])
@@ -418,7 +423,7 @@ print("Uninstall complete!")
 def _main(args: argparse.Namespace) -> int:
     """Core implementation shared by main() and run_cli()."""
     _harden_stdio()
-    
+
     # Handle --info flag
     if args.info:
         print_zai_info()
@@ -427,12 +432,12 @@ def _main(args: argparse.Namespace) -> int:
         print()
         print("To configure, edit:", get_zai_env_file())
         return 0
-    
+
     # Initialize default config if not exists
     init_zai_config()
-    
+
     config = get_config(env_file=args.env_file)
-    
+
     # Setup ollama debug if enabled
     _setup_ollama_debug(log_dir=config.session_log_dir)
     if args.workspace is not None:

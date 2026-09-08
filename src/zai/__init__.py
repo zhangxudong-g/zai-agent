@@ -17,12 +17,12 @@ from .agent import Agent
 from .config import Config, get_config
 from .llm import patch_ollama_thinking
 from .paths import (
-    get_zai_home,
     get_zai_config_dir,
+    get_zai_env_file,
+    get_zai_home,
+    get_zai_log_dir,
     get_zai_sessions_dir,
     get_zai_workspace_dir,
-    get_zai_log_dir,
-    get_zai_env_file,
     init_zai_config,
     print_zai_info,
 )
@@ -37,14 +37,14 @@ __all__ = [
     "SessionLogger",
     "StreamChunk",
     "get_config",
-    "patch_ollama_thinking",
-    "telemetry",
-    "get_zai_home",
     "get_zai_config_dir",
+    "get_zai_env_file",
+    "get_zai_home",
+    "get_zai_log_dir",
     "get_zai_sessions_dir",
     "get_zai_workspace_dir",
-    "get_zai_log_dir",
-    "get_zai_env_file",
     "init_zai_config",
+    "patch_ollama_thinking",
     "print_zai_info",
+    "telemetry",
 ]

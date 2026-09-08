@@ -76,7 +76,7 @@ def get_config(env_file: str | Path | None = ".env") -> Config:
         # No env file specified, check env vars and defaults
         config_path = os.getenv("ZAI_CONFIG")
         zai_env = get_zai_home() / "config" / ".env"
-        
+
         if config_path:
             load_dotenv(config_path)
         elif zai_env.exists():
@@ -100,7 +100,7 @@ def get_config(env_file: str | Path | None = ".env") -> Config:
     # Use zai home workspace by default
     zai_default_workspace = get_zai_workspace_dir()
     workspace = Path(os.getenv("AGENT_WORKSPACE", str(zai_default_workspace))).expanduser().resolve()
-    
+
     # Use zai home sessions by default
     zai_default_sessions = get_zai_sessions_dir()
     log_dir = Path(os.getenv("SESSION_LOG_DIR", str(zai_default_sessions))).expanduser().resolve()
