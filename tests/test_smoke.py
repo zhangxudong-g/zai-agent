@@ -181,6 +181,7 @@ def test_file_tree_truncation_and_noise_skip(tmp_path: Path) -> None:
     assert not any(".venv" in e.get("path", "") for e in entries), ".venv must be skipped"
 
 
+@pytest.mark.skipif(os.name != "nt", reason="Windows-only test")
 def test_shell_tool_windows_translation_windows_only() -> None:
     """ls/cat/pwd/find translate to cmd equivalents; allowlist unchanged."""
     assert os.name == "nt", "translation only applies on Windows"
