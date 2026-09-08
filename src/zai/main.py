@@ -15,7 +15,6 @@ import sys
 import time
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import ClassVar
 
 from .agent import Agent
 from .config import get_config
@@ -175,134 +174,11 @@ def display_tool_results_from_log(log_file: Path) -> None:
 
 
 class REPL:
-    """Interactive REPL for continuous agent conversations."""
+    """Backwards-compatible alias for EnhancedREPL."""
 
-    COMMANDS: ClassVar[dict[str, str]] = {
-        "/exit": "退出",
-        "/quit": "退出",
-        "/q": "退出",
-        "/help": "帮助",
-        "/clear": "清屏",
-    }
-
-    def __init__(
-        self, agent: Agent, logger: SessionLogger, stream: bool = True, max_retries: int = 3
-    ):
-        self.agent = agent
-        self.logger = logger
-        self.stream = stream
-        self.max_retries = max_retries
-        self.message_count = 0
-        self._loop = None
-
-    def print_welcome(self) -> None:
-        from .tui import print_box
-
-        print()
-        print_box(
-            "Zai Agent REPL",
-            [
-                "/help   显示帮助",
-                "/clear  清屏",
-                "/exit   退出",
-            ],
-            color="cyan",
-            width=42,
-        )
-        print()
-
-    def print_help(self) -> None:
-        from .tui import print_box
-
-        print()
-        print_box(
-            "帮助",
-            [
-                "输入问题，Agent 会记住上下文",
-                "/clear - 清屏",
-                "/exit  - 退出",
-            ],
-            color="cyan",
-            width=45,
-        )
-        print()
-
-    def clear_screen(self) -> None:
-        print("\033[2J\033[H", end="")
-        sys.stdout.flush()
-
-    def print_prompt(self) -> None:
-        self.message_count += 1
-        print(f"\n[{self.message_count}] > ", end="", flush=True)
-
-    def run_streaming(self, prompt: str) -> None:
-        """Run agent with streaming output (reuses event loop)."""
-        if self._loop is None or self._loop.is_closed():
-            self._loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(self._loop)
-        self._loop.run_until_complete(
-            _render_stream_chunks(
-                self.agent.run_streaming(prompt, max_retries=self.max_retries),
-            )
-        )
-
-    def run_sync(self, prompt: str) -> None:
-        """Run agent synchronously."""
-        t0 = time.time()
-        result = self.agent.run(prompt)
-        print()
-        print(result)
-        print(f"\n✓ ({time.time() - t0:.1f}s)")
-
-    def run(self) -> None:
-        """Start the REPL loop."""
-        self.print_welcome()
-        self.print_prompt()
-
-        while True:
-            try:
-                line = sys.stdin.readline()
-                if not line:
-                    break
-
-                prompt = line.strip()
-
-                # Handle commands
-                if prompt.lower() in self.COMMANDS:
-                    cmd = prompt.lower()
-                    if cmd in ("/exit", "/quit", "/q"):
-                        break
-                    elif cmd == "/help":
-                        self.print_help()
-                        self.print_prompt()
-                        continue
-                    elif cmd == "/clear":
-                        self.clear_screen()
-                        self.print_prompt()
-                        continue
-
-                if not prompt:
-                    self.print_prompt()
-                    continue
-
-                try:
-                    if self.stream:
-                        self.run_streaming(prompt)
-                    else:
-                        self.run_sync(prompt)
-                except KeyboardInterrupt:
-                    print("\n[中断]")
-                except Exception as e:
-                    print(f"\n❌ {e}")
-
-                self.print_prompt()
-
-            except KeyboardInterrupt:
-                break
-
-        # Cleanup
-        if self._loop is not None and not self._loop.is_closed():
-            self._loop.close()
+    def __new__(cls, *args, **kwargs):
+        from .repl import EnhancedREPL
+        return EnhancedREPL(*args, **kwargs)
 
 
 def _harden_stdio() -> None:

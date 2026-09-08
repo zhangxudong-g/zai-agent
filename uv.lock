@@ -2052,6 +2052,7 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "opentelemetry-exporter-otlp-proto-http" },
+    { name = "prompt-toolkit" },
     { name = "python-dotenv" },
     { name = "strands-agents", extra = ["ollama"] },
     { name = "strands-agents-tools" },
@@ -2073,6 +2074,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "opentelemetry-exporter-otlp-proto-http", specifier = ">=1.44.0" },
+    { name = "prompt-toolkit", specifier = ">=3.0.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=9.1.1" },
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=1.4.0" },
     { name = "python-dotenv", specifier = ">=1.0.0" },
