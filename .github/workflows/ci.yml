@@ -35,7 +35,7 @@ jobs:
         run: uv run ruff check .
 
       - name: Type check
-        run: uv run ruff check . --output-format=text
+        run: uv run ruff check . --output-format=concise
 
       - name: Run tests
         run: uv run pytest -v --tb=short
