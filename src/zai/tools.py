@@ -23,6 +23,31 @@ from strands import tool
 
 
 # --------------------------------------------------------------------- #
+# JSON-encoding safety helpers
+# --------------------------------------------------------------------- #
+def _to_json_safe(obj: Any) -> Any:
+    """Recursively replace lone surrogates with U+FFFD so the result is encodable as UTF-8.
+
+    Lone surrogates (U+D800-U+DFFF not part of a valid pair) cannot be
+    encoded in UTF-8 and would otherwise raise UnicodeEncodeError when
+    the JSON string is sent to the model.
+    """
+    if isinstance(obj, str):
+        return obj.encode("utf-8", errors="replace").decode("utf-8", errors="replace")
+    if isinstance(obj, dict):
+        return {k: _to_json_safe(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_to_json_safe(v) for v in obj]
+    return obj
+
+
+def _json_dumps_safe(obj: Any) -> str:
+    """JSON dump that strips lone surrogates before encoding."""
+    safe = _to_json_safe(obj)
+    return json.dumps(safe, ensure_ascii=False)
+
+
+# --------------------------------------------------------------------- #
 # Path sandbox helper — enforces workspace boundary at the tool layer.
 #
 # This is the **first** of two defense layers (see security.py for the
@@ -361,6 +386,13 @@ def build_file_tree_entries(
     entries: list[dict[str, Any]] = []
     truncated_after = 0
 
+    def _safe(name: str) -> str:
+        """Make a filename/rel-path safe to encode as UTF-8 JSON.
+
+        Replaces lone surrogates (which can't be encoded) with U+FFFD.
+        """
+        return name.encode("utf-8", errors="replace").decode("utf-8", errors="replace")
+
     def _walk(p: Path, depth: int, prefix: str) -> None:
         nonlocal truncated_after
         if depth < 0 or truncated_after:
@@ -368,13 +400,15 @@ def build_file_tree_entries(
         try:
             children = sorted(p.iterdir(), key=lambda x: (x.is_file(), x.name.lower()))
         except OSError as e:
-            entries.append({"path": prefix, "type": "dir", "size": None, "error": str(e)})
+            entries.append(
+                {"path": _safe(prefix), "type": "dir", "size": None, "error": _safe(str(e))}
+            )
             return
         for child in children:
             if truncated_after or len(entries) >= max_entries:
                 truncated_after = max_entries
                 break
-            rel = f"{prefix}/{child.name}" if prefix else child.name
+            rel = _safe(f"{prefix}/{child.name}" if prefix else child.name)
             if child.is_dir():
                 if child.name in noise_dirs:
                     continue
@@ -401,7 +435,7 @@ def build_file_tree_entries(
                 ),
             }
         )
-    return entries
+    return _to_json_safe(entries)
 
 
 def make_file_tree_tool(workspace: Path):
@@ -427,7 +461,7 @@ def make_file_tree_tool(workspace: Path):
         if not base.exists():
             return f"[ERROR] path not found: {path or '.'}"
         entries = build_file_tree_entries(base, max_depth)
-        return json.dumps(entries, ensure_ascii=False)
+        return _json_dumps_safe(entries)
 
     return file_tree_tool
 

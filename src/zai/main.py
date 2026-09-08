@@ -178,6 +178,7 @@ class REPL:
 
     def __new__(cls, *args, **kwargs):
         from .repl import EnhancedREPL
+
         return EnhancedREPL(*args, **kwargs)
 
 

@@ -2,10 +2,7 @@
 
 from __future__ import annotations
 
-import io
 import sys
-
-import pytest
 
 from zai import tui
 
@@ -50,9 +47,7 @@ def test_format_tool_args_single_arg():
 
 def test_format_tool_args_multi_arg():
     """Multi-arg tools."""
-    formatted = tui._format_tool_args(
-        "grep", {"pattern": "TODO", "path": "src"}
-    )
+    formatted = tui._format_tool_args("grep", {"pattern": "TODO", "path": "src"})
     assert formatted.startswith("grep ")
     assert "pattern" in formatted
     assert "path" in formatted
@@ -220,3 +215,49 @@ def test_spinner_doesnt_block_in_non_tty(capsys):
     captured = capsys.readouterr()
     # No spinner output expected in non-TTY
     assert "loading" not in captured.out
+
+
+def test_to_json_safe_replaces_lone_surrogates():
+    """Lone surrogates in strings are replaced with U+FFFD."""
+    from zai.tools import _to_json_safe
+
+    # Lone surrogate (invalid UTF-8)
+    input_str = "before" + "\udcff" + "after"
+    out = _to_json_safe(input_str)
+    assert isinstance(out, str)
+    # Must be encodable as UTF-8
+    out.encode("utf-8")  # would raise UnicodeEncodeError if surrogate present
+
+
+def test_to_json_safe_handles_nested_structures():
+    """Nested dicts and lists are recursively sanitized."""
+    from zai.tools import _to_json_safe
+
+    obj = {
+        "files": [
+            {"path": "ok.txt", "size": 100},
+            {"path": "bad\udc00.txt", "size": 200},  # lone surrogate in path
+        ],
+        "metadata": {"note": "info\ud800more"},  # lone high surrogate
+    }
+    safe = _to_json_safe(obj)
+    assert safe["files"][1]["path"] != obj["files"][1]["path"]
+    # Should be encodable
+    import json as _json
+
+    encoded = _json.dumps(safe)
+    encoded.encode("utf-8")
+
+
+def test_json_dumps_safe_with_surrogate():
+    """_json_dumps_safe round-trips even with surrogate characters."""
+    from zai.tools import _json_dumps_safe
+
+    data = {"path": "file\udc00.txt"}
+    out = _json_dumps_safe(data)
+    # Must be valid UTF-8
+    out.encode("utf-8")
+    import json as _json
+
+    parsed = _json.loads(out)
+    assert "path" in parsed

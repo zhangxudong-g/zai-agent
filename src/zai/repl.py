@@ -55,7 +55,9 @@ class EnhancedREPL:
     """Interactive REPL with prompt_toolkit features."""
 
     COMMANDS: ClassVar[set[str]] = {
-        "/exit", "/quit", "/q",
+        "/exit",
+        "/quit",
+        "/q",
         "/help",
         "/clear",
         "/info",
@@ -140,9 +142,7 @@ class EnhancedREPL:
         """Async streaming implementation (placeholder)."""
         # The cancellation hook is intentionally not wired through the strands
         # event loop here; users should prefer the sync run_streaming wrapper.
-        raise NotImplementedError(
-            "Async streaming is not yet supported; use run_streaming()."
-        )
+        raise NotImplementedError("Async streaming is not yet supported; use run_streaming().")
 
     def run_streaming(self, prompt: str) -> None:
         """Run agent with streaming output."""
