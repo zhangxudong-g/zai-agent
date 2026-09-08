@@ -1,6 +1,6 @@
 [project]
 name = "zai-agent"
-version = "0.1.0"
+version = "0.2.0"
 description = "Zai Agent: Local AI coding assistant powered by Ollama"
 readme = "README.md"
 license = { text = "MIT" }

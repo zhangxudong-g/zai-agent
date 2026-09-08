@@ -30,7 +30,7 @@ from .paths import (
 from .stream import StreamChunk
 from .trace import SessionLogger
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 __all__ = [
     "Agent",
