@@ -29,17 +29,22 @@
 
 ### 安装方式
 
-**方式一：GitHub 直接安装（推荐，无需 PyPI 账号）**
+**方式一：pip 安装（推荐）**
 
 ```bash
-# 使用 uv 安装（推荐，自动安装到全局）
-uv tool install git+https://github.com/zhangxudong-g/zai-agent.git
-
-# 或使用 pip
 pip install git+https://github.com/zhangxudong-g/zai-agent.git
 ```
 
-**方式二：Docker 运行**
+**方式二：从源码安装**
+
+```bash
+# 克隆项目
+git clone https://github.com/zhangxudong-g/zai-agent.git
+cd zai-agent
+pip install .
+```
+
+**方式三：Docker 运行**
 
 ```bash
 # 拉取镜像
@@ -48,33 +53,12 @@ docker pull ghcr.io/zhangxudong-g/zai-agent:latest
 # 运行容器
 docker run -it --rm \
   -v $(pwd):/workspace \
-  -v ~/.ollama:/root/.ollama \
-  -e OLLAMA_BASE_URL=http://host.docker.internal:11434 \
   ghcr.io/zhangxudong-g/zai-agent:latest
-```
-
-**方式三：从源码安装**
-
-```bash
-# 克隆项目
-git clone https://github.com/zhangxudong-g/zai-agent.git
-cd zai-agent
-
-# 使用 uv 安装（推荐）
-uv sync
-uv tool install .
-
-# 或使用 pip
-pip install .
 ```
 
 ### 卸载
 
 ```bash
-# uv 卸载
-uv tool uninstall zai
-
-# pip 卸载
 pip uninstall zai-agent
 ```
 
