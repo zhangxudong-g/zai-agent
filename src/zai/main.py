@@ -81,6 +81,8 @@ def build_parser() -> argparse.ArgumentParser:
                    help="Path to .env file (default: .env).")
     p.add_argument("--info", action="store_true",
                    help="Show Zai home directory information and exit.")
+    p.add_argument("-uninstall", "--uninstall", action="store_true",
+                   help="Uninstall zai-agent and remove user data.")
 
     return p
 
