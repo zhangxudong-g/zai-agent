@@ -47,7 +47,7 @@ pip install .
 ### 卸载
 
 ```bash
-pip uninstall zai-agent
+pip uninstall zai-agent -y
 ```
 
 ### 运行
