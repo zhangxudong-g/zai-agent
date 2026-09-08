@@ -1,0 +1,49 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+.pytest_cache
+.ruff_cache
+.mypy_cache
+*.egg-info
+.eggs
+
+# Virtual env
+.venv
+venv/
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Testing
+tests/
+.coverage
+htmlcov/
+
+# Logs
+sessions/
+*.log
+
+# Environment
+.env
+.env.*
+
+# Local files
+*.md
+!README.md
+LICENSE
+CONTRIBUTING.md
+CHANGELOG.md
+SECURITY.md
+CODE_OF_CONDUCT.md
+.github/
+
+# Docs
+docs/

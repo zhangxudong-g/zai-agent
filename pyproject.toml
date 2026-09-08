@@ -28,6 +28,21 @@ classifiers = [
     "Topic :: Software Development :: Coding Assistants",
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
+
+# PyPI 发布配置（发布前需要填写）
+[project.urls]
+Homepage = "https://github.com/zhangxudong-g/zai-agent"
+Documentation = "https://github.com/zhangxudong-g/zai-agent#readme"
+Repository = "https://github.com/zhangxudong-g/zai-agent"
+Issues = "https://github.com/zhangxudong-g/zai-agent/issues"
+Changelog = "https://github.com/zhangxudong-g/zai-agent/blob/main/CHANGELOG.md"
+
+# 发布到 GitHub Packages 的配置
+[tool.hatch.build.targets.sdist]
+include = ["src", "prompts", "README.md", "LICENSE"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/zai"]
 dependencies = [
     "strands-agents[ollama]>=1.0.0",
     "python-dotenv>=1.0.0",
@@ -44,14 +59,6 @@ dev = [
 
 [project.scripts]
 zai = "zai.main:run_cli"
-
-[project.urls]
-Homepage = "https://github.com/zhangxudong-g/zai-agent"
-Documentation = "https://github.com/zhangxudong-g/zai-agent#readme"
-Repository = "https://github.com/zhangxudong-g/zai-agent"
-Issues = "https://github.com/zhangxudong-g/zai-agent/issues"
-Changelog = "https://github.com/zhangxudong-g/zai-agent/blob/main/CHANGELOG.md"
-"Bug Tracker" = "https://github.com/zhangxudong-g/zai-agent/issues"
 
 [build-system]
 requires = ["hatchling"]

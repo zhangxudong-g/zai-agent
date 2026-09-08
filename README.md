@@ -27,46 +27,60 @@
 - [Ollama](https://ollama.ai/) 运行中
 - 推荐的模型: `qwen3:7b` 或 `qwen3:27b`
 
-### 安装
+### 安装方式
+
+**方式一：pip 安装（推荐）**
+
+```bash
+pip install zai-agent
+
+# 或使用 uv（更快的包管理器）
+uv tool install zai-agent
+```
+
+**方式二：Docker 运行**
+
+```bash
+# 拉取镜像
+docker pull ghcr.io/zhangxudong-g/zai-agent:latest
+
+# 运行容器
+docker run -it --rm \
+  -v $(pwd):/workspace \
+  -v ~/.ollama:/root/.ollama \
+  -e OLLAMA_BASE_URL=http://host.docker.internal:11434 \
+  ghcr.io/zhangxudong-g/zai-agent:latest
+```
+
+**方式三：从源码安装**
 
 ```bash
 # 克隆项目
 git clone https://github.com/zhangxudong-g/zai-agent.git
-cd zai-agents
+cd zai-agent
 
-# 安装依赖
+# 使用 uv 安装（推荐）
 uv sync
+uv tool install .
 
-# 复制环境配置
-cp .env.example .env
+# 或使用 pip
+pip install .
 ```
 
 ### 运行
 
 ```bash
 # 交互模式（推荐）
-uv run zai
+zai
 
 # 单次问答
-uv run zai "分析项目结构"
+zai "分析项目结构"
 
 # 指定工作目录
-uv run zai --workspace ./my-project
-```
+zai --workspace ./my-project
 
-### 全局安装
-
-```bash
-# 使用 uv 安装（推荐）
-uv tool install .
-
-# 之后可在任意目录使用
-zai "分析这个项目"
-zai -i  # 交互模式
-zai --workspace ./other-project "分析代码"
-
-# 卸载
-uv tool uninstall zai
+# 查看帮助
+zai --help
 ```
 
 ## 📖 使用示例
