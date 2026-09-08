@@ -1,9 +1,7 @@
-"""Configuration for the Strands PoC agent harness.
+"""Configuration for the Zai Agent.
 
 Reads from environment variables (or a .env file) and produces a
-``Config`` dataclass. Field set is intentionally close to the original
-``claude-agent/src/agent/config.py`` so that downstream code (agent,
-main) has a familiar surface.
+``Config`` dataclass.
 """
 
 from __future__ import annotations
@@ -13,6 +11,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from dotenv import load_dotenv
+
+from .paths import get_zai_home, get_zai_sessions_dir, get_zai_workspace_dir
 
 
 @dataclass
@@ -58,6 +58,12 @@ _DEFAULT_TOOLS = (
 def get_config(env_file: str | Path | None = ".env") -> Config:
     """Build a Config from environment variables.
 
+    Priority for config file:
+    1. --env-file command line argument (if provided and not ".env")
+    2. $ZAI_CONFIG environment variable
+    3. ~/.zai/config/.env (zai home config)
+    4. .env in current directory (legacy)
+
     Args:
         env_file: Path to a .env file to load. Set to ``None`` to skip
             loading and read only ``os.environ``.
@@ -65,15 +71,39 @@ def get_config(env_file: str | Path | None = ".env") -> Config:
     Returns:
         A populated ``Config`` instance.
     """
-    if env_file is not None:
-        load_dotenv(env_file)
+    # Determine which env file to load
+    if env_file is None:
+        # No env file specified, check env vars and defaults
+        config_path = os.getenv("ZAI_CONFIG")
+        zai_env = get_zai_home() / "config" / ".env"
+        
+        if config_path:
+            load_dotenv(config_path)
+        elif zai_env.exists():
+            load_dotenv(str(zai_env))
+    elif env_file != ".env":
+        # Explicit non-default path
+        load_dotenv(str(env_file))
+    else:
+        # Default ".env" - load from current dir if exists, else use zai home
+        if Path(".env").exists():
+            load_dotenv(".env")
+        else:
+            zai_env = get_zai_home() / "config" / ".env"
+            if zai_env.exists():
+                load_dotenv(str(zai_env))
 
     base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/")
     model = os.getenv("OLLAMA_MODEL", "qwen3:1.7b").strip()
     auth = os.getenv("OLLAMA_AUTH_TOKEN", "ollama") or "ollama"
 
-    workspace = Path(os.getenv("AGENT_WORKSPACE", "./workspace/sample_project")).resolve()
-    log_dir = Path(os.getenv("SESSION_LOG_DIR", "./sessions")).resolve()
+    # Use zai home workspace by default
+    zai_default_workspace = get_zai_workspace_dir()
+    workspace = Path(os.getenv("AGENT_WORKSPACE", str(zai_default_workspace))).expanduser().resolve()
+    
+    # Use zai home sessions by default
+    zai_default_sessions = get_zai_sessions_dir()
+    log_dir = Path(os.getenv("SESSION_LOG_DIR", str(zai_default_sessions))).expanduser().resolve()
 
     tools_raw = os.getenv("ALLOWED_TOOLS", ",".join(_DEFAULT_TOOLS))
     allowed = [t.strip().lower() for t in tools_raw.split(",") if t.strip()]

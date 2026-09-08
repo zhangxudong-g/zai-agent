@@ -118,9 +118,6 @@ cd zai-agent
 # 安装依赖
 uv sync
 
-# 复制配置
-cp .env.example .env
-
 # 交互模式启动
 uv run zai
 
@@ -143,6 +140,34 @@ uv run pytest -v
 uv run ruff check .
 ```
 
+## 📁 统一目录结构
+
+Zai 使用 `~/.zai/` 作为统一的数据目录：
+
+```
+~/.zai/
+├── config/
+│   └── .env           # 配置文件
+├── sessions/          # 会话日志
+├── workspace/         # 默认工作目录
+└── logs/             # 运行日志
+```
+
+### 查看 Zai 信息
+```bash
+zai --info
+```
+
+### 自定义目录
+```bash
+# 使用自定义 ZAI_HOME 目录
+export ZAI_HOME=/path/to/my-zai
+
+# 或通过配置文件
+# 编辑 ~/.zai/config/.env
+export ZAI_HOME=/custom/path
+```
+
 ## ⚙️ 配置
 
 ### 环境变量
@@ -150,11 +175,13 @@ uv run ruff check .
 | 变量 | 默认值 | 说明 |
 |------|--------|------|
 | `OLLAMA_BASE_URL` | `http://localhost:11434` | Ollama 服务地址 |
-| `OLLAMA_MODEL` | `qwen3:7b` | 模型名称 |
-| `AGENT_WORKSPACE` | `./workspace` | 工作目录 |
-| `SESSION_LOG_DIR` | `./sessions` | 会话日志目录 |
+| `OLLAMA_MODEL` | `qwen3:1.7b` | 模型名称 |
+| `AGENT_WORKSPACE` | `~/.zai/workspace` | 工作目录 |
+| `SESSION_LOG_DIR` | `~/.zai/sessions` | 会话日志目录 |
 | `ALLOWED_TOOLS` | 全部工具 | 启用的工具列表 |
 | `EXECUTION_SANDBOX` | `host` | 执行沙箱模式 |
+| `ZAI_HOME` | `~/.zai` | Zai 主目录 |
+| `ZAI_CONFIG` | `~/.zai/config/.env` | 配置文件路径 |
 
 ### 沙箱模式
 

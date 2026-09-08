@@ -1,8 +1,8 @@
 """Zai Agent — CLI entry point.
 
 Usage:
-    uv run agent "你的问题"                    # 单次运行
-    uv run agent                               # 交互式 REPL
+    uv run zai "你的问题"                    # 单次运行
+    uv run zai                               # 交互式 REPL
 """
 
 from __future__ import annotations
@@ -20,6 +20,7 @@ from typing import ClassVar
 from .agent import Agent
 from .config import get_config
 from .llm import _ollama_debug_path
+from .paths import get_zai_home, get_zai_config_dir, get_zai_env_file, print_zai_info
 from .trace import SessionLogger
 
 
@@ -36,16 +37,21 @@ def print_banner(
     log_file: Path | None = None,
     interactive: bool = False,
 ) -> None:
-    """Print compact 2-line startup banner (Option A from docs/tui_mockup.md).
+    """Print compact 2-line startup banner.
 
     Layout::
 
         ╭─ zai · <model> · <workspace> · session <id>
-        ╰─ 📝 <log-file-path>  ──  /help /clear /exit
+        ╰─ 📁 ~/.zai  📝 <log-file-path>  ──  /help /clear /exit
     """
     title = f"zai · {config.ollama_model} · {config.agent_workspace} · session {session_id}"
     print(f"╭─ {title}")
     line2_parts: list[str] = []
+    
+    # Show zai home
+    zai_home = get_zai_home()
+    line2_parts.append(f"📁 {zai_home}")
+    
     if log_file is not None:
         line2_parts.append(f"📝 {log_file}")
     if _ollama_debug_path is not None:
@@ -73,6 +79,8 @@ def build_parser() -> argparse.ArgumentParser:
                    help="Max retry attempts on connection errors (default: 3).")
     p.add_argument("--env-file", type=Path, default=".env",
                    help="Path to .env file (default: .env).")
+    p.add_argument("--info", action="store_true",
+                   help="Show Zai home directory information and exit.")
 
     return p
 
@@ -358,6 +366,16 @@ def run_cli(argv: list[str] | None = None) -> int:
 def _main(args: argparse.Namespace) -> int:
     """Core implementation shared by main() and run_cli()."""
     _harden_stdio()
+    
+    # Handle --info flag
+    if args.info:
+        print_zai_info()
+        print()
+        print("Config file:", get_zai_config_dir() / ".env")
+        print()
+        print("To configure, edit:", get_zai_env_file())
+        return 0
+    
     config = get_config(env_file=args.env_file)
     if args.workspace is not None:
         config.agent_workspace = args.workspace.resolve()
