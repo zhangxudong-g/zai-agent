@@ -1,4 +1,4 @@
-# Strands Agent
+# Zai Agent
 
 基于 Strands Agents SDK + Ollama 的通用代码助手。
 
