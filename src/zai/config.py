@@ -78,20 +78,20 @@ def get_config(env_file: str | Path | None = ".env") -> Config:
         zai_env = get_zai_home() / "config" / ".env"
 
         if config_path:
-            load_dotenv(config_path)
+            load_dotenv(config_path, override=True)
         elif zai_env.exists():
-            load_dotenv(str(zai_env))
+            load_dotenv(str(zai_env), override=True)
     elif env_file != ".env":
         # Explicit non-default path
-        load_dotenv(str(env_file))
+        load_dotenv(str(env_file), override=True)
     else:
         # Default ".env" - load from current dir if exists, else use zai home
         if Path(".env").exists():
-            load_dotenv(".env")
+            load_dotenv(".env", override=True)
         else:
             zai_env = get_zai_home() / "config" / ".env"
             if zai_env.exists():
-                load_dotenv(str(zai_env))
+                load_dotenv(str(zai_env), override=True)
 
     base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/")
     model = os.getenv("OLLAMA_MODEL", "qwen3:1.7b").strip()
