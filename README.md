@@ -238,6 +238,8 @@ zai "问题" --max-retries 5
 
 欢迎提交 Issue 和 Pull Request！请参阅 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
+未来计划请参阅 [TODO.md](TODO.md)。
+
 ## 📄 许可证
 
 [MIT License](LICENSE)
