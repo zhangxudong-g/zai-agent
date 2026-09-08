@@ -44,18 +44,6 @@ cd zai-agent
 pip install .
 ```
 
-**方式三：Docker 运行**
-
-```bash
-# 拉取镜像
-docker pull ghcr.io/zhangxudong-g/zai-agent:latest
-
-# 运行容器
-docker run -it --rm \
-  -v $(pwd):/workspace \
-  ghcr.io/zhangxudong-g/zai-agent:latest
-```
-
 ### 卸载
 
 ```bash
@@ -113,6 +101,47 @@ $ zai
 | `shell` | 执行 shell 命令 | `shell(command="git status")` |
 | `write` | 写入文件 | `write("path", content)` |
 | `edit` | 编辑文件 | `edit("path", old_text, new_text)` |
+
+## 👨‍💻 本地开发
+
+### 环境要求
+- Python 3.12+
+- [Ollama](https://ollama.ai/) 运行中
+
+### 启动开发
+
+```bash
+# 克隆项目
+git clone https://github.com/zhangxudong-g/zai-agent.git
+cd zai-agent
+
+# 安装依赖
+uv sync
+
+# 复制配置
+cp .env.example .env
+
+# 交互模式启动
+uv run zai
+
+# 或单次运行
+uv run zai "分析项目结构"
+```
+
+### 停止运行
+- 按 `Ctrl+C` 或输入 `/exit` 退出
+
+### 代码修改后
+```bash
+# 依赖更新后重新同步
+uv sync
+
+# 运行测试
+uv run pytest -v
+
+# 代码检查
+uv run ruff check .
+```
 
 ## ⚙️ 配置
 
