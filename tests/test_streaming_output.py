@@ -193,7 +193,8 @@ def test_main_streaming_mode_renders_thinking(monkeypatch, capsys):
 
     # Stub Agent so run_streaming yields a controlled sequence.
     class _FakeAgent:
-        def __init__(self, *a, **kw): pass
+        def __init__(self, *a, **kw):
+            pass
 
         async def run_streaming(self, prompt, max_retries=3):
             for c in [
@@ -213,9 +214,7 @@ def test_main_streaming_mode_renders_thinking(monkeypatch, capsys):
     cli.run_cli(["hi", "--workspace", "/tmp/w"])
     captured = capsys.readouterr().out
 
-    assert "reasoning step" in captured, (
-        f"main.py must render thinking chunks; got:\n{captured}"
-    )
+    assert "reasoning step" in captured, f"main.py must render thinking chunks; got:\n{captured}"
     assert "answer" in captured
 
 
@@ -230,7 +229,8 @@ def test_main_streaming_mode_skips_jsonl_summary(monkeypatch):
         called["count"] += 1
 
     class _FakeAgent:
-        def __init__(self, *a, **kw): pass
+        def __init__(self, *a, **kw):
+            pass
 
         async def run_streaming(self, prompt, max_retries=3):
             yield StreamChunk(kind="text", text="hi")
@@ -246,8 +246,7 @@ def test_main_streaming_mode_skips_jsonl_summary(monkeypatch):
     cli.run_cli(["hi", "--workspace", "/tmp/w"])
 
     assert called["count"] == 0, (
-        f"streaming mode must skip display_tool_results_from_log; "
-        f"called {called['count']} times"
+        f"streaming mode must skip display_tool_results_from_log; called {called['count']} times"
     )
 
 
@@ -262,7 +261,8 @@ def test_main_non_streaming_mode_still_shows_jsonl_summary(monkeypatch):
         called["count"] += 1
 
     class _FakeAgent:
-        def __init__(self, *a, **kw): pass
+        def __init__(self, *a, **kw):
+            pass
 
         def run(self, prompt):
             return "done"
@@ -276,8 +276,7 @@ def test_main_non_streaming_mode_still_shows_jsonl_summary(monkeypatch):
     cli.run_cli(["--sync", "hi", "--workspace", "/tmp/w"])
 
     assert called["count"] == 1, (
-        f"sync mode must call display_tool_results_from_log; "
-        f"called {called['count']} times"
+        f"sync mode must call display_tool_results_from_log; called {called['count']} times"
     )
 
 

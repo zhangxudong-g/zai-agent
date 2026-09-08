@@ -71,24 +71,44 @@ def print_banner(
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description="Zai Agent CLI")
-    p.add_argument("prompt", type=str, nargs="?", default=None,
-                   help="Prompt (optional; reads from stdin if omitted).")
-    p.add_argument("-i", "--interactive", action="store_true",
-                   help="Start interactive REPL mode.")
-    p.add_argument("--workspace", type=Path, default=None,
-                   help="Workspace directory (defaults to $AGENT_WORKSPACE in .env).")
-    p.add_argument("--model", type=str, default=None,
-                   help="Ollama model name (default: qwen3.8:27b).")
-    p.add_argument("--sync", action="store_true",
-                   help="Disable streaming output (default: streaming enabled).")
-    p.add_argument("--max-retries", type=int, default=3,
-                   help="Max retry attempts on connection errors (default: 3).")
-    p.add_argument("--env-file", type=Path, default=".env",
-                   help="Path to .env file (default: .env).")
-    p.add_argument("--info", action="store_true",
-                   help="Show Zai home directory information and exit.")
-    p.add_argument("-uninstall", "--uninstall", action="store_true",
-                   help="Uninstall zai-agent and remove user data.")
+    p.add_argument(
+        "prompt",
+        type=str,
+        nargs="?",
+        default=None,
+        help="Prompt (optional; reads from stdin if omitted).",
+    )
+    p.add_argument("-i", "--interactive", action="store_true", help="Start interactive REPL mode.")
+    p.add_argument(
+        "--workspace",
+        type=Path,
+        default=None,
+        help="Workspace directory (defaults to $AGENT_WORKSPACE in .env).",
+    )
+    p.add_argument(
+        "--model", type=str, default=None, help="Ollama model name (default: qwen3.8:27b)."
+    )
+    p.add_argument(
+        "--sync", action="store_true", help="Disable streaming output (default: streaming enabled)."
+    )
+    p.add_argument(
+        "--max-retries",
+        type=int,
+        default=3,
+        help="Max retry attempts on connection errors (default: 3).",
+    )
+    p.add_argument(
+        "--env-file", type=Path, default=".env", help="Path to .env file (default: .env)."
+    )
+    p.add_argument(
+        "--info", action="store_true", help="Show Zai home directory information and exit."
+    )
+    p.add_argument(
+        "-uninstall",
+        "--uninstall",
+        action="store_true",
+        help="Uninstall zai-agent and remove user data.",
+    )
 
     return p
 
@@ -120,14 +140,16 @@ def display_tool_results_from_log(log_file: Path) -> None:
                 event = record.get("event", "")
 
                 if event == "tool_call_start":
-                    tool_calls.append({
-                        "tool_call_id": record.get("tool_call_id", ""),
-                        "tool_name": record.get("tool_name", ""),
-                        "arguments": record.get("arguments", {}),
-                        "start_time": record.get("timestamp", ""),
-                        "result": None,
-                        "result_time": None,
-                    })
+                    tool_calls.append(
+                        {
+                            "tool_call_id": record.get("tool_call_id", ""),
+                            "tool_name": record.get("tool_name", ""),
+                            "arguments": record.get("arguments", {}),
+                            "start_time": record.get("timestamp", ""),
+                            "result": None,
+                            "result_time": None,
+                        }
+                    )
                 elif event == "tool_call_end":
                     tool_call_id = record.get("tool_call_id", "")
                     result_str = record.get("result", "")
@@ -165,7 +187,9 @@ class REPL:
         "/clear": "清屏",
     }
 
-    def __init__(self, agent: Agent, logger: SessionLogger, stream: bool = True, max_retries: int = 3):
+    def __init__(
+        self, agent: Agent, logger: SessionLogger, stream: bool = True, max_retries: int = 3
+    ):
         self.agent = agent
         self.logger = logger
         self.stream = stream
@@ -282,7 +306,6 @@ def _harden_stdio() -> None:
             stream.reconfigure(errors="replace")
 
 
-
 async def _render_stream_chunks(chunk_stream, *, show_usage: bool = True) -> None:
     """Render a stream of StreamChunks to stdout (text, thinking, tool calls).
 
@@ -315,7 +338,9 @@ async def _render_stream_chunks(chunk_stream, *, show_usage: bool = True) -> Non
             if thinking_buffer:
                 print(f"  \U0001f914 {thinking_buffer[:60]}...", flush=True)
                 thinking_buffer = ""
-            print(f"  \U0001f527 {_format_tool_call(chunk.tool_name, chunk.input_args)}", flush=True)
+            print(
+                f"  \U0001f527 {_format_tool_call(chunk.tool_name, chunk.input_args)}", flush=True
+            )
         elif chunk.kind == "tool_end":
             pass  # Tool result is rendered by JsonlTraceHook
         elif chunk.kind == "done":
@@ -323,7 +348,6 @@ async def _render_stream_chunks(chunk_stream, *, show_usage: bool = True) -> Non
                 print(f"\n\U0001f914 {thinking_buffer[:80]}...")
             elapsed = time.time() - t0
             print(f"\n\u2713 {elapsed:.1f}s", flush=True)
-
 
 
 def _format_tool_call(tool_name: str, input_args: dict | None) -> str:
@@ -370,6 +394,7 @@ def run_cli(argv: list[str] | None = None) -> int:
         import tempfile
 
         from .paths import get_zai_home
+
         zai_home = str(get_zai_home())
 
         print("Uninstalling zai-agent...")
@@ -401,14 +426,18 @@ print()
 print("Uninstall complete!")
 '''
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False, encoding='utf-8') as f:
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".py", delete=False, encoding="utf-8"
+        ) as f:
             f.write(script)
             script_path = f.name
 
         # Start uninstall script in new console and exit
-        if sys.platform == 'win32':
-            subprocess.Popen(['cmd', '/c', 'python', script_path, '&&', 'pause'],
-                           creationflags=subprocess.CREATE_NEW_CONSOLE)
+        if sys.platform == "win32":
+            subprocess.Popen(
+                ["cmd", "/c", "python", script_path, "&&", "pause"],
+                creationflags=subprocess.CREATE_NEW_CONSOLE,
+            )
         else:
             subprocess.Popen([sys.executable, script_path])
         return 0

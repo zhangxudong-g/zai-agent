@@ -13,6 +13,7 @@
     python tests/demo_agent_result.py --pattern 1
     python tests/demo_agent_result.py --all
 """
+
 from __future__ import annotations
 
 import argparse
@@ -29,11 +30,13 @@ def _make_model():
     try:
         from zai.config import get_config  # type: ignore
         from zai.llm import build_ollama_model  # type: ignore
+
         return build_ollama_model(get_config())
     except ImportError:
         import os
 
         from strands.models.ollama import OllamaModel
+
         return OllamaModel(
             host=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/"),
             model_id=os.getenv("OLLAMA_MODEL", "qwen3:7b"),
@@ -135,6 +138,7 @@ def pattern_3_stop_reason() -> dict:
     try:
         # StopReason 是 Literal 类型
         import typing
+
         sr_definition = str(typing.get_args(StopReason))
     except Exception:
         pass
@@ -173,6 +177,7 @@ def pattern_4_state_field() -> dict:
 
     # 通过 hook 写入 state（用正确的 .set API）
     from strands.hooks import BeforeModelCallEvent
+
     def inject_state(event: BeforeModelCallEvent) -> None:
         event.agent.state.set("trace_id", "demo-trace-001")
         event.agent.state.set("user_id", "user-42")
@@ -257,7 +262,9 @@ def pattern_6_structured_output() -> dict:
         )
         return {
             "structured_output_type": type(result.structured_output).__name__,
-            "structured_output": result.structured_output.model_dump() if result.structured_output else None,
+            "structured_output": result.structured_output.model_dump()
+            if result.structured_output
+            else None,
             "stop_reason": result.stop_reason,
         }
     except Exception as e:
@@ -320,6 +327,7 @@ def run_one(n: int) -> tuple[bool, dict]:
         elapsed = time.time() - start
         print(f"[Pattern {n}] FAIL ({elapsed:.1f}s): {type(e).__name__}: {e}")
         import traceback
+
         traceback.print_exc()
         return False, {"error": str(e), "type": type(e).__name__}
 

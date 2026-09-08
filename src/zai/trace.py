@@ -36,6 +36,7 @@ class SessionLogger:
 
     def _write(self, event: str, **extra: Any) -> dict:
         import json
+
         self._open()
         self._sequence += 1
         record = {
@@ -75,13 +76,17 @@ class SessionLogger:
             arguments=arguments,
         )
 
-    def tool_call_end(self, *, tool_call_id: str, result: str, tool_name: str | None = None) -> dict:
+    def tool_call_end(
+        self, *, tool_call_id: str, result: str, tool_name: str | None = None
+    ) -> dict:
         kwargs: dict[str, Any] = {"tool_call_id": tool_call_id, "result": str(result)[:5000]}
         if tool_name is not None:
             kwargs["tool_name"] = tool_name
         return self._write("tool_call_end", **kwargs)
 
-    def tool_call_error(self, *, tool_call_id: str, error: str, tool_name: str | None = None) -> dict:
+    def tool_call_error(
+        self, *, tool_call_id: str, error: str, tool_name: str | None = None
+    ) -> dict:
         kwargs: dict[str, Any] = {"tool_call_id": tool_call_id, "error": str(error)[:5000]}
         if tool_name is not None:
             kwargs["tool_name"] = tool_name

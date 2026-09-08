@@ -22,6 +22,7 @@ Strands 1.53.0 Middleware 是"洋葱模型"（类似 Express/Koa middleware）�
     python tests/demo_middleware.py --pattern 1
     python tests/demo_middleware.py --all
 """
+
 from __future__ import annotations
 
 import argparse
@@ -39,6 +40,7 @@ def _make_model():
     import os
 
     from strands.models.ollama import OllamaModel
+
     return OllamaModel(
         host=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/"),
         model_id=os.getenv("OLLAMA_MODEL", "qwen3.8:27b"),
@@ -68,10 +70,12 @@ def pattern_1_wrap_timing() -> dict:
         async for event in next_fn(ctx):
             yield event
         elapsed = time.time() - start
-        timings.append({
-            "elapsed_s": round(elapsed, 3),
-            "messages_count": len(ctx.messages),
-        })
+        timings.append(
+            {
+                "elapsed_s": round(elapsed, 3),
+                "messages_count": len(ctx.messages),
+            }
+        )
 
     agent = Agent(model=_make_model(), tools=[calculator], callback_handler=None)
     agent._middleware_registry.add_middleware(InvokeModelStage, timing_middleware)
@@ -101,10 +105,13 @@ def pattern_2_input_inject() -> dict:
 
     def inject_extra_context(ctx):
         # 在 messages 最前面插一条"内部提示"
-        ctx.messages.insert(0, {
-            "role": "user",
-            "content": [{"text": "[INTERNAL HINT] The current date is 2026-08-26."}],
-        })
+        ctx.messages.insert(
+            0,
+            {
+                "role": "user",
+                "content": [{"text": "[INTERNAL HINT] The current date is 2026-08-26."}],
+            },
+        )
         injection_log.append({"messages_after": len(ctx.messages)})
         return ctx  # 必须返回 ctx
 
@@ -139,10 +146,12 @@ def pattern_3_output_modify() -> dict:
             # 在 message.content 第一块前加 audit 标记
             content = result.value.message.get("content", [])
             content.insert(0, {"text": "[AUDITED BY MIDDLEWARE]\n"})
-            modifications.append({
-                "original_first_block": str(content[1])[:50] if len(content) > 1 else None,
-                "added": "[AUDITED BY MIDDLEWARE]\n",
-            })
+            modifications.append(
+                {
+                    "original_first_block": str(content[1])[:50] if len(content) > 1 else None,
+                    "added": "[AUDITED BY MIDDLEWARE]\n",
+                }
+            )
         return result.replace(value=result.value)
 
     agent = Agent(model=_make_model(), tools=[calculator], callback_handler=None)
@@ -291,6 +300,7 @@ def run_one(n: int) -> tuple[bool, dict]:
         elapsed = time.time() - start
         print(f"[Pattern {n}] FAIL ({elapsed:.1f}s): {type(e).__name__}: {e}")
         import traceback
+
         traceback.print_exc()
         return False, {"error": str(e), "type": type(e).__name__}
 

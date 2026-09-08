@@ -42,8 +42,8 @@ class WorkspaceSandboxHook(HookProvider):
     # so it's intentionally not in this map.
     _PATH_FIELDS: ClassVar[dict[str, str]] = {
         "read": "file_path",
-        "grep": "path",          # grep base directory (optional)
-        "file_tree": "path",     # file_tree base directory (optional)
+        "grep": "path",  # grep base directory (optional)
+        "file_tree": "path",  # file_tree base directory (optional)
         "outline": "file_path",
         "write": "file_path",
         "edit": "file_path",

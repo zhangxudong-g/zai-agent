@@ -57,9 +57,7 @@ class JsonlTraceHook:
         registry.add_callback(AfterToolCallEvent, self.after_tool)
 
     def after_tool(self, event: AfterToolCallEvent) -> None:
-        tool_use = (
-            getattr(event, "tool_use", None) or getattr(event, "tool", None) or {}
-        )
+        tool_use = getattr(event, "tool_use", None) or getattr(event, "tool", None) or {}
         if hasattr(tool_use, "get"):
             tool_name = str(tool_use.get("name") or "")
             tool_use_id = str(tool_use.get("toolUseId") or tool_use.get("id") or "")
@@ -231,32 +229,30 @@ Guidelines:
                         inp = getattr(metrics, "input_tokens", 0) or 0
                         out_t = getattr(metrics, "output_tokens", 0) or 0
                         tokens = {"input": inp, "output": out_t, "total": inp + out_t}
-                    stop_reason = str(
-                        getattr(result, "stop_reason", "end_turn") or "end_turn"
-                    )
+                    stop_reason = str(getattr(result, "stop_reason", "end_turn") or "end_turn")
                     is_error = stop_reason == "error"
                 last_error = None
                 break
             except Exception as e:
                 last_error = e
                 if self._is_connection_error(e) and attempt < max_retries - 1:
-                    wait_time = 2 ** attempt  # 1s, 2s, 4s
+                    wait_time = 2**attempt  # 1s, 2s, 4s
                     print(f"[Retry {attempt + 1}/{max_retries}] Connection error: {e}")
                     print(f"  Waiting {wait_time}s before retry...")
                     await asyncio.sleep(wait_time)
                     continue
                 is_error = True
                 stop_reason = "exception"
-                self.logger.log_error(error=str(e), context={"phase": "agent_run", "attempt": attempt + 1})
+                self.logger.log_error(
+                    error=str(e), context={"phase": "agent_run", "attempt": attempt + 1}
+                )
                 raise
         else:
             # All retries exhausted
             if last_error:
                 raise last_error
 
-        self._finalize(
-            start_ms, final_text, tokens, num_turns, is_error, stop_reason
-        )
+        self._finalize(start_ms, final_text, tokens, num_turns, is_error, stop_reason)
 
         return final_text or ""
 
@@ -287,7 +283,7 @@ Guidelines:
             except Exception as e:
                 last_error = e
                 if self._is_connection_error(e) and attempt < max_retries - 1:
-                    wait_time = 2 ** attempt
+                    wait_time = 2**attempt
                     print(f"[Retry {attempt + 1}/{max_retries}] Connection error: {e}")
                     print(f"  Waiting {wait_time}s before retry...")
                     await asyncio.sleep(wait_time)
@@ -295,7 +291,9 @@ Guidelines:
                 # Non-connection error or retries exhausted
                 is_error = True
                 stop_reason = "exception"
-                self.logger.log_error(error=str(e), context={"phase": "agent_streaming", "attempt": attempt + 1})
+                self.logger.log_error(
+                    error=str(e), context={"phase": "agent_streaming", "attempt": attempt + 1}
+                )
                 raise
         else:
             if last_error:
@@ -340,16 +338,12 @@ Guidelines:
             self.logger.log_error(error=str(e), context={"phase": "agent_streaming"})
             raise
         finally:
-            self._finalize(
-                start_ms, final_text, tokens, num_turns, is_error, stop_reason
-            )
+            self._finalize(start_ms, final_text, tokens, num_turns, is_error, stop_reason)
 
     # ------------------------------------------------------------------ #
     # Internal helpers
     # ------------------------------------------------------------------ #
-    def _finalize(
-        self, start_ms, final_text, tokens, num_turns, is_error, stop_reason
-    ) -> None:
+    def _finalize(self, start_ms, final_text, tokens, num_turns, is_error, stop_reason) -> None:
         duration_ms = int(time.time() * 1000 - start_ms)
         self.logger.result_message(
             subtype="error_during_execution" if is_error else "success",

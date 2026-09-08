@@ -18,6 +18,7 @@ Strands 1.53.0 提供 4 种多 Agent 模式：
     python tests/demo_multi_agent.py --pattern 1
     python tests/demo_multi_agent.py --all
 """
+
 from __future__ import annotations
 
 import argparse
@@ -35,6 +36,7 @@ def _make_model():
     import os
 
     from strands.models.ollama import OllamaModel
+
     return OllamaModel(
         host=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/"),
         model_id=os.getenv("OLLAMA_MODEL", "qwen3.8:27b"),
@@ -42,8 +44,7 @@ def _make_model():
 
 
 def _reset_logger():
-    for name in ("strands", "strands.event_loop", "strands.tools",
-                 "strands.multiagent"):
+    for name in ("strands", "strands.event_loop", "strands.tools", "strands.multiagent"):
         logging.getLogger(name).setLevel(logging.WARNING)
 
 
@@ -103,9 +104,7 @@ def pattern_2_swarm_shared() -> dict:
         name="summarizer",
     )
 
-    swarm = Swarm([planner, executor, summarizer],
-                  entry_point=planner,
-                  max_handoffs=5)
+    swarm = Swarm([planner, executor, summarizer], entry_point=planner, max_handoffs=5)
 
     result = swarm("写一个 Python 函数计算斐波那契数列")
 
@@ -241,10 +240,8 @@ def pattern_6_result_inspection() -> dict:
     from strands import Agent
     from strands.multiagent import GraphBuilder, Swarm
 
-    a = Agent(model=_make_model(), name="a",
-              system_prompt="只回答一个字：OK")
-    b = Agent(model=_make_model(), name="b",
-              system_prompt="只回答一个字：DONE")
+    a = Agent(model=_make_model(), name="a", system_prompt="只回答一个字：OK")
+    b = Agent(model=_make_model(), name="b", system_prompt="只回答一个字：DONE")
 
     # Swarm
     swarm = Swarm([a, b], entry_point=a, max_handoffs=2)
@@ -300,6 +297,7 @@ def run_one(n: int) -> tuple[bool, dict]:
         elapsed = time.time() - start
         print(f"[Pattern {n}] FAIL ({elapsed:.1f}s): {type(e).__name__}: {e}")
         import traceback
+
         traceback.print_exc()
         return False, {"error": str(e), "type": type(e).__name__}
 

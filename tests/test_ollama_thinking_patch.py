@@ -86,6 +86,7 @@ async def test_patched_stream_yields_reasoning_content_delta(monkeypatch):
     async def _fake_chat(**_kw):
         async def _gen():
             yield _FakeEvt()
+
         return _gen()
 
     # Patch the ollama client used inside the patched stream
@@ -106,11 +107,13 @@ async def test_patched_stream_yields_reasoning_content_delta(monkeypatch):
     # Newer ollama python client uses sync constructor; we replace the
     # constructor itself, not its return value.
     class _FakeAsyncClient:
-        def __init__(self, host, **kw): pass
+        def __init__(self, host, **kw):
+            pass
 
         async def chat(self, **_kw):
             async def _gen():
                 yield _FakeEvt()
+
             return _gen()
 
     monkeypatch.setattr(ollama_mod.ollama, "AsyncClient", _FakeAsyncClient)
@@ -141,7 +144,8 @@ async def test_patched_stream_yields_reasoning_content_delta(monkeypatch):
 
     # Assert: at least one event is a contentBlockDelta with reasoningContent
     reasoning_events = [
-        ev for ev in events
+        ev
+        for ev in events
         if "contentBlockDelta" in ev
         and "reasoningContent" in ev["contentBlockDelta"].get("delta", {})
     ]
@@ -177,11 +181,13 @@ async def test_patched_stream_does_not_emit_reasoning_when_model_has_none(monkey
             self.total_duration = 0
 
     class _FakeAsyncClient:
-        def __init__(self, host, **kw): pass
+        def __init__(self, host, **kw):
+            pass
 
         async def chat(self, **_kw):
             async def _gen():
                 yield _FakeEvt()
+
             return _gen()
 
     monkeypatch.setattr(ollama_mod.ollama, "AsyncClient", _FakeAsyncClient)
@@ -201,7 +207,8 @@ async def test_patched_stream_does_not_emit_reasoning_when_model_has_none(monkey
             break
 
     reasoning_events = [
-        ev for ev in events
+        ev
+        for ev in events
         if "contentBlockDelta" in ev
         and "reasoningContent" in ev["contentBlockDelta"].get("delta", {})
     ]
@@ -267,14 +274,12 @@ async def test_patched_stream_surfaces_connect_error_as_message(monkeypatch):
 
     # 2. content_delta events must contain a friendly error message.
     text_deltas = [
-        ev for ev in events
-        if "contentBlockDelta" in ev
-        and "text" in ev["contentBlockDelta"].get("delta", {})
+        ev
+        for ev in events
+        if "contentBlockDelta" in ev and "text" in ev["contentBlockDelta"].get("delta", {})
     ]
     assert text_deltas, "expected a text content delta carrying the error message"
-    joined = "".join(
-        ev["contentBlockDelta"]["delta"]["text"] for ev in text_deltas
-    )
+    joined = "".join(ev["contentBlockDelta"]["delta"]["text"] for ev in text_deltas)
     assert "Cannot reach Ollama" in joined, (
         f"error message must point the user at Ollama; got: {joined!r}"
     )
@@ -333,13 +338,11 @@ async def test_patched_stream_surfaces_timeout_as_message(monkeypatch):
     stop = next(ev for ev in events if "messageStop" in ev)
     assert stop["messageStop"]["stopReason"] == "end_turn"
     text_deltas = [
-        ev for ev in events
-        if "contentBlockDelta" in ev
-        and "text" in ev["contentBlockDelta"].get("delta", {})
+        ev
+        for ev in events
+        if "contentBlockDelta" in ev and "text" in ev["contentBlockDelta"].get("delta", {})
     ]
-    joined = "".join(
-        ev["contentBlockDelta"]["delta"]["text"] for ev in text_deltas
-    )
+    joined = "".join(ev["contentBlockDelta"]["delta"]["text"] for ev in text_deltas)
     assert "timed out" in joined.lower(), joined
 
 
@@ -391,13 +394,11 @@ async def test_patched_stream_surfaces_oserror_as_message(monkeypatch):
         f"got stopReason={stop['messageStop']['stopReason']!r}"
     )
     text_deltas = [
-        ev for ev in events
-        if "contentBlockDelta" in ev
-        and "text" in ev["contentBlockDelta"].get("delta", {})
+        ev
+        for ev in events
+        if "contentBlockDelta" in ev and "text" in ev["contentBlockDelta"].get("delta", {})
     ]
-    joined = "".join(
-        ev["contentBlockDelta"]["delta"]["text"] for ev in text_deltas
-    )
+    joined = "".join(ev["contentBlockDelta"]["delta"]["text"] for ev in text_deltas)
     assert "Cannot reach Ollama" in joined
 
 

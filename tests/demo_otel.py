@@ -39,9 +39,7 @@ from opentelemetry.sdk.trace.export import (
 )
 from opentelemetry.trace import Span as OtelSpan
 
-print(
-    repr(os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT"))
-)  # 期望 None 或 http://host:4318，千万别是 ''
+print(repr(os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT")))  # 期望 None 或 http://host:4318，千万别是 ''
 print(repr(os.getenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT")))
 # ---------------------------------------------------------------------------
 # 基础设施：单例 StrandsTelemetry + 可内存捕获的 exporter
@@ -126,9 +124,7 @@ def _run_agent(prompt: str, **agent_kwargs: Any) -> Any:
         try:
             return _run_agent_once(prompt, **agent_kwargs)
         except Exception as e:
-            if any(
-                s in repr(e) for s in ("ConnectError", "name resolution", "getaddrinfo")
-            ):
+            if any(s in repr(e) for s in ("ConnectError", "name resolution", "getaddrinfo")):
                 attempt_errors.append(f"{type(e).__name__}")
                 time.sleep(1.5)
                 continue
@@ -169,9 +165,7 @@ def _summarize_spans(spans: list[OtelSpan]) -> list[dict]:
 
 def pattern_1_console_exporter() -> dict:
     tel = _ensure_telemetry()
-    out = (
-        io.StringIO()
-    )  # ⚠️ 必须显式传 out：ConsoleSpanExporter 的默认 sys.stdout 在 import 时就被绑定了，redirect_stdout 捕获不到
+    out = io.StringIO()  # ⚠️ 必须显式传 out：ConsoleSpanExporter 的默认 sys.stdout 在 import 时就被绑定了，redirect_stdout 捕获不到
     if not _TELEMETRY.get("console"):
         tel.setup_console_exporter(out=out)
         _TELEMETRY["console"] = True
@@ -180,9 +174,7 @@ def pattern_1_console_exporter() -> dict:
     out.seek(0)
     out.truncate(0)
     tel.tracer_provider.force_flush()  # 清掉之前 pattern 残留的 batch
-    _run_agent_with_retry(
-        "What is 11 * 11? Answer in one short sentence using the calculator."
-    )
+    _run_agent_with_retry("What is 11 * 11? Answer in one short sentence using the calculator.")
     out.seek(0)
     captured = out.getvalue()
     assert "span" in captured.lower(), "console 中应出现 span 输出"
@@ -205,9 +197,7 @@ def pattern_2_inmemory_hierarchy() -> dict:
     time.sleep(0.2)  # 防止上一个 pattern 的 batch 混入
     exporter.spans.clear()
 
-    _run_agent_with_retry(
-        "Use the calculator tool to compute 6 * 7. One short sentence."
-    )
+    _run_agent_with_retry("Use the calculator tool to compute 6 * 7. One short sentence.")
     tel.tracer_provider.force_flush()
 
     spans = exporter.spans

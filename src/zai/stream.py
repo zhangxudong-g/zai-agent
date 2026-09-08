@@ -144,21 +144,25 @@ class StreamConsumer:
             if name and tool_use_id not in self._pending_tools:
                 # First time seeing this tool → emit tool_start
                 self._pending_tools[tool_use_id] = {"name": name, "input": raw_input}
-                out.append(StreamChunk(
-                    kind="tool_start",
-                    tool_name=name,
-                    tool_use_id=tool_use_id,
-                    input_args=input_args,
-                ))
+                out.append(
+                    StreamChunk(
+                        kind="tool_start",
+                        tool_name=name,
+                        tool_use_id=tool_use_id,
+                        input_args=input_args,
+                    )
+                )
             elif tool_use_id in self._pending_tools:
                 # Subsequent update → emit tool_input (incremental args)
                 self._pending_tools[tool_use_id]["input"] = raw_input
-                out.append(StreamChunk(
-                    kind="tool_input",
-                    tool_name=self._pending_tools[tool_use_id]["name"],
-                    tool_use_id=tool_use_id,
-                    input_args=input_args,
-                ))
+                out.append(
+                    StreamChunk(
+                        kind="tool_input",
+                        tool_name=self._pending_tools[tool_use_id]["name"],
+                        tool_use_id=tool_use_id,
+                        input_args=input_args,
+                    )
+                )
 
         # --- tool_stream_event (rare; intermediate tool progress) ---
         elif "tool_stream_event" in event:
@@ -168,12 +172,14 @@ class StreamConsumer:
             tool_use_id = str(inner.get("toolUseId") or inner.get("id") or "")
             if tool_use_id and tool_use_id in self._pending_tools:
                 self._pending_tools[tool_use_id]["input"] = inner.get("input") or {}
-                out.append(StreamChunk(
-                    kind="tool_input",
-                    tool_name=self._pending_tools[tool_use_id]["name"],
-                    tool_use_id=tool_use_id,
-                    input_args=inner.get("input") or {},
-                ))
+                out.append(
+                    StreamChunk(
+                        kind="tool_input",
+                        tool_name=self._pending_tools[tool_use_id]["name"],
+                        tool_use_id=tool_use_id,
+                        input_args=inner.get("input") or {},
+                    )
+                )
 
         # --- new message node ---
         elif "message" in event and isinstance(event["message"], dict):
@@ -195,26 +201,30 @@ class StreamConsumer:
             stop_reason = str(_get_attr(result, "stop_reason", "end_turn") or "end_turn")
             is_error = bool(_get_attr(result, "stop_reason", "") == "error")
             self.done_emitted = True
-            out.append(StreamChunk(
-                kind="done",
-                text=final_text,
-                result=final_text,
-                usage=usage,
-                stop_reason=stop_reason,
-                is_error=is_error,
-            ))
+            out.append(
+                StreamChunk(
+                    kind="done",
+                    text=final_text,
+                    result=final_text,
+                    usage=usage,
+                    stop_reason=stop_reason,
+                    is_error=is_error,
+                )
+            )
 
         # --- force_stop ---
         elif event.get("force_stop") and not self.done_emitted:
             reason = event.get("force_stop_reason", "")
             self.done_emitted = True
-            out.append(StreamChunk(
-                kind="done",
-                text=f"[force_stop] {reason}",
-                result=f"[force_stop] {reason}",
-                stop_reason="force_stop",
-                is_error=True,
-            ))
+            out.append(
+                StreamChunk(
+                    kind="done",
+                    text=f"[force_stop] {reason}",
+                    result=f"[force_stop] {reason}",
+                    stop_reason="force_stop",
+                    is_error=True,
+                )
+            )
 
         # --- Drain any pending tools (best-effort tool_end) ---
         # Strands does not emit a dedicated "tool_end" dict event; the

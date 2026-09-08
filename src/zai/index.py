@@ -56,9 +56,8 @@ class ProjectIndex:
         if self._cache is None:
             return self._rebuild(max_depth, signature, reason="cold")
 
-        if (
-            self._cache_signature != signature
-            or (self.ttl_seconds > 0 and (time.time() - self._cache_built_at) > self.ttl_seconds)
+        if self._cache_signature != signature or (
+            self.ttl_seconds > 0 and (time.time() - self._cache_built_at) > self.ttl_seconds
         ):
             return self._rebuild(max_depth, signature, reason="invalidated")
 

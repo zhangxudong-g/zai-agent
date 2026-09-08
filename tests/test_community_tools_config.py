@@ -72,10 +72,7 @@ def test_module_does_not_duplicate_dataclass_import():
 
     src = inspect.getsource(ct)
     # Count top-level imports of dataclass (exclude re-exports).
-    import_count = sum(
-        1 for line in src.splitlines()
-        if line.startswith("from dataclasses import")
-    )
+    import_count = sum(1 for line in src.splitlines() if line.startswith("from dataclasses import"))
     assert import_count == 1, (
         f"community_tools.py must import dataclasses exactly once at "
         f"module scope; found {import_count} imports"

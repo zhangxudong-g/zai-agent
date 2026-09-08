@@ -13,6 +13,7 @@
     python tests/demo_debug.py --pattern 1
     python tests/demo_debug.py --all
 """
+
 from __future__ import annotations
 
 import argparse
@@ -31,11 +32,13 @@ def _make_model():
     try:
         from zai.config import get_config  # type: ignore
         from zai.llm import build_ollama_model  # type: ignore
+
         return build_ollama_model(get_config())
     except ImportError:
         import os
 
         from strands.models.ollama import OllamaModel
+
         return OllamaModel(
             host=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/"),
             model_id=os.getenv("OLLAMA_MODEL", "qwen3:7b"),
@@ -47,8 +50,13 @@ def _reset_root_logger():
     root = logging.getLogger()
     for h in list(root.handlers):
         root.removeHandler(h)
-    for name in ("strands", "strands.event_loop", "strands.event_loop.streaming",
-                 "strands.models.ollama", "strands.tools.registry"):
+    for name in (
+        "strands",
+        "strands.event_loop",
+        "strands.event_loop.streaming",
+        "strands.models.ollama",
+        "strands.tools.registry",
+    ):
         lg = logging.getLogger(name)
         for h in list(lg.handlers):
             lg.removeHandler(h)
@@ -118,9 +126,11 @@ def pattern_2_info_level() -> dict:
 def pattern_3_file_rotation() -> dict:
     """把 DEBUG 日志写到文件，用 RotatingFileHandler 防止磁盘爆。"""
     from logging.handlers import RotatingFileHandler
+
     _reset_root_logger()
 
     import tempfile
+
     log_dir = Path(tempfile.mkdtemp())
     log_path = log_dir / "strands.log"
 
@@ -130,9 +140,7 @@ def pattern_3_file_rotation() -> dict:
         backupCount=3,
         encoding="utf-8",
     )
-    handler.setFormatter(logging.Formatter(
-        "%(asctime)s | %(levelname)s | %(name)s | %(message)s"
-    ))
+    handler.setFormatter(logging.Formatter("%(asctime)s | %(levelname)s | %(name)s | %(message)s"))
 
     strands_logger = logging.getLogger("strands")
     strands_logger.setLevel(logging.DEBUG)
@@ -308,8 +316,7 @@ def pattern_7_quiet_third_party() -> dict:
     logging.getLogger("strands").addHandler(handler)
 
     # 关闭第三方噪音
-    for noisy in ("urllib3", "botocore", "boto3", "httpx", "httpcore",
-                  "asyncio", "multipart"):
+    for noisy in ("urllib3", "botocore", "boto3", "httpx", "httpcore", "asyncio", "multipart"):
         logging.getLogger(noisy).setLevel(logging.WARNING)
 
     from strands import Agent
@@ -319,7 +326,11 @@ def pattern_7_quiet_third_party() -> dict:
     agent("What is 11 * 11?")
 
     lines = [line for line in log_buf.getvalue().strip().split("\n") if line]
-    third_party_lines = [line for line in lines if any(n in line for n in ("urllib3", "botocore", "boto3", "httpx", "httpcore"))]
+    third_party_lines = [
+        line
+        for line in lines
+        if any(n in line for n in ("urllib3", "botocore", "boto3", "httpx", "httpcore"))
+    ]
     strands_lines = [line for line in lines if "strands" in line]
 
     return {
@@ -359,6 +370,7 @@ def run_one(n: int) -> tuple[bool, dict]:
         elapsed = time.time() - start
         print(f"[Pattern {n}] FAIL ({elapsed:.1f}s): {type(e).__name__}: {e}")
         import traceback
+
         traceback.print_exc()
         return False, {"error": str(e), "type": type(e).__name__}
 

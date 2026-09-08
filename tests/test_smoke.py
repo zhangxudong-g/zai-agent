@@ -65,7 +65,14 @@ def test_config_defaults(tmp_path: Path, monkeypatch) -> None:
     assert cfg.ollama_base_url == "http://localhost:11434"
     assert cfg.ollama_model == "qwen3:7b"
     assert cfg.allowed_tools == [
-        "read", "glob", "grep", "file_tree", "outline", "shell", "write", "edit",
+        "read",
+        "glob",
+        "grep",
+        "file_tree",
+        "outline",
+        "shell",
+        "write",
+        "edit",
     ]
 
 
@@ -297,7 +304,8 @@ def test_session_logger_writes_error(tmp_path: Path) -> None:
     logger.log_error(error="boom", context={"phase": "test"})
     logger.session_end()
     events = [
-        json.loads(line) for line in (tmp_path / "err_sid.jsonl").read_text(encoding="utf-8").splitlines()
+        json.loads(line)
+        for line in (tmp_path / "err_sid.jsonl").read_text(encoding="utf-8").splitlines()
     ]
     err = next(e for e in events if e["event"] == "error")
     assert err["error"] == "boom"
@@ -310,7 +318,8 @@ def test_session_logger_writes_message(tmp_path: Path) -> None:
     logger._write_message("[compaction] some summary")
     logger.session_end()
     events = [
-        json.loads(line) for line in (tmp_path / "msg_sid.jsonl").read_text(encoding="utf-8").splitlines()
+        json.loads(line)
+        for line in (tmp_path / "msg_sid.jsonl").read_text(encoding="utf-8").splitlines()
     ]
     msg = next(e for e in events if e["event"] == "message")
     assert "compaction" in msg["content"]
@@ -338,18 +347,24 @@ def test_consumer_emits_thinking_for_reasoning_text() -> None:
 def test_consumer_emits_tool_start_then_input() -> None:
     consumer = StreamConsumer()
     # First time we see the tool → tool_start
-    chunks = consumer.feed({"current_tool_use": {
-        "toolUseId": "t1", "name": "read", "input": {"file_path": "a.txt"}
-    }})
+    chunks = consumer.feed(
+        {"current_tool_use": {"toolUseId": "t1", "name": "read", "input": {"file_path": "a.txt"}}}
+    )
     assert len(chunks) == 1
     assert chunks[0].kind == "tool_start"
     assert chunks[0].tool_name == "read"
     assert chunks[0].tool_use_id == "t1"
 
     # Subsequent update → tool_input
-    chunks = consumer.feed({"current_tool_use": {
-        "toolUseId": "t1", "name": "read", "input": {"file_path": "a.txt", "encoding": "utf-8"}
-    }})
+    chunks = consumer.feed(
+        {
+            "current_tool_use": {
+                "toolUseId": "t1",
+                "name": "read",
+                "input": {"file_path": "a.txt", "encoding": "utf-8"},
+            }
+        }
+    )
     assert len(chunks) == 1
     assert chunks[0].kind == "tool_input"
     assert chunks[0].input_args == {"file_path": "a.txt", "encoding": "utf-8"}
@@ -375,7 +390,9 @@ def test_consumer_emits_done_for_result_event() -> None:
 
 def test_consumer_emits_done_only_once() -> None:
     consumer = StreamConsumer()
-    event = {"result": type("R", (), {"message": "x", "metrics": None, "stop_reason": "end_turn"})()}
+    event = {
+        "result": type("R", (), {"message": "x", "metrics": None, "stop_reason": "end_turn"})()
+    }
     chunks1 = consumer.feed(event)
     chunks2 = consumer.feed(event)
     assert len(chunks1) == 1
@@ -395,13 +412,21 @@ def test_consumer_emits_force_stop() -> None:
 def test_consumer_handles_tool_stream_event() -> None:
     consumer = StreamConsumer()
     # First register the tool
-    consumer.feed({"current_tool_use": {
-        "toolUseId": "t2", "name": "grep", "input": {"pattern": "x"}
-    }})
+    consumer.feed(
+        {"current_tool_use": {"toolUseId": "t2", "name": "grep", "input": {"pattern": "x"}}}
+    )
     # Now feed tool_stream_event with updated input
-    chunks = consumer.feed({"tool_stream_event": {
-        "tool_use": {"toolUseId": "t2", "name": "grep", "input": {"pattern": "x", "path": "src"}}
-    }})
+    chunks = consumer.feed(
+        {
+            "tool_stream_event": {
+                "tool_use": {
+                    "toolUseId": "t2",
+                    "name": "grep",
+                    "input": {"pattern": "x", "path": "src"},
+                }
+            }
+        }
+    )
     assert len(chunks) == 1
     assert chunks[0].kind == "tool_input"
     assert chunks[0].input_args == {"pattern": "x", "path": "src"}
@@ -505,7 +530,8 @@ def test_resolve_within_sandbox_symlink_escape(tmp_path: Path) -> None:
 def test_build_sandbox_host_default(tmp_path: Path, monkeypatch) -> None:
     """Default mode 'host' returns NotASandboxLocalEnvironment."""
     sandbox_mod = pytest.importorskip(
-        "strands.sandbox", reason="strands.sandbox not available",
+        "strands.sandbox",
+        reason="strands.sandbox not available",
     )
     monkeypatch.setenv("AGENT_WORKSPACE", str(tmp_path))
     monkeypatch.setenv("EXECUTION_SANDBOX", "host")
@@ -522,6 +548,7 @@ def test_build_sandbox_host_default(tmp_path: Path, monkeypatch) -> None:
     from strands.sandbox.not_a_sandbox_local_environment import (
         NotASandboxLocalEnvironment,
     )
+
     assert isinstance(sandbox, NotASandboxLocalEnvironment)
     assert sandbox_mod.Sandbox in type(sandbox).__mro__
 
@@ -583,6 +610,7 @@ def test_build_sandbox_posix_constructible(tmp_path: Path, monkeypatch) -> None:
     sandbox = build_sandbox(cfg)
 
     from strands.sandbox import PosixShellSandbox
+
     assert isinstance(sandbox, PosixShellSandbox)
     # The sandbox inherits execute_streaming-only from our LocalBashSandbox.
     assert hasattr(sandbox, "execute_streaming")
@@ -634,7 +662,8 @@ def test_posix_mode_works_from_native_windows() -> None:
     # Create a probe file via bash in WSL's /tmp
     subprocess.run(
         ["bash", "-c", "echo posix-win-probe > /tmp/posix_win_probe.txt"],
-        check=True, timeout=10,
+        check=True,
+        timeout=10,
     )
 
     from zai.sandbox import _wslpath_windows_to_linux, build_sandbox
@@ -642,18 +671,25 @@ def test_posix_mode_works_from_native_windows() -> None:
     # Build a sandbox pointed at a Windows-style workspace
     with tempfile.TemporaryDirectory() as td:
         # td is a Windows path like C:\Users\...\Temp\...
-        cfg = type("Cfg", (), {
-            "execution_sandbox": "posix",
-            "agent_workspace": __import__("pathlib").Path(td),
-            "ollama_base_url": "http://localhost:11434",
-            "ollama_model": "x",
-            "ollama_auth_token": "x",
-            "session_log_dir": __import__("pathlib").Path(td),
-            "allowed_tools": [],
-            "sandbox_container": "", "sandbox_container_workdir": "",
-            "sandbox_container_user": "", "sandbox_ssh_host": "",
-            "sandbox_ssh_user": "", "sandbox_ssh_port": None,
-        })()
+        cfg = type(
+            "Cfg",
+            (),
+            {
+                "execution_sandbox": "posix",
+                "agent_workspace": __import__("pathlib").Path(td),
+                "ollama_base_url": "http://localhost:11434",
+                "ollama_model": "x",
+                "ollama_auth_token": "x",
+                "session_log_dir": __import__("pathlib").Path(td),
+                "allowed_tools": [],
+                "sandbox_container": "",
+                "sandbox_container_workdir": "",
+                "sandbox_container_user": "",
+                "sandbox_ssh_host": "",
+                "sandbox_ssh_user": "",
+                "sandbox_ssh_port": None,
+            },
+        )()
         sb = build_sandbox(cfg)
 
         async def go():
@@ -669,7 +705,8 @@ def test_posix_mode_works_from_native_windows() -> None:
             assert wsl_target is not None, f"could not translate {win_target}"
             subprocess.run(
                 ["bash", "-c", f"echo win-translated > {wsl_target}"],
-                check=True, timeout=10,
+                check=True,
+                timeout=10,
             )
             data = await sb.read_file(str(win_target))
             assert data == b"win-translated\n"

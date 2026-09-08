@@ -111,9 +111,11 @@ CATEGORY_TO_TOOLS = {
 # 工具配置
 # =============================================================================
 
+
 @dataclass
 class ToolConfig:
     """单个工具的配置。"""
+
     name: str
     enabled: bool = True
     workspace: Path | None = None  # 文件操作工具的工作目录
@@ -124,6 +126,7 @@ class ToolConfig:
 @dataclass
 class CommunityToolsConfig:
     """社区工具的整体配置。"""
+
     workspace: Path | None = None  # 默认工作目录
     bypass_consent: bool = True  # 跳过工具确认
     default_timeout: int = 60  # 默认超时时间
@@ -147,6 +150,7 @@ class CommunityToolsConfig:
 # =============================================================================
 # 工具构建器
 # =============================================================================
+
 
 class CommunityToolsBuilder:
     """社区工具构建器。"""
@@ -209,6 +213,7 @@ class CommunityToolsBuilder:
 
         module_path, tool_name = import_path.rsplit(".", 1)
         import importlib
+
         module = importlib.import_module(module_path)
         tool = getattr(module, tool_name)
 
@@ -228,6 +233,7 @@ class CommunityToolsBuilder:
                 except ImportError as e:
                     # 如果工具依赖缺失，记录警告但继续
                     import logging
+
                     logging.warning(f"Failed to load tool {tool_name}: {e}")
                     continue
 
@@ -245,6 +251,7 @@ class CommunityToolsBuilder:
                     tools.append(tool)
                 except ImportError as e:
                     import logging
+
                     logging.warning(f"Failed to load tool {name}: {e}")
                     continue
 
@@ -267,6 +274,7 @@ class CommunityToolsBuilder:
                         tools.append(tool)
                     except ImportError as e:
                         import logging
+
                         logging.warning(f"Failed to load tool {tool_name}: {e}")
                         continue
 
@@ -276,6 +284,7 @@ class CommunityToolsBuilder:
 # =============================================================================
 # 便捷函数
 # =============================================================================
+
 
 def build_community_tools(
     categories: Sequence[str] | None = None,
@@ -355,7 +364,9 @@ def get_tools_summary() -> str:
     for category, tools in CATEGORY_TO_TOOLS.items():
         lines.append(f"\n[{category.upper()}]")
         for tool_name in tools:
-            compatible = "[OK]" if CommunityToolsBuilder._is_platform_compatible(tool_name) else "[X]"
+            compatible = (
+                "[OK]" if CommunityToolsBuilder._is_platform_compatible(tool_name) else "[X]"
+            )
             lines.append(f"  {compatible} {tool_name}")
 
     return "\n".join(lines)

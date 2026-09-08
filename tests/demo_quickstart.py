@@ -97,9 +97,7 @@ def section_1_letter_counter() -> dict:
     return {
         "tools_registered": list(agent.tool_registry.registry.keys()),
         "stop_reason": getattr(result, "stop_reason", "unknown"),
-        "metrics_summary": (
-            result.metrics.get_summary() if hasattr(result, "metrics") else None
-        ),
+        "metrics_summary": (result.metrics.get_summary() if hasattr(result, "metrics") else None),
     }
 
 
@@ -206,9 +204,7 @@ def section_4_debug_logging() -> dict:
     log_buf = io.StringIO()
     buf_handler = logging.StreamHandler(log_buf)
     buf_handler.setLevel(logging.DEBUG)
-    buf_handler.setFormatter(
-        logging.Formatter("%(levelname)s | %(name)s | %(message)s")
-    )
+    buf_handler.setFormatter(logging.Formatter("%(levelname)s | %(name)s | %(message)s"))
 
     strands_logger = logging.getLogger("strands")
     strands_logger.setLevel(logging.DEBUG)

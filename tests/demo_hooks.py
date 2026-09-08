@@ -13,6 +13,7 @@
     python tests/demo_hooks.py --pattern 1
     python tests/demo_hooks.py --all
 """
+
 from __future__ import annotations
 
 import argparse
@@ -29,6 +30,7 @@ def _make_model():
     import os
 
     from strands.models.ollama import OllamaModel
+
     return OllamaModel(
         host=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/"),
         model_id=os.getenv("OLLAMA_MODEL", "qwen3.8:27b"),
@@ -37,6 +39,7 @@ def _make_model():
 
 def _reset_logger():
     import logging
+
     for name in ("strands", "strands.event_loop", "strands.tools"):
         logging.getLogger(name).setLevel(logging.WARNING)
 
@@ -210,16 +213,20 @@ def pattern_5_invocation_events() -> dict:
     invocations = []
 
     def before_inv(event: BeforeInvocationEvent) -> None:
-        invocations.append({
-            "phase": "before",
-            "agent_id": event.agent.agent_id,
-        })
+        invocations.append(
+            {
+                "phase": "before",
+                "agent_id": event.agent.agent_id,
+            }
+        )
 
     def after_inv(event: AfterInvocationEvent) -> None:
-        invocations.append({
-            "phase": "after",
-            "stop_reason": str(event.stop_reason) if hasattr(event, "stop_reason") else "n/a",
-        })
+        invocations.append(
+            {
+                "phase": "after",
+                "stop_reason": str(event.stop_reason) if hasattr(event, "stop_reason") else "n/a",
+            }
+        )
 
     agent = Agent(model=_make_model(), tools=[calculator], callback_handler=None)
     agent.hooks.add_callback(BeforeInvocationEvent, before_inv)
@@ -249,13 +256,14 @@ def pattern_6_message_added() -> dict:
 
     def track_message(event: MessageAddedEvent) -> None:
         msg = event.message
-        messages_log.append({
-            "role": msg.get("role"),
-            "content_types": [
-                list(b.keys()) for b in msg.get("content", [])
-                if isinstance(b, dict)
-            ],
-        })
+        messages_log.append(
+            {
+                "role": msg.get("role"),
+                "content_types": [
+                    list(b.keys()) for b in msg.get("content", []) if isinstance(b, dict)
+                ],
+            }
+        )
 
     agent = Agent(model=_make_model(), tools=[calculator], callback_handler=None)
     agent.hooks.add_callback(MessageAddedEvent, track_message)
@@ -343,6 +351,7 @@ def run_one(n: int) -> tuple[bool, dict]:
         elapsed = time.time() - start
         print(f"[Pattern {n}] FAIL ({elapsed:.1f}s): {type(e).__name__}: {e}")
         import traceback
+
         traceback.print_exc()
         return False, {"error": str(e), "type": type(e).__name__}
 

@@ -13,6 +13,7 @@
     python tests/demo_callback.py --pattern 1-3     # 范围
     python tests/demo_callback.py --all             # 全部
 """
+
 from __future__ import annotations
 
 import argparse
@@ -31,11 +32,13 @@ def _make_model():
     try:
         from zai.config import get_config  # type: ignore
         from zai.llm import build_ollama_model  # type: ignore
+
         return build_ollama_model(get_config())
     except ImportError:
         import os
 
         from strands.models.ollama import OllamaModel
+
         return OllamaModel(
             host=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/"),
             model_id=os.getenv("OLLAMA_MODEL", "qwen3:7b"),
@@ -87,12 +90,14 @@ def pattern_2_tool_collector() -> dict:
         if "current_tool_use" in kwargs:
             t = kwargs["current_tool_use"]
             if t.get("name"):
-                calls.append({
-                    "phase": "tool_use_start",
-                    "tool_use_id": t.get("toolUseId"),
-                    "name": t.get("name"),
-                    "input": t.get("input", {}),
-                })
+                calls.append(
+                    {
+                        "phase": "tool_use_start",
+                        "tool_use_id": t.get("toolUseId"),
+                        "name": t.get("name"),
+                        "input": t.get("input", {}),
+                    }
+                )
         # 工具调用结果返回时（data 里有 tool_result）
         if "data" in kwargs:
             data = kwargs["data"]
@@ -137,16 +142,20 @@ def pattern_3_type_annotated() -> dict:
     # 这两个函数虽然在另一个函数内部定义，但类型注解引用的是模块级 import，
     # Python 通过 __globals__ 链能找到，所以可以工作。
     def on_before_model(event: BeforeModelCallEvent) -> None:
-        before_model_calls.append({
-            "event_type": type(event).__name__,
-            "projected_input_tokens": event.projected_input_tokens,
-        })
+        before_model_calls.append(
+            {
+                "event_type": type(event).__name__,
+                "projected_input_tokens": event.projected_input_tokens,
+            }
+        )
 
     def on_after_model(event: AfterModelCallEvent) -> None:
-        after_model_calls.append({
-            "event_type": type(event).__name__,
-            "stop_reason": event.stop_response.stop_reason if event.stop_response else None,
-        })
+        after_model_calls.append(
+            {
+                "event_type": type(event).__name__,
+                "stop_reason": event.stop_response.stop_reason if event.stop_response else None,
+            }
+        )
 
     agent = Agent(
         model=_make_model(),
@@ -202,6 +211,7 @@ def pattern_4_multiple_callbacks() -> dict:
         tools=[calculator],
         callback_handler=composed,
     )
+
     # 用显式 add_callback 注册 hook（避开类型推断失败）
     def on_before_model(event: BeforeModelCallEvent) -> None:
         log_a.append("hook_a")
@@ -340,6 +350,7 @@ def run_one(n: int) -> tuple[bool, dict]:
         elapsed = time.time() - start
         print(f"[Pattern {n}] FAIL ({elapsed:.1f}s): {type(e).__name__}: {e}")
         import traceback
+
         traceback.print_exc()
         return False, {"error": str(e), "type": type(e).__name__}
 
@@ -349,8 +360,7 @@ def main():
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--all", action="store_true")
     group.add_argument("--pattern", type=int, choices=list(PATTERNS.keys()))
-    group.add_argument("--range", dest="rng", type=str,
-                       help="范围，如 1-3")
+    group.add_argument("--range", dest="rng", type=str, help="范围，如 1-3")
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.WARNING)

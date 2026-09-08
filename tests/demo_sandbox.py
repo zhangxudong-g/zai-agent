@@ -21,6 +21,7 @@ Strands 1.53.0 Sandbox 用于隔离工具（特别是 file_editor / shell）执�
     python tests/demo_sandbox.py --pattern 1
     python tests/demo_sandbox.py --all
 """
+
 from __future__ import annotations
 
 import argparse
@@ -55,10 +56,8 @@ def _bash_available() -> bool:
     rather than crash on a missing utility.
     """
     import shutil
-    return any(
-        shutil.which(candidate)
-        for candidate in ("bash", "sh", "/usr/bin/bash", "/bin/sh")
-    )
+
+    return any(shutil.which(candidate) for candidate in ("bash", "sh", "/usr/bin/bash", "/bin/sh"))
 
 
 def _to_bash_path(path: str) -> str:
@@ -114,7 +113,10 @@ async def _run_bash_via_script(command: str, *, cwd=None, env=None) -> tuple[int
     responsive while the subprocess runs.
     """
     return await asyncio.to_thread(
-        _run_bash_via_script_sync, command, cwd=cwd, env=env,
+        _run_bash_via_script_sync,
+        command,
+        cwd=cwd,
+        env=env,
     )
 
 
@@ -145,20 +147,24 @@ def pattern_1_hierarchy() -> dict:
     concrete = []
     try:
         from strands.sandbox.docker import DockerSandbox
+
         concrete.append({"class": "DockerSandbox", "module": DockerSandbox.__module__})
     except ImportError:
         pass
     try:
         from strands.sandbox.ssh import SshSandbox
+
         concrete.append({"class": "SshSandbox", "module": SshSandbox.__module__})
     except ImportError:
         pass
 
     # 4. 默认 sandbox（无隔离）
-    concrete.append({
-        "class": "NotASandboxLocalEnvironment",
-        "note": "Agent 默认使用，无隔离",
-    })
+    concrete.append(
+        {
+            "class": "NotASandboxLocalEnvironment",
+            "note": "Agent 默认使用，无隔离",
+        }
+    )
 
     return {
         "hierarchy": hierarchy,
@@ -237,10 +243,12 @@ def pattern_3_custom_sandbox() -> dict:
     async def run():
         results = []
         async for item in sandbox.execute_streaming("echo hello from custom sandbox"):
-            results.append({
-                "type": type(item).__name__,
-                "data": str(item)[:100],
-            })
+            results.append(
+                {
+                    "type": type(item).__name__,
+                    "data": str(item)[:100],
+                }
+            )
         return results
 
     chunks = asyncio.run(run("hello") if False else run())
@@ -269,6 +277,7 @@ def pattern_4_file_editor_routing() -> dict:
 
     # 3. make_file_editor 的关键参数
     import inspect
+
     sig = inspect.signature(make_file_editor)
 
     return {
@@ -290,6 +299,7 @@ def pattern_5_construction() -> dict:
     # 1. DockerSandbox
     try:
         from strands.sandbox.docker import DockerSandbox
+
         sigs["DockerSandbox"] = str(inspect.signature(DockerSandbox.__init__))
     except ImportError as e:
         sigs["DockerSandbox_error"] = str(e)
@@ -297,12 +307,14 @@ def pattern_5_construction() -> dict:
     # 2. SshSandbox
     try:
         from strands.sandbox.ssh import SshSandbox
+
         sigs["SshSandbox"] = str(inspect.signature(SshSandbox.__init__))
     except ImportError as e:
         sigs["SshSandbox_error"] = str(e)
 
     # 3. PosixShellSandbox (abstract)
     from strands.sandbox import PosixShellSandbox
+
     sigs["PosixShellSandbox"] = str(inspect.signature(PosixShellSandbox.__init__))
 
     # 4. 尝试构造 DockerSandbox（如果 docker 不可用会失败）
@@ -310,6 +322,7 @@ def pattern_5_construction() -> dict:
     docker_error = None
     try:
         from strands.sandbox.docker import DockerSandbox
+
         # 不实际调用（避免阻塞），只看能不能 import + 构造
         # DockerSandbox(container="nonexistent")  # 会调用 docker exec，可能报错
         # 只检查 class 是否可调用
@@ -375,7 +388,9 @@ def pattern_7_execute_code_streaming() -> dict:
             # 把 command 写到 .sh 文件再 bash 执行，避免 heredoc 在
             # `bash -c "..."` 包裹后被破坏（见 _run_bash_via_script 注释）。
             exit_code, stdout_b, stderr_b = await _run_bash_via_script(
-                command, cwd=cwd, env=env,
+                command,
+                cwd=cwd,
+                env=env,
             )
             if stdout_b:
                 yield StreamChunk(data=stdout_b.decode(errors="replace"), stream_type="stdout")
@@ -394,12 +409,14 @@ def pattern_7_execute_code_streaming() -> dict:
         code = "import sys\nprint('hello from', sys.executable)\nprint(1 + 2 + 3)"
         events = []
         async for chunk in sandbox.execute_code_streaming(code, "python3"):
-            events.append({
-                "type": type(chunk).__name__,
-                "stream_type": getattr(chunk, "stream_type", None),
-                "exit_code": getattr(chunk, "exit_code", None),
-                "data_head": (getattr(chunk, "data", "") or "")[:60],
-            })
+            events.append(
+                {
+                    "type": type(chunk).__name__,
+                    "stream_type": getattr(chunk, "stream_type", None),
+                    "exit_code": getattr(chunk, "exit_code", None),
+                    "data_head": (getattr(chunk, "data", "") or "")[:60],
+                }
+            )
         return events
 
     if not _bash_available():
@@ -442,7 +459,9 @@ def pattern_8_file_io() -> dict:
         ):
             # 同 pattern_7：posix_shell 用 heredoc + base64，必须有 bash 才能跑
             exit_code, stdout_b, stderr_b = await _run_bash_via_script(
-                command, cwd=cwd, env=env,
+                command,
+                cwd=cwd,
+                env=env,
             )
             if stdout_b:
                 yield StreamChunk(data=stdout_b.decode(errors="replace"), stream_type="stdout")
@@ -528,6 +547,7 @@ def run_one(n: int) -> tuple[bool, dict]:
         elapsed = time.time() - start
         print(f"[Pattern {n}] FAIL ({elapsed:.1f}s): {type(e).__name__}: {e}")
         import traceback
+
         traceback.print_exc()
         return False, {"error": str(e), "type": type(e).__name__}
 

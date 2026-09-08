@@ -91,6 +91,7 @@ def build_sandbox(config: Config) -> Sandbox:
         from strands.sandbox.not_a_sandbox_local_environment import (
             NotASandboxLocalEnvironment,
         )
+
         logger.info("Sandbox: host (NotASandboxLocalEnvironment, no isolation)")
         return NotASandboxLocalEnvironment()
 
@@ -113,9 +114,7 @@ def build_sandbox(config: Config) -> Sandbox:
         )
         return sandbox
 
-    raise ValueError(
-        f"unknown execution_sandbox mode {mode!r}; must be one of {SANDBOX_MODES}"
-    )
+    raise ValueError(f"unknown execution_sandbox mode {mode!r}; must be one of {SANDBOX_MODES}")
 
 
 # --------------------------------------------------------------------- #
@@ -157,6 +156,7 @@ def _build_posix_sandbox(config: Config) -> Sandbox:
             like ``/tmp/foo`` which we never want to mangle).
             """
             import sys as _sys
+
             if _sys.platform != "win32":
                 return path
             translated = _wslpath_windows_to_linux(path)
@@ -167,7 +167,9 @@ def _build_posix_sandbox(config: Config) -> Sandbox:
 
         async def write_file(self, path: str, content: bytes, **kwargs):
             return await super().write_file(
-                self._maybe_translate(path), content, **kwargs,
+                self._maybe_translate(path),
+                content,
+                **kwargs,
             )
 
         async def remove_file(self, path: str, **kwargs):
@@ -199,9 +201,7 @@ def _build_posix_sandbox(config: Config) -> Sandbox:
             if env:
                 # Build ``export K=V;`` prefixes; quote V via shlex.quote
                 # so values with spaces/special chars survive the shell.
-                parts = [
-                    f"export {k}={shlex.quote(str(v))}" for k, v in env.items()
-                ]
+                parts = [f"export {k}={shlex.quote(str(v))}" for k, v in env.items()]
                 env_prefix = " ".join(parts) + " "
 
             full_command = f"cd {shlex.quote(target_cwd)} && {env_prefix}{command}"
@@ -213,7 +213,9 @@ def _build_posix_sandbox(config: Config) -> Sandbox:
             # invokes bash directly. On POSIX the two are equivalent.
             if sys.platform == "win32":
                 proc = await asyncio.create_subprocess_exec(
-                    "bash", "-c", full_command,
+                    "bash",
+                    "-c",
+                    full_command,
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
                 )
@@ -226,12 +228,14 @@ def _build_posix_sandbox(config: Config) -> Sandbox:
 
             try:
                 stdout_b, stderr_b = await asyncio.wait_for(
-                    proc.communicate(), timeout=timeout,
+                    proc.communicate(),
+                    timeout=timeout,
                 )
             except TimeoutError as e:
                 proc.kill()
                 await proc.wait()
                 from strands.sandbox.errors import SandboxTimeoutError
+
                 raise SandboxTimeoutError(command, timeout or 0.0) from e
 
             # Always decode as utf-8 with errors='replace'. The subprocess
@@ -326,9 +330,7 @@ def _build_docker_sandbox(config: Config) -> Sandbox:
 def _build_ssh_sandbox(config: Config) -> Sandbox:
     host = (getattr(config, "sandbox_ssh_host", "") or "").strip()
     if not host:
-        raise ValueError(
-            "execution_sandbox='ssh' requires SANDBOX_SSH_HOST in .env."
-        )
+        raise ValueError("execution_sandbox='ssh' requires SANDBOX_SSH_HOST in .env.")
     try:
         from strands.sandbox.ssh import SshSandbox
     except ImportError as e:

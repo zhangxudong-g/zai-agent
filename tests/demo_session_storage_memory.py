@@ -17,6 +17,7 @@ Strands 1.53.0 三层持久化：
     python tests/demo_session_storage_memory.py --pattern 1
     python tests/demo_session_storage_memory.py --all
 """
+
 from __future__ import annotations
 
 import argparse
@@ -32,8 +33,13 @@ sys.path.insert(0, str(ROOT / "src"))
 
 
 def _reset_logger():
-    for name in ("strands", "strands.event_loop", "strands.session",
-                 "strands.storage", "strands.memory"):
+    for name in (
+        "strands",
+        "strands.event_loop",
+        "strands.session",
+        "strands.storage",
+        "strands.memory",
+    ):
         logging.getLogger(name).setLevel(logging.WARNING)
 
 
@@ -41,6 +47,7 @@ def _make_model():
     import os
 
     from strands.models.ollama import OllamaModel
+
     return OllamaModel(
         host=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/"),
         model_id=os.getenv("OLLAMA_MODEL", "qwen3.8:27b"),
@@ -92,10 +99,8 @@ async def pattern_2_local_file_storage() -> dict:
     storage = LocalFileStorage(str(base_dir))
 
     # 写入
-    await storage.write("users/alice.json",
-                         json.dumps({"name": "Alice", "role": "admin"}).encode())
-    await storage.write("users/bob.json",
-                         json.dumps({"name": "Bob", "role": "user"}).encode())
+    await storage.write("users/alice.json", json.dumps({"name": "Alice", "role": "admin"}).encode())
+    await storage.write("users/bob.json", json.dumps({"name": "Bob", "role": "user"}).encode())
 
     # 读取
     alice_bytes = await storage.read("users/alice.json")
@@ -172,7 +177,7 @@ async def pattern_4_snapshot_session() -> dict:
     session_manager = SnapshotSessionManager(
         storage=storage,
         session_id="snap-001",
-        save_latest_on="message",   # Literal: 'message' / 'invocation' / 'trigger'
+        save_latest_on="message",  # Literal: 'message' / 'invocation' / 'trigger'
     )
 
     agent = Agent(
@@ -186,8 +191,9 @@ async def pattern_4_snapshot_session() -> dict:
     return {
         "session_id": "snap-001",
         "storage_dir": str(base_dir),
-        "files": sorted(p.relative_to(base_dir).as_posix()
-                        for p in base_dir.rglob("*") if p.is_file()),
+        "files": sorted(
+            p.relative_to(base_dir).as_posix() for p in base_dir.rglob("*") if p.is_file()
+        ),
         "explanation": "SnapshotSessionManager 用快照而非消息流，支持 time-travel",
     }
 
@@ -202,7 +208,7 @@ async def pattern_5_memory_manager() -> dict:
     # MemoryManager 需要至少一个 store；这里用一个 in-memory 的（如果有的话）
     # 1.53.0 的 MemoryManager(stores=...) 要求具体 store 类型
     config = MemoryManagerConfig(
-        stores=[],          # 空 store 列表（演示用）
+        stores=[],  # 空 store 列表（演示用）
         search_tool_config=True,
         add_tool_config=False,
         injection=True,
@@ -210,6 +216,7 @@ async def pattern_5_memory_manager() -> dict:
 
     # 看看 MemoryManager 接受什么
     import inspect
+
     sig = inspect.signature(MemoryManager.__init__)
 
     return {
@@ -296,6 +303,7 @@ def run_one(n: int) -> tuple[bool, dict]:
         elapsed = time.time() - start
         print(f"[Pattern {n}] FAIL ({elapsed:.1f}s): {type(e).__name__}: {e}")
         import traceback
+
         traceback.print_exc()
         return False, {"error": str(e), "type": type(e).__name__}
 

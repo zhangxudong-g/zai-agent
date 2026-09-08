@@ -60,15 +60,12 @@ def _resolve_within_sandbox(
     try:
         candidate = Path(raw_path)
         if not candidate.is_absolute():
-            candidate = (workspace / candidate)
+            candidate = workspace / candidate
         candidate = candidate.resolve()
         candidate.relative_to(workspace)
         return candidate
     except ValueError:
-        return (
-            f"[ERROR] {label} outside workspace ({raw_path!r}); "
-            f"workspace is {workspace}"
-        )
+        return f"[ERROR] {label} outside workspace ({raw_path!r}); workspace is {workspace}"
     except OSError as e:
         return f"[ERROR] {label} resolution failed ({raw_path!r}): {e}"
 
@@ -82,12 +79,15 @@ def _looks_binary(data: bytes, *, sample: int = 8192) -> bool:
 
 
 def make_read_tool(workspace: Path):
-    @tool(name="read", description=(
-        "Read a file. Path is relative to the workspace unless absolute. "
-        "Optional: offset (1-based start line), limit (max lines), "
-        "max_bytes (cap on bytes returned). Binary files return a sentinel "
-        "'[binary, N bytes]' without raising."
-    ))
+    @tool(
+        name="read",
+        description=(
+            "Read a file. Path is relative to the workspace unless absolute. "
+            "Optional: offset (1-based start line), limit (max lines), "
+            "max_bytes (cap on bytes returned). Binary files return a sentinel "
+            "'[binary, N bytes]' without raising."
+        ),
+    )
     def read_tool(
         file_path: str,
         offset: int = 0,
@@ -124,6 +124,7 @@ def make_read_tool(workspace: Path):
             text += f"\n[...truncated at {max_bytes} bytes; original {len(raw)} bytes]"
 
         return text
+
     return read_tool
 
 
@@ -131,10 +132,13 @@ def make_read_tool(workspace: Path):
 # GlobTool
 # --------------------------------------------------------------------- #
 def make_glob_tool(workspace: Path):
-    @tool(name="glob", description=(
-        "List files under the workspace whose path matches the glob "
-        "pattern (e.g. 'src/**/*.py'). Returns paths separated by newlines."
-    ))
+    @tool(
+        name="glob",
+        description=(
+            "List files under the workspace whose path matches the glob "
+            "pattern (e.g. 'src/**/*.py'). Returns paths separated by newlines."
+        ),
+    )
     # Glob is anchored at ``workspace`` by design — the model only ever
     # supplies a glob pattern, never a base directory. No path argument
     # to sandbox, so no ``_resolve_within_sandbox`` call needed here.
@@ -150,6 +154,7 @@ def make_glob_tool(workspace: Path):
         if not results:
             return f"[no matches for {pattern!r}]"
         return "\n".join(sorted(results))
+
     return glob_tool
 
 
@@ -157,14 +162,17 @@ def make_glob_tool(workspace: Path):
 # GrepTool — context lines + output_mode
 # --------------------------------------------------------------------- #
 def make_grep_tool(workspace: Path):
-    @tool(name="grep", description=(
-        "Search file contents with a Python regex. Returns "
-        "'path:lineno: line' rows by default. Optional context=N adds N "
-        "lines before/after each match (each context row is prefixed "
-        "with a single '-' so the model can tell them apart from primary "
-        "hits). output_mode='files_with_matches' returns just file paths; "
-        "output_mode='count' returns '<path>:<N>'. Capped at 200 hits."
-    ))
+    @tool(
+        name="grep",
+        description=(
+            "Search file contents with a Python regex. Returns "
+            "'path:lineno: line' rows by default. Optional context=N adds N "
+            "lines before/after each match (each context row is prefixed "
+            "with a single '-' so the model can tell them apart from primary "
+            "hits). output_mode='files_with_matches' returns just file paths; "
+            "output_mode='count' returns '<path>:<N>'. Capped at 200 hits."
+        ),
+    )
     def grep_tool(
         pattern: str,
         path: str = "",
@@ -186,7 +194,9 @@ def make_grep_tool(workspace: Path):
         # applies afterwards.
         if path:
             base_dir_or_err = _resolve_within_sandbox(
-                workspace, path, label="path",
+                workspace,
+                path,
+                label="path",
             )
             if isinstance(base_dir_or_err, str):
                 return base_dir_or_err
@@ -255,6 +265,7 @@ def make_grep_tool(workspace: Path):
         if not rows:
             return f"[no matches for /{pattern}/ under {path or '.'}]"
         return "\n".join(rows[:200])
+
     return grep_tool
 
 
@@ -262,10 +273,13 @@ def make_grep_tool(workspace: Path):
 # WriteTool  (sandbox check is done by WorkspaceSandboxHook, not here)
 # --------------------------------------------------------------------- #
 def make_write_tool(workspace: Path):
-    @tool(name="write", description=(
-        "Write UTF-8 content to a file. Path is relative to the workspace "
-        "unless absolute. Workspace enforcement is done by a hook."
-    ))
+    @tool(
+        name="write",
+        description=(
+            "Write UTF-8 content to a file. Path is relative to the workspace "
+            "unless absolute. Workspace enforcement is done by a hook."
+        ),
+    )
     def write_tool(file_path: str, content: str) -> str:
         target_or_err = _resolve_within_sandbox(workspace, file_path, label="file_path")
         if isinstance(target_or_err, str):
@@ -274,6 +288,7 @@ def make_write_tool(workspace: Path):
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(content, encoding="utf-8")
         return f"Wrote {len(content)} bytes to {file_path}"
+
     return write_tool
 
 
@@ -281,10 +296,13 @@ def make_write_tool(workspace: Path):
 # EditTool  (sandbox check is done by WorkspaceSandboxHook, not here)
 # --------------------------------------------------------------------- #
 def make_edit_tool(workspace: Path):
-    @tool(name="edit", description=(
-        "Edit a file via find/replace. Returns 'No match' if old_string "
-        "is not found. Workspace enforcement is done by a hook."
-    ))
+    @tool(
+        name="edit",
+        description=(
+            "Edit a file via find/replace. Returns 'No match' if old_string "
+            "is not found. Workspace enforcement is done by a hook."
+        ),
+    )
     def edit_tool(file_path: str, old_string: str, new_string: str) -> str:
         target_or_err = _resolve_within_sandbox(workspace, file_path, label="file_path")
         if isinstance(target_or_err, str):
@@ -303,6 +321,7 @@ def make_edit_tool(workspace: Path):
             return f"[no match for old_string in {file_path}]"
         target.write_text(replaced, encoding="utf-8")
         return f"Edited {file_path} ({len(new_string)} chars)"
+
     return edit_tool
 
 
@@ -320,11 +339,25 @@ def build_file_tree_entries(
     and caps the total number of entries at ``max_entries`` so a single
     call can never dump megabytes of JSON into the model context.
     """
-    noise_dirs = frozenset({
-        ".venv", "venv", "node_modules", "__pycache__", ".git",
-        ".mypy_cache", ".ruff_cache", ".pytest_cache", ".tox",
-        ".idea", ".vscode", "dist", "build", "target", "site-packages",
-    })
+    noise_dirs = frozenset(
+        {
+            ".venv",
+            "venv",
+            "node_modules",
+            "__pycache__",
+            ".git",
+            ".mypy_cache",
+            ".ruff_cache",
+            ".pytest_cache",
+            ".tox",
+            ".idea",
+            ".vscode",
+            "dist",
+            "build",
+            "target",
+            "site-packages",
+        }
+    )
     entries: list[dict[str, Any]] = []
     truncated_after = 0
 
@@ -359,22 +392,30 @@ def build_file_tree_entries(
 
     _walk(root, max_depth, "")
     if truncated_after:
-        entries.append({"_truncated": True, "_hint": (
-            f"only first {max_entries} entries listed; "
-            "re-call file_tree with 'path' to drill into a subdir"
-        )})
+        entries.append(
+            {
+                "_truncated": True,
+                "_hint": (
+                    f"only first {max_entries} entries listed; "
+                    "re-call file_tree with 'path' to drill into a subdir"
+                ),
+            }
+        )
     return entries
 
 
 def make_file_tree_tool(workspace: Path):
-    @tool(name="file_tree", description=(
-        "List files and directories under the workspace as a JSON list. "
-        "Each entry has 'path' (relative POSIX), 'type' ('file'|'dir'), "
-        "and 'size' (bytes; null for dirs). max_depth limits recursion "
-        "(default 4). Noise dirs (.venv, node_modules, __pycache__, .git, …) "
-        "are skipped; results cap at 2000 entries — for bigger trees, call "
-        "with 'path' to drill into a subdir. Cheap: does NOT read contents."
-    ))
+    @tool(
+        name="file_tree",
+        description=(
+            "List files and directories under the workspace as a JSON list. "
+            "Each entry has 'path' (relative POSIX), 'type' ('file'|'dir'), "
+            "and 'size' (bytes; null for dirs). max_depth limits recursion "
+            "(default 4). Noise dirs (.venv, node_modules, __pycache__, .git, …) "
+            "are skipped; results cap at 2000 entries — for bigger trees, call "
+            "with 'path' to drill into a subdir. Cheap: does NOT read contents."
+        ),
+    )
     def file_tree_tool(max_depth: int = 4, path: str = "") -> str:
         if path:
             base_or_err = _resolve_within_sandbox(workspace, path, label="path")
@@ -387,6 +428,7 @@ def make_file_tree_tool(workspace: Path):
             return f"[ERROR] path not found: {path or '.'}"
         entries = build_file_tree_entries(base, max_depth)
         return json.dumps(entries, ensure_ascii=False)
+
     return file_tree_tool
 
 
@@ -394,14 +436,52 @@ def make_file_tree_tool(workspace: Path):
 # ShellTool — execute allowed read-only commands
 # --------------------------------------------------------------------- #
 # Allowlist of safe read-only commands (no file writing, no network)
-_ALLOWED_COMMANDS = frozenset({
-    "git", "ls", "find", "grep", "cat", "head", "tail", "wc",
-    "sort", "uniq", "diff", "patch", "xz", "gz", "bz2", "zip", "unzip",
-    "tree", "pwd", "cd", "dir", "type", "stat", "file", "md5sum",
-    "sha256sum", "sha1sum", "xxd", "hexdump", "od", "base64",
-    "python", "python3", "node", "npm", "cargo", "uv", "pip", "poetry",
-    "docker", "docker compose", "docker-compose",
-})
+_ALLOWED_COMMANDS = frozenset(
+    {
+        "git",
+        "ls",
+        "find",
+        "grep",
+        "cat",
+        "head",
+        "tail",
+        "wc",
+        "sort",
+        "uniq",
+        "diff",
+        "patch",
+        "xz",
+        "gz",
+        "bz2",
+        "zip",
+        "unzip",
+        "tree",
+        "pwd",
+        "cd",
+        "dir",
+        "type",
+        "stat",
+        "file",
+        "md5sum",
+        "sha256sum",
+        "sha1sum",
+        "xxd",
+        "hexdump",
+        "od",
+        "base64",
+        "python",
+        "python3",
+        "node",
+        "npm",
+        "cargo",
+        "uv",
+        "pip",
+        "poetry",
+        "docker",
+        "docker compose",
+        "docker-compose",
+    }
+)
 
 
 def _is_command_allowed(cmd: str) -> bool:
@@ -464,15 +544,18 @@ def _translate_for_windows(parts: list[str]) -> list[str]:
 
 
 def make_shell_tool(workspace: Path):
-    @tool(name="shell", description=(
-        "Execute a shell command in the workspace directory. "
-        "Only read-only commands are allowed: git, ls, find, grep, cat, head, tail, "
-        "tree, python, node, docker, etc. "
-        "Unix idioms (ls, cat, pwd, find -name) are auto-translated to "
-        "Windows equivalents, so they work cross-platform. "
-        "Output is truncated to 5000 chars. "
-        "Workspace directory is the working directory."
-    ))
+    @tool(
+        name="shell",
+        description=(
+            "Execute a shell command in the workspace directory. "
+            "Only read-only commands are allowed: git, ls, find, grep, cat, head, tail, "
+            "tree, python, node, docker, etc. "
+            "Unix idioms (ls, cat, pwd, find -name) are auto-translated to "
+            "Windows equivalents, so they work cross-platform. "
+            "Output is truncated to 5000 chars. "
+            "Workspace directory is the working directory."
+        ),
+    )
     def shell_tool(command: str) -> str:
         import shlex
         import subprocess
@@ -524,6 +607,7 @@ def make_shell_tool(workspace: Path):
                     return b.decode("utf-8")
                 except UnicodeDecodeError:
                     import locale
+
                     return b.decode(locale.getpreferredencoding(False), errors="replace")
 
             decoded = _decode(result.stdout) + _decode(result.stderr)
@@ -539,6 +623,7 @@ def make_shell_tool(workspace: Path):
             return f"[ERROR] command not found: {parts[0]}"
         except Exception as e:
             return f"[ERROR] {e}"
+
     return shell_tool
 
 
@@ -546,12 +631,15 @@ def make_shell_tool(workspace: Path):
 # OutlineTool — AST-based def extraction for Python
 # --------------------------------------------------------------------- #
 def make_outline_tool(workspace: Path):
-    @tool(name="outline", description=(
-        "Extract the structural outline of a Python file: module "
-        "docstring, top-level classes (with method names) and functions. "
-        "Returns a compact markdown-like summary. For non-Python files, "
-        "returns the first 30 lines."
-    ))
+    @tool(
+        name="outline",
+        description=(
+            "Extract the structural outline of a Python file: module "
+            "docstring, top-level classes (with method names) and functions. "
+            "Returns a compact markdown-like summary. For non-Python files, "
+            "returns the first 30 lines."
+        ),
+    )
     def outline_tool(file_path: str) -> str:
         target_or_err = _resolve_within_sandbox(workspace, file_path, label="file_path")
         if isinstance(target_or_err, str):
@@ -575,9 +663,12 @@ def make_outline_tool(workspace: Path):
 
         out: list[str] = []
         # Module docstring
-        if (tree.body and isinstance(tree.body[0], ast.Expr)
-                and isinstance(tree.body[0].value, ast.Constant)
-                and isinstance(tree.body[0].value.value, str)):
+        if (
+            tree.body
+            and isinstance(tree.body[0], ast.Expr)
+            and isinstance(tree.body[0].value, ast.Constant)
+            and isinstance(tree.body[0].value.value, str)
+        ):
             out.append(f'""" {tree.body[0].value.value.strip()} """')
 
         for node in tree.body:
@@ -599,6 +690,7 @@ def make_outline_tool(workspace: Path):
                         out.append(f"{t.id} = ...")
 
         return "\n".join(out) if out else "[no top-level defs]"
+
     return outline_tool
 
 

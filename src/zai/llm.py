@@ -81,18 +81,28 @@ def _setup_ollama_debug(log_dir: Path | None = None) -> None:
     # --- DEBUG: monkey-patch Agent._append_messages to log every message added ---
     try:
         from strands.agent.agent import Agent as _StrandsAgent
+
         if getattr(_StrandsAgent._append_messages, "_zai_debug_patched", False):
             return
         import json as _append_json
         import traceback as _tb
+
         original_append = _StrandsAgent._append_messages
 
         @functools.wraps(original_append)
         async def _patched_append(self, *messages):
             for _msg in messages:
                 try:
-                    _role = _msg.get("role", "?") if isinstance(_msg, dict) else getattr(_msg, "role", "?")
-                    _content = _msg.get("content", []) if isinstance(_msg, dict) else getattr(_msg, "content", [])
+                    _role = (
+                        _msg.get("role", "?")
+                        if isinstance(_msg, dict)
+                        else getattr(_msg, "role", "?")
+                    )
+                    _content = (
+                        _msg.get("content", [])
+                        if isinstance(_msg, dict)
+                        else getattr(_msg, "content", [])
+                    )
                     _summary = []
                     if isinstance(_content, list):
                         for _blk in _content:
@@ -101,7 +111,9 @@ def _setup_ollama_debug(log_dir: Path | None = None) -> None:
                                     _summary.append(f"text({len(str(_blk['text']))})")
                                 elif "toolUse" in _blk:
                                     _tu = _blk["toolUse"]
-                                    _summary.append(f"toolUse({_tu.get('name', '?') if isinstance(_tu, dict) else '?'})")
+                                    _summary.append(
+                                        f"toolUse({_tu.get('name', '?') if isinstance(_tu, dict) else '?'})"
+                                    )
                                 elif "toolResult" in _blk:
                                     _summary.append("toolResult")
                                 elif "reasoningContent" in _blk:
@@ -110,13 +122,19 @@ def _setup_ollama_debug(log_dir: Path | None = None) -> None:
                                     _summary.append(next(iter(_blk.keys())) if _blk else "empty")
                             else:
                                 _summary.append(type(_blk).__name__)
-                    _ollama_debug_log.info(_append_json.dumps({
-                        "_type": "append_message",
-                        "role": _role,
-                        "content_kinds": _summary,
-                        "n_after": len(self.messages) + 1,
-                        "stack": _tb.extract_stack()[-6:-1],  # last 5 frames
-                    }, ensure_ascii=False, default=str))
+                    _ollama_debug_log.info(
+                        _append_json.dumps(
+                            {
+                                "_type": "append_message",
+                                "role": _role,
+                                "content_kinds": _summary,
+                                "n_after": len(self.messages) + 1,
+                                "stack": _tb.extract_stack()[-6:-1],  # last 5 frames
+                            },
+                            ensure_ascii=False,
+                            default=str,
+                        )
+                    )
                 except Exception:
                     pass
             return await original_append(self, *messages)
@@ -269,8 +287,9 @@ def patch_ollama_thinking() -> bool:
     original_stream = cls.stream
 
     @functools.wraps(original_stream)
-    async def patched_stream(self, messages, tool_specs=None, system_prompt=None,
-                              *, tool_choice=None, **kwargs: Any):
+    async def patched_stream(
+        self, messages, tool_specs=None, system_prompt=None, *, tool_choice=None, **kwargs: Any
+    ):
         global _ollama_debug_call_counter
         import json as _json
 
@@ -318,13 +337,18 @@ def patch_ollama_thinking() -> bool:
                         fmt_summary.append(f"{r}(text,len={len(c)})")
                     else:
                         fmt_summary.append(f"{r}(content_type={type(c).__name__})")
-                _ollama_debug_log.info(_json.dumps({
-                    "_type": "formatted_request",
-                    "call": _ollama_debug_call_counter,
-                    "n_formatted": len(fmt_messages),
-                    "formatted_roles": fmt_roles,
-                    "formatted_summary": fmt_summary,
-                }, ensure_ascii=False))
+                _ollama_debug_log.info(
+                    _json.dumps(
+                        {
+                            "_type": "formatted_request",
+                            "call": _ollama_debug_call_counter,
+                            "n_formatted": len(fmt_messages),
+                            "formatted_roles": fmt_roles,
+                            "formatted_summary": fmt_summary,
+                        },
+                        ensure_ascii=False,
+                    )
+                )
             except Exception as _e:
                 _ollama_debug_log.info("# formatted-request log error: %s", _e)
 
@@ -334,10 +358,12 @@ def patch_ollama_thinking() -> bool:
             try:
                 roles = []
                 content_kinds = []  # parallel list: per-message content summary
-                for m in (messages or []):
+                for m in messages or []:
                     role = m.get("role", "?") if isinstance(m, dict) else getattr(m, "role", "?")
                     roles.append(role)
-                    content = m.get("content") if isinstance(m, dict) else getattr(m, "content", None)
+                    content = (
+                        m.get("content") if isinstance(m, dict) else getattr(m, "content", None)
+                    )
                     if isinstance(content, list):
                         kinds = []
                         for blk in content:
@@ -367,13 +393,18 @@ def patch_ollama_thinking() -> bool:
                         content_kinds.append([f"str(len={len(content)})"])
                     else:
                         content_kinds.append([type(content).__name__])
-                _ollama_debug_log.info(_json.dumps({
-                    "call": _ollama_debug_call_counter,
-                    "host": getattr(self, "host", "?"),
-                    "n_messages": len(messages or []),
-                    "roles": roles,
-                    "content_kinds": content_kinds,
-                }, ensure_ascii=False))
+                _ollama_debug_log.info(
+                    _json.dumps(
+                        {
+                            "call": _ollama_debug_call_counter,
+                            "host": getattr(self, "host", "?"),
+                            "n_messages": len(messages or []),
+                            "roles": roles,
+                            "content_kinds": content_kinds,
+                        },
+                        ensure_ascii=False,
+                    )
+                )
             except Exception as _e:
                 _ollama_debug_log.info("# debug-log error: %s", _e)
 
@@ -422,8 +453,11 @@ def patch_ollama_thinking() -> bool:
 
                 # Text content (unchanged from upstream shape).
                 yield self.format_chunk(
-                    {"chunk_type": "content_delta", "data_type": "text",
-                     "data": event.message.content},
+                    {
+                        "chunk_type": "content_delta",
+                        "data_type": "text",
+                        "data": event.message.content,
+                    },
                 )
 
                 last_event = event
@@ -433,12 +467,17 @@ def patch_ollama_thinking() -> bool:
                     n_tools = 0
                     if last_event is not None and tool_requested:
                         n_tools = len(getattr(last_event.message, "tool_calls", []) or [])
-                    _ollama_debug_log.info(_json.dumps({
-                        "_type": "response_done",
-                        "call": _ollama_debug_call_counter,
-                        "stop_reason": stop_reason_seen or "?",
-                        "n_tool_calls": n_tools,
-                    }, ensure_ascii=False))
+                    _ollama_debug_log.info(
+                        _json.dumps(
+                            {
+                                "_type": "response_done",
+                                "call": _ollama_debug_call_counter,
+                                "stop_reason": stop_reason_seen or "?",
+                                "n_tool_calls": n_tools,
+                            },
+                            ensure_ascii=False,
+                        )
+                    )
                 except Exception:
                     pass
         except _ollama_pkg.ResponseError as error:
@@ -458,8 +497,10 @@ def patch_ollama_thinking() -> bool:
                 yield ev
             return
 
-        stop_reason = "tool_use" if tool_requested else (
-            last_event.done_reason if last_event is not None else None
+        stop_reason = (
+            "tool_use"
+            if tool_requested
+            else (last_event.done_reason if last_event is not None else None)
         )
         yield self.format_chunk({"chunk_type": "content_stop", "data_type": "text"})
         yield self.format_chunk({"chunk_type": "message_stop", "data": stop_reason})

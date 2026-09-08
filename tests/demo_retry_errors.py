@@ -15,6 +15,7 @@
     python tests/demo_retry_errors.py --pattern 3
     python tests/demo_retry_errors.py --all
 """
+
 from __future__ import annotations
 
 import argparse
@@ -66,6 +67,7 @@ def patch_flaky(model: Any, counter: _CallCounter, fail_times: int, exc_factory)
     def flaky_stream(*a, **k):
         counter.n += 1
         if counter.n <= fail_times:
+
             async def failing():
                 raise exc_factory()
                 yield  # pragma: no cover  (使其成为 async generator)
@@ -95,7 +97,9 @@ def pattern_1_default_throttle_retry() -> dict:
 
     model = _make_model()
     counter = _CallCounter()
-    patch_flaky(model, counter, fail_times=2, exc_factory=lambda: ModelThrottledException("simulated 429"))
+    patch_flaky(
+        model, counter, fail_times=2, exc_factory=lambda: ModelThrottledException("simulated 429")
+    )
 
     agent = _make_agent(
         model=model,
@@ -121,7 +125,12 @@ def pattern_2_no_retry_foreign_exception() -> dict:
 
     model = _make_model()
     counter = _CallCounter()
-    patch_flaky(model, counter, fail_times=99, exc_factory=lambda: ConnectionError("simulated connect failure"))
+    patch_flaky(
+        model,
+        counter,
+        fail_times=99,
+        exc_factory=lambda: ConnectionError("simulated connect failure"),
+    )
 
     agent = _make_agent(model=model)  # 默认 ModelRetryStrategy：ConnectionError 不在重试范围
 
@@ -176,7 +185,9 @@ def pattern_3_custom_is_retryable() -> dict:
 
     model = _make_model()
     counter = _CallCounter()
-    patch_flaky(model, counter, fail_times=2, exc_factory=lambda: ConnectionError("simulated DNS blip"))
+    patch_flaky(
+        model, counter, fail_times=2, exc_factory=lambda: ConnectionError("simulated DNS blip")
+    )
 
     agent = _make_agent(
         model=model,
@@ -246,7 +257,9 @@ def pattern_5_sliding_window() -> dict:
     return {
         "n_turns": 3,
         "final_messages_len": len(agent.messages),
-        "manager_state": state if isinstance(state, (str, int, float, bool, type(None))) else str(state)[:120],
+        "manager_state": state
+        if isinstance(state, (str, int, float, bool, type(None)))
+        else str(state)[:120],
         "overflow_exception": "ContextWindowOverflowException：reduce_context 无法继续裁剪时（如工具配对打散）抛出，"
         "agent 会捕获并走 force_stop；1.53 中 Ollama provider 命中 OVERFLOW_MESSAGES 文案也映射到它",
         "conclusion": "window_size 按**消息条数**裁剪（1.53 语义；不是 token），pin_first 可固定系统/首条",
@@ -264,14 +277,17 @@ def pattern_6_stop_reason_taxonomy() -> dict:
     agent = _make_agent()
     result = agent("Reply with exactly: ok.")
 
-    family = {cls.__name__ for cls in (
-        ex.EventLoopException,
-        ex.ModelThrottledException,
-        ex.MaxTokensReachedException,
-        ex.ContextWindowOverflowException,
-        ex.SessionException,
-        ex.MCPClientInitializationError,
-    )}
+    family = {
+        cls.__name__
+        for cls in (
+            ex.EventLoopException,
+            ex.ModelThrottledException,
+            ex.MaxTokensReachedException,
+            ex.ContextWindowOverflowException,
+            ex.SessionException,
+            ex.MCPClientInitializationError,
+        )
+    }
     return {
         "stop_reason": result.stop_reason,
         "final_message": str(result)[:60],
