@@ -26,7 +26,10 @@ jobs:
         run: uv python pin ${{ matrix.python-version }}
 
       - name: Install dependencies
-        run: uv sync --group dev
+        run: |
+          uv sync
+          uv sync --group dev
+          uv pip install strands-agents strands-agents-tools
 
       - name: Install ruff
         run: pip install ruff
