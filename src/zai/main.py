@@ -362,6 +362,7 @@ def run_cli(argv: list[str] | None = None) -> int:
     if args.uninstall:
         import shutil
         import subprocess
+        import tempfile
         
         from .paths import get_zai_home
         zai_home = str(get_zai_home())
@@ -378,17 +379,33 @@ def run_cli(argv: list[str] | None = None) -> int:
         except EOFError:
             pass
         
-        print("Uninstalling pip package...")
-        subprocess.run([sys.executable, "-m", "pip", "uninstall", "zai-agent", "-y"], capture_output=True)
-        print("[OK] pip package removed")
+        # Create a temp script to do actual uninstall (zai.exe gets deleted during pip uninstall)
+        script = f'''
+import subprocess, sys, shutil, os, time
+zai_home = r"{zai_home}"
+time.sleep(0.3)
+subprocess.run([sys.executable, "-m", "pip", "uninstall", "zai-agent", "-y"], capture_output=True)
+print("[OK] pip package removed")
+if os.path.exists(zai_home):
+    print(f"Deleting {{zai_home}}...")
+    shutil.rmtree(zai_home)
+    print("[OK] user data removed")
+else:
+    print("[OK] user data already gone")
+print()
+print("Uninstall complete!")
+'''
         
-        if os.path.exists(zai_home):
-            print(f"Deleting {zai_home}...")
-            shutil.rmtree(zai_home)
-            print("[OK] user data removed")
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False, encoding='utf-8') as f:
+            f.write(script)
+            script_path = f.name
         
-        print()
-        print("Uninstall complete!")
+        # Start uninstall script in new console and exit
+        if sys.platform == 'win32':
+            subprocess.Popen(['cmd', '/c', 'python', script_path, '&&', 'pause'], 
+                           creationflags=subprocess.CREATE_NEW_CONSOLE)
+        else:
+            subprocess.Popen([sys.executable, script_path])
         return 0
 
     # Use current directory as default workspace if not specified
