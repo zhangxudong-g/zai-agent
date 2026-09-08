@@ -59,10 +59,10 @@ def get_config(env_file: str | Path | None = ".env") -> Config:
     """Build a Config from environment variables.
 
     Priority for config file:
-    1. --env-file command line argument (if provided and not ".env")
-    2. $ZAI_CONFIG environment variable
-    3. ~/.zai/config/.env (zai home config)
-    4. .env in current directory (legacy)
+    1. ~/.zai/config/.env (zai home config) - ALWAYS loaded first
+    2. --env-file command line argument
+    3. $ZAI_CONFIG environment variable
+    4. .env in current directory (legacy, lowest priority)
 
     Args:
         env_file: Path to a .env file to load. Set to ``None`` to skip
@@ -71,27 +71,24 @@ def get_config(env_file: str | Path | None = ".env") -> Config:
     Returns:
         A populated ``Config`` instance.
     """
-    # Determine which env file to load
-    if env_file is None:
-        # No env file specified, check env vars and defaults
-        config_path = os.getenv("ZAI_CONFIG")
-        zai_env = get_zai_home() / "config" / ".env"
+    # Always load ~/.zai/config/.env first (highest priority)
+    zai_env = get_zai_home() / "config" / ".env"
+    if zai_env.exists():
+        load_dotenv(str(zai_env), override=False)  # Load as base
 
+    # Determine which additional env file to load
+    if env_file is None:
+        # Check $ZAI_CONFIG for additional config
+        config_path = os.getenv("ZAI_CONFIG")
         if config_path:
             load_dotenv(config_path, override=True)
-        elif zai_env.exists():
-            load_dotenv(str(zai_env), override=True)
     elif env_file != ".env":
         # Explicit non-default path
         load_dotenv(str(env_file), override=True)
     else:
-        # Default ".env" - load from current dir if exists, else use zai home
+        # Default ".env" - only load if exists (lowest priority)
         if Path(".env").exists():
             load_dotenv(".env", override=True)
-        else:
-            zai_env = get_zai_home() / "config" / ".env"
-            if zai_env.exists():
-                load_dotenv(str(zai_env), override=True)
 
     base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/")
     model = os.getenv("OLLAMA_MODEL", "qwen3:1.7b").strip()
