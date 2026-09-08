@@ -47,16 +47,11 @@ pip install .
 ### 卸载
 
 ```bash
-# Windows
-scripts\uninstall.bat
+# 完整卸载（包括用户数据）
+zai-uninstall
 
-# Linux/Mac
-bash scripts/uninstall.sh
-
-# 或手动卸载
+# 仅卸载 pip 包
 pip uninstall zai-agent -y
-# 删除用户数据目录
-rm -rf ~/.zai
 ```
 
 ### 运行

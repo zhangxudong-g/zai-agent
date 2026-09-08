@@ -51,6 +51,7 @@ dev = [
 
 [project.scripts]
 zai = "zai.main:run_cli"
+zai-uninstall = "zai.uninstall:run_uninstall"
 
 [build-system]
 requires = ["hatchling"]
