@@ -2,11 +2,7 @@
 
 > 🤖 基于 Ollama 本地模型的智能代码助手，安全、隐私、可扩展
 
-[![Python Version](https://img.shields.io/badge/python-3.12%2B-blue)](https://www.python.org/)
-[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![strands-agents](https://img.shields.io/badge/strands--agents-sdk-v1.0.0-purple)](https://strandsagents.com/)
-
-**Zai Agent** 是一个基于 [Strands Agents SDK](https://strandsagents.com/) 和 [Ollama](https://ollama.ai/) 的通用代码助手。无需云服务，数据不离开本地，让 AI 编程更加安全私密。
+**Zai Agent** 是一个基于 [Strands Agents SDK](https://strandsagents.com/) 和 [Ollama](https://ollama.ai/) 的通用代码助手。无需云服务，数据不离开本地。
 
 ## ✨ 特性
 
@@ -16,7 +12,6 @@
 | 🛡️ **双层沙箱** | 路径验证 + 执行隔离，防范恶意操作 |
 | 💬 **连续对话** | REPL 模式保持上下文，多轮协作 |
 | 📡 **实时流式** | 即时看到模型思考过程和工具调用 |
-| 🔄 **智能重试** | 连接失败自动重试，稳定可靠 |
 | ⚡ **Shell 集成** | 原生支持 git、ls、find 等命令 |
 
 ## 🚀 快速开始
@@ -25,39 +20,17 @@
 
 - Python 3.12+
 - [Ollama](https://ollama.ai/) 运行中
-- 推荐的模型: `qwen3:7b` 或 `qwen3:27b`
 
-### 安装方式
-
-**方式一：pip 安装（推荐）**
+### 安装
 
 ```bash
 pip install git+https://github.com/zhangxudong-g/zai-agent.git
 ```
 
-**方式二：从源码安装**
-
-```bash
-# 克隆项目
-git clone https://github.com/zhangxudong-g/zai-agent.git
-cd zai-agent
-pip install .
-```
-
-### 卸载
-
-```bash
-# 完整卸载（包括用户数据）
-zai -uninstall
-
-# 或
-zai-uninstall
-```
-
 ### 运行
 
 ```bash
-# 交互模式（推荐）
+# 交互模式
 zai
 
 # 单次问答
@@ -65,33 +38,54 @@ zai "分析项目结构"
 
 # 指定工作目录
 zai --workspace ./my-project
-
-# 查看帮助
-zai --help
 ```
 
-## 📖 使用示例
+### 卸载
 
 ```bash
-$ zai
-╭─ Zai Agent ──────────────────────────────
-│ Model:     qwen3:8b
-│ Workspace: ./workspace
-│ Session:   20250908_100000_0001
-│ Mode:      REPL
-╰────────────────────────────────────────
-
-[1] > 分析这个项目
-
-🤔 思考中...
-  🔧 file_tree(max_depth=3)
-  🔧 read(file_path="README.md")
-这个项目是...
-
-✓ (3.2s)
-
-[2] > /exit
+# 自动卸载（包括用户数据 ~/.zai/）
+zai -uninstall
 ```
+
+## 📁 数据目录
+
+Zai 使用 `~/.zai/` 作为统一的数据目录：
+
+```
+~/.zai/
+├── config/
+│   └── .env           # 配置文件（首次运行自动创建）
+├── sessions/          # 会话日志
+├── workspace/         # 默认工作目录
+└── logs/             # 运行日志
+```
+
+### 查看信息
+
+```bash
+zai --info
+```
+
+## ⚙️ 配置
+
+首次运行会自动创建 `~/.zai/config/.env`，或在运行时手动编辑：
+
+```bash
+# ~/.zai/config/.env
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_MODEL=qwen3:1.7b
+AGENT_WORKSPACE=~/.zai/workspace
+```
+
+### 环境变量
+
+| 变量 | 默认值 | 说明 |
+|------|--------|------|
+| `OLLAMA_BASE_URL` | `http://localhost:11434` | Ollama 服务地址 |
+| `OLLAMA_MODEL` | `qwen3:1.7b` | 模型名称 |
+| `AGENT_WORKSPACE` | `~/.zai/workspace` | 工作目录 |
+| `ZAI_HOME` | `~/.zai` | Zai 主目录 |
+| `ZAI_DEBUG_OLLAMA` | `0` | 设为 `1` 启用调试日志 |
 
 ## 🛠️ 工具集
 
@@ -108,12 +102,6 @@ $ zai
 
 ## 👨‍💻 本地开发
 
-### 环境要求
-- Python 3.12+
-- [Ollama](https://ollama.ai/) 运行中
-
-### 启动开发
-
 ```bash
 # 克隆项目
 git clone https://github.com/zhangxudong-g/zai-agent.git
@@ -122,114 +110,45 @@ cd zai-agent
 # 安装依赖
 uv sync
 
-# 交互模式启动
+# 交互模式
 uv run zai
 
-# 或单次运行
+# 单次运行
 uv run zai "分析项目结构"
 ```
 
-### 停止运行
-- 按 `Ctrl+C` 或输入 `/exit` 退出
-
-### 代码修改后
-```bash
-# 依赖更新后重新同步
-uv sync
-
-# 运行测试
-uv run pytest -v
-
-# 代码检查
-uv run ruff check .
-```
-
-## 📁 统一目录结构
-
-Zai 使用 `~/.zai/` 作为统一的数据目录：
+## 📖 使用示例
 
 ```
-~/.zai/
-├── config/
-│   └── .env           # 配置文件
-├── sessions/          # 会话日志
-├── workspace/         # 默认工作目录
-└── logs/             # 运行日志
-```
+╭─ zai · qwen3:1.7b · C:\Users\admin\.zai\workspace · session 20250908_100000_0001
+╰─ 📁 C:\Users\admin\.zai  📝 C:\Users\admin\.zai\sessions\20250908_100000_0001.jsonl  ──  /help /clear /exit
 
-### 查看 Zai 信息
-```bash
-zai --info
-```
+[1] > 分析这个项目
 
-### 自定义目录
-```bash
-# 使用自定义 ZAI_HOME 目录
-export ZAI_HOME=/path/to/my-zai
+🤔 思考中...
+  🔧 file_tree(max_depth=3)
+  🔧 read(file_path="README.md")
+这个项目是...
 
-# 或通过配置文件
-# 编辑 ~/.zai/config/.env
-export ZAI_HOME=/custom/path
-```
+✓ (3.2s)
 
-### 调试选项
-
-| 变量 | 默认值 | 说明 |
-|------|--------|------|
-| `ZAI_DEBUG_OLLAMA` | `0` | 设为 `1` 启用 Ollama 请求调试日志 |
-
-启用后，日志保存在 `~/.zai/sessions/ollama-debug.jsonl`
-
-## ⚙️ 配置
-
-### 环境变量
-
-| 变量 | 默认值 | 说明 |
-|------|--------|------|
-| `OLLAMA_BASE_URL` | `http://localhost:11434` | Ollama 服务地址 |
-| `OLLAMA_MODEL` | `qwen3:1.7b` | 模型名称 |
-| `AGENT_WORKSPACE` | `~/.zai/workspace` | 工作目录 |
-| `SESSION_LOG_DIR` | `~/.zai/sessions` | 会话日志目录 |
-| `ALLOWED_TOOLS` | 全部工具 | 启用的工具列表 |
-| `EXECUTION_SANDBOX` | `host` | 执行沙箱模式 |
-| `ZAI_HOME` | `~/.zai` | Zai 主目录 |
-| `ZAI_CONFIG` | `~/.zai/config/.env` | 配置文件路径 |
-
-### 沙箱模式
-
-```bash
-# 主机模式（默认）
-EXECUTION_SANDBOX=host
-
-# Docker 隔离
-EXECUTION_SANDBOX=docker
-SANDBOX_CONTAINER=zai-sandbox
-
-# SSH 隔离
-EXECUTION_SANDBOX=ssh
-SANDBOX_SSH_HOST=remote-host
+[2] > /exit
 ```
 
 ## 📁 项目结构
 
 ```
-zai-agents/
+zai-agent/
 ├── src/zai/
 │   ├── __init__.py      # 包入口
 │   ├── agent.py         # Agent 核心逻辑
 │   ├── config.py        # 配置管理
-│   ├── llm.py           # Ollama 模型封装
-│   ├── tools.py         # 工具定义
-│   ├── security.py      # 路径层沙箱
-│   ├── sandbox.py       # 执行层沙箱
-│   ├── stream.py        # 流式事件处理
-│   └── main.py          # CLI 入口
+│   ├── paths.py         # 目录路径管理
+│   ├── main.py          # CLI 入口
+│   └── ...
 ├── tests/               # 测试用例
-├── docs/                # 文档
-├── prompts/             # 提示词模板
-├── LICENSE              # MIT 许可证
-├── CONTRIBUTING.md      # 贡献指南
-└── CHANGELOG.md         # 变更日志
+├── scripts/             # 辅助脚本
+└── ...
 ```
 
 ## 🧪 测试
@@ -238,33 +157,10 @@ zai-agents/
 uv run pytest -v
 ```
 
-## ❓ 常见问题
-
-**Q: 连接 Ollama 失败？**
-```bash
-# 检查 Ollama 服务
-curl http://localhost:11434/api/tags
-
-# 增加重试次数
-uv run zai "问题" --max-retries 5
-```
-
-**Q: 工具调用被拦截？**
-检查 `ALLOWED_TOOLS` 环境变量是否包含该工具。
-
-**Q: 路径越界错误？**
-确保操作的文件在 `AGENT_WORKSPACE` 目录内。
-
 ## 🤝 贡献
 
-欢迎提交 Issue 和 Pull Request！请参阅 [CONTRIBUTING.md](CONTRIBUTING.md)。
+欢迎提交 Issue 和 Pull Request！
 
 ## 📄 许可证
 
-本项目基于 [MIT License](LICENSE) 开源。
-
-## 🔗 参考
-
-- [Strands Agents SDK](https://strandsagents.com/)
-- [Ollama](https://ollama.ai/)
-- [uv 包管理器](https://github.com/astral-sh/uv)
+[MIT License](LICENSE)
