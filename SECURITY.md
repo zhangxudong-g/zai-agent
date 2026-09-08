@@ -11,7 +11,7 @@
 If you discover a security vulnerability, please report it responsibly:
 
 1. **DO NOT** create a public GitHub Issue for security vulnerabilities
-2. Send a detailed report to: security@zai-agents.dev
+2. Send a detailed report to: zhangxudong.sun@gmail.com
 3. Include in your report:
    - Description of the vulnerability
    - Steps to reproduce
