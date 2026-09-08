@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>zai-agent 封面 B</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+SC:wght@300;400;500;700;900&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    width: 1200px;
+    height: 1600px;
+    background: #faf9f5;
+    font-family: 'Noto Sans SC', serif;
+    color: #1a1a1a;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* 左侧色条 */
+  .accent-bar {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 8px;
+    height: 100%;
+    background: linear-gradient(180deg, #6366f1, #ec4899);
+  }
+
+  .container {
+    position: relative;
+    padding: 100px 80px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* 顶部标签 */
+  .top-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 40px;
+    font-size: 16px;
+    font-weight: 500;
+    color: #6366f1;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .top-label::before {
+    content: '';
+    width: 32px;
+    height: 2px;
+    background: #6366f1;
+  }
+
+  /* 大标题 */
+  h1 {
+    font-size: 80px;
+    font-weight: 900;
+    line-height: 1.15;
+    margin-bottom: 8px;
+    color: #111;
+  }
+
+  h1 .highlight {
+    background: linear-gradient(90deg, #6366f1, #ec4899);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .tagline {
+    font-size: 32px;
+    color: #666;
+    font-weight: 300;
+    margin-bottom: 60px;
+    line-height: 1.6;
+  }
+
+  .tagline strong {
+    font-weight: 700;
+    color: #333;
+  }
+
+  /* 核心对比表 */
+  .compare {
+    display: grid;
+    grid-template-columns: 1fr 60px 1fr;
+    gap: 0;
+    margin-bottom: 50px;
+    align-items: center;
+  }
+
+  .compare-left {
+    text-align: right;
+    padding-right: 10px;
+  }
+
+  .compare-arrow {
+    text-align: center;
+    font-size: 28px;
+    color: #6366f1;
+  }
+
+  .compare-right {
+    padding-left: 10px;
+  }
+
+  .compare-header {
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 16px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .compare-left .compare-header { color: #999; }
+  .compare-right .compare-header { color: #6366f1; }
+
+  .compare-item {
+    font-size: 17px;
+    line-height: 2.2;
+  }
+
+  .compare-left .compare-item { color: #999; }
+  .compare-right .compare-item { color: #333; font-weight: 500; }
+  .compare-right .compare-item ✓ { color: #22c55e; }
+
+  /* 代码块 */
+  .code-block {
+    background: #1a1a2e;
+    border-radius: 16px;
+    padding: 30px 36px;
+    margin-bottom: 50px;
+    font-family: 'JetBrains Mono', monospace;
+    box-shadow: 0 25px 50px rgba(0,0,0,0.15);
+  }
+
+  .code-line {
+    font-size: 16px;
+    line-height: 2.2;
+    display: flex;
+    gap: 12px;
+  }
+
+  .code-prompt { color: #22c55e; }
+  .code-input { color: #e0e0e0; }
+  .code-tool { color: #818cf8; }
+  .code-output { color: #94a3b8; }
+  .code-add { color: #4ade80; }
+  .code-del { color: #f87171; text-decoration: line-through; }
+  .code-ok { color: #22c55e; }
+
+  /* 底部特性 */
+  .bottom-features {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 40px;
+    flex-wrap: wrap;
+  }
+
+  .feat {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background: #f1f0ee;
+    border-radius: 30px;
+    font-size: 15px;
+    color: #555;
+    font-weight: 500;
+  }
+
+  .feat-icon {
+    font-size: 18px;
+  }
+
+  /* 底部 CTA */
+  .cta {
+    margin-top: auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 40px;
+    border-top: 1px solid #e5e5e5;
+  }
+
+  .install {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 16px;
+    background: #fff;
+    border: 2px solid #e5e5e5;
+    padding: 14px 28px;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  }
+
+  .install .dollar { color: #22c55e; font-weight: 700; }
+  .install .cmd { color: #333; }
+
+  .cta-right {
+    text-align: right;
+  }
+
+  .cta-right .repo {
+    font-size: 20px;
+    font-weight: 700;
+    color: #333;
+  }
+
+  .cta-right .stars {
+    font-size: 16px;
+    color: #f59e0b;
+    margin-top: 4px;
+  }
+
+  .cta-right .stars span {
+    color: #333;
+    font-weight: 500;
+  }
+
+  /* 装饰：背景大字 */
+  .bg-text {
+    position: absolute;
+    right: -40px;
+    top: 50%;
+    transform: translateY(-50%) rotate(90deg);
+    font-size: 120px;
+    font-weight: 900;
+    color: rgba(0,0,0,0.02);
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 8px;
+    white-space: nowrap;
+    pointer-events: none;
+    user-select: none;
+  }
+</style>
+</head>
+<body>
+<div class="accent-bar"></div>
+<div class="bg-text">zai-agent</div>
+
+<div class="container">
+  <div class="top-label">Open Source · MIT License</div>
+
+  <h1>你的代码<br><span class="highlight">不该上传</span>到云端</h1>
+  <p class="tagline"><strong>本地大模型</strong>驱动的编程助手 · 完全离线 · 隐私优先</p>
+
+  <div class="compare">
+    <div class="compare-left">
+      <div class="compare-header">传统 Cloud AI</div>
+      <div class="compare-item">代码上传云端 ☁️</div>
+      <div class="compare-item">按 Token 付费 💰</div>
+      <div class="compare-item">需要网络 🌐</div>
+      <div class="compare-item">黑盒不可审计 🚫</div>
+      <div class="compare-item">供应商锁定 🔗</div>
+    </div>
+    <div class="compare-arrow">→</div>
+    <div class="compare-right">
+      <div class="compare-header">Zai Agent</div>
+      <div class="compare-item">100% 本地运行 ✅</div>
+      <div class="compare-item">完全免费 🆓</div>
+      <div class="compare-item">离线可用 ✈️</div>
+      <div class="compare-item">源码透明 🔍</div>
+      <div class="compare-item">MIT 开放协议 📄</div>
+    </div>
+  </div>
+
+  <div class="code-block">
+    <div class="code-line"><span class="code-prompt">[1] ></span><span class="code-input">帮我看看 config.py 的默认模型</span></div>
+    <div class="code-line"><span class="code-tool">🔧</span> <span class="code-output">grep("OLLAMA_MODEL", "config.py")</span></div>
+    <div class="code-line"><span class="code-output">  → 发现默认值: qwen3:1.7b</span></div>
+    <div class="code-line"></div>
+    <div class="code-line"><span class="code-prompt">[2] ></span><span class="code-input">改成 27b 版本，先给我看 diff</span></div>
+    <div class="code-line"><span class="code-tool">🔧</span> <span class="code-output">edit("config.py", dry_run=True)</span></div>
+    <div class="code-line"><span class="code-del">- OLLAMA_MODEL = "qwen3:1.7b"</span></div>
+    <div class="code-line"><span class="code-add">+ OLLAMA_MODEL = "qwen3:27b"</span></div>
+    <div class="code-line"><span class="code-ok">✓ 等待确认...</span></div>
+  </div>
+
+  <div class="bottom-features">
+    <div class="feat"><span class="feat-icon">⛓️</span> Ollama 本地模型</div>
+    <div class="feat"><span class="feat-icon">🛡️</span> 双层沙箱</div>
+    <div class="feat"><span class="feat-icon">🛠️</span> 9 个工具</div>
+    <div class="feat"><span class="feat-icon">⚡</span> 一键安装</div>
+    <div class="feat"><span class="feat-icon">🗑️</span> 一键卸载</div>
+    <div class="feat"><span class="feat-icon">✅</span> 117 测试</div>
+  </div>
+
+  <div class="cta">
+    <div class="install">
+      <span class="dollar">$</span> <span class="cmd">pip install git+https://github.com/zhangxudong-g/zai-agent.git</span>
+    </div>
+    <div class="cta-right">
+      <div class="repo">github.com/zhangxudong-g/zai-agent</div>
+      <div class="stars">★ Star it if you like it <span>→</span></div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

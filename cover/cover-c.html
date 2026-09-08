@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>zai-agent 封面 C - 极简</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700;800&family=Noto+Sans+SC:wght@300;400;700;900&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    width: 1200px;
+    height: 1600px;
+    background: #09090b;
+    font-family: 'Noto Sans SC', sans-serif;
+    color: #fafafa;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* 背景：渐变光斑 */
+  .orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(100px);
+    pointer-events: none;
+  }
+  .orb-1 {
+    width: 500px; height: 500px;
+    background: rgba(99, 102, 241, 0.12);
+    top: 10%; left: -10%;
+  }
+  .orb-2 {
+    width: 400px; height: 400px;
+    background: rgba(168, 85, 247, 0.08);
+    bottom: 20%; right: -5%;
+  }
+  .orb-3 {
+    width: 300px; height: 300px;
+    background: rgba(34, 197, 94, 0.06);
+    top: 50%; left: 50%;
+  }
+
+  /* 点阵背景 */
+  .dots {
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(rgba(255,255,255,0.03) 1px, transparent 1px);
+    background-size: 24px 24px;
+    pointer-events: none;
+  }
+
+  .container {
+    position: relative;
+    z-index: 1;
+    padding: 100px 80px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* 顶部 */
+  .top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 100px;
+  }
+
+  .top-brand {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .brand-dot {
+    width: 14px; height: 14px;
+    background: #22c55e;
+    border-radius: 50%;
+    box-shadow: 0 0 12px rgba(34,197,94,0.6);
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+
+  .brand-name {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 20px;
+    font-weight: 500;
+    color: #a1a1aa;
+  }
+
+  .top-badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    color: #71717a;
+    border: 1px solid #27272a;
+    padding: 8px 18px;
+    border-radius: 6px;
+  }
+
+  /* 中央标题 */
+  .hero {
+    margin-bottom: 80px;
+  }
+
+  .hero-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    color: #71717a;
+    margin-bottom: 28px;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+  }
+
+  .hero-title {
+    font-size: 100px;
+    font-weight: 900;
+    line-height: 1.05;
+    letter-spacing: -3px;
+    margin-bottom: 32px;
+  }
+
+  .hero-title .accent {
+    background: linear-gradient(135deg, #818cf8 0%, #c084fc 50%, #f472b6 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .hero-desc {
+    font-size: 24px;
+    color: #71717a;
+    font-weight: 300;
+    line-height: 1.8;
+    max-width: 700px;
+  }
+
+  .hero-desc em {
+    font-style: normal;
+    color: #d4d4d8;
+    font-weight: 500;
+  }
+
+  /* 中间：三列数据 */
+  .metrics {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    background: #1c1c1f;
+    border: 1px solid #1c1c1f;
+    border-radius: 16px;
+    overflow: hidden;
+    margin-bottom: 80px;
+  }
+
+  .metric {
+    background: #0f0f12;
+    padding: 40px 36px;
+    text-align: center;
+  }
+
+  .metric-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 48px;
+    font-weight: 800;
+    color: #fafafa;
+    margin-bottom: 8px;
+  }
+
+  .metric-value .unit {
+    font-size: 24px;
+    color: #71717a;
+    font-weight: 400;
+  }
+
+  .metric-label {
+    font-size: 14px;
+    color: #71717a;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+  }
+
+  /* 底部 */
+  .bottom {
+    margin-top: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+  }
+
+  .cmd-row {
+    display: flex;
+    gap: 16px;
+      flex-wrap: wrap;
+  }
+
+  .cmd-box {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 15px;
+    background: #131316;
+    border: 1px solid #27272a;
+    border-radius: 10px;
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .cmd-box .dollar { color: #22c55e; flex-shrink: 0; }
+  .cmd-box .desc { color: #52525b; font-size: 13px; margin-left: auto; flex-shrink: 0;}
+  .cmd-box .text { color: #e4e4e7; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .repo-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 20px;
+    border-top: 1px solid #1c1c1f;
+  }
+
+  .repo-url {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 16px;
+    color: #71717a;
+  }
+
+  .repo-url .org { color: #a1a1aa; }
+
+  .star-hint {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 15px;
+    color: #52525b;
+  }
+
+  .star-icon {
+    font-size: 20px;
+    color: #fbbf24;
+  }
+</style>
+</head>
+<body>
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+<div class="orb orb-3"></div>
+<div class="dots"></div>
+
+<div class="container">
+  <div class="top">
+    <div class="top-brand">
+      <div class="brand-dot"></div>
+      <span class="brand-name">zai-agent</span>
+    </div>
+    <div class="top-badge">v0.2.0 · MIT License</div>
+  </div>
+
+  <div class="hero">
+    <div class="hero-label">Local-First AI Coding Assistant</div>
+    <h1 class="hero-title">代码是你的<br><span class="accent">不该外流</span></h1>
+    <p class="hero-desc">
+      基于 <em>Ollama 本地大模型</em>的智能编程助手。<br>
+      读取文件、搜索代码、编辑源码、执行命令 — <em>全部在本地完成</em>。
+    </p>
+  </div>
+
+  <div class="metrics">
+    <div class="metric">
+      <div class="metric-value">9<span class="unit"> 个</span></div>
+      <div class="metric-label">内置工具</div>
+    </div>
+    <div class="metric">
+      <div class="metric-value">117<span class="unit"> 个</span></div>
+      <div class="metric-label">自动化测试</div>
+    </div>
+    <div class="metric">
+      <div class="metric-value">0<span class="unit"> 网络</span></div>
+      <div class="metric-label">外部请求</div>
+    </div>
+  </div>
+
+  <div class="bottom">
+    <div class="cmd-row">
+      <div class="cmd-box">
+        <span class="dollar">$</span>
+        <span class="text">pip install git+https://github.com/zhangxudong-g/zai-agent.git</span>
+        <span class="desc">安装</span>
+      </div>
+    </div>
+    <div class="cmd-row">
+      <div class="cmd-box">
+        <span class="dollar">$</span>
+        <span class="text">zai</span>
+        <span class="desc">开始对话</span>
+      </div>
+      <div class="cmd-box">
+        <span class="dollar">$</span>
+        <span class="text">zai -uninstall</span>
+        <span class="desc">彻底卸载</span>
+      </div>
+    </div>
+
+    <div class="repo-row">
+      <div class="repo-url"><span class="org">github.com</span>/zhangxudong-g/zai-agent</div>
+      <div class="star-hint">
+        <span class="star-icon">☆</span>
+        Star it if useful
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
