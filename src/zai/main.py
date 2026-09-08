@@ -362,48 +362,33 @@ def run_cli(argv: list[str] | None = None) -> int:
     if args.uninstall:
         import shutil
         import subprocess
-        import tempfile
+        
+        from .paths import get_zai_home
+        zai_home = str(get_zai_home())
         
         print("Uninstalling zai-agent...")
         print()
         
-        # Get zai home directory
-        from .paths import get_zai_home
-        zai_home = str(get_zai_home())
+        # Ask for confirmation
+        try:
+            response = input(f"Delete user data {zai_home}? [y/N]: ").strip().lower()
+            if response not in ("y", "yes"):
+                print("Cancelled")
+                return 0
+        except EOFError:
+            pass
         
-        # Write uninstall script to temp file
-        uninstall_script = '''
-import subprocess, sys, shutil, os, time
-zai_home = sys.argv[1]
-
-print("Delete user data at " + zai_home + "? [y/N]: ", end="", flush=True)
-try:
-    response = input().strip().lower()
-    if response not in ("y", "yes"):
-        print("Cancelled")
-        sys.exit(0)
-except EOFError:
-    pass
-
-time.sleep(0.5)
-
-print("Uninstalling pip package...")
-subprocess.run([sys.executable, "-m", "pip", "uninstall", "zai-agent", "-y"], capture_output=True)
-
-if os.path.exists(zai_home):
-    print("Deleting " + zai_home + "...")
-    shutil.rmtree(zai_home)
-
-print()
-print("Uninstall complete!")
-'''
+        print("Uninstalling pip package...")
+        subprocess.run([sys.executable, "-m", "pip", "uninstall", "zai-agent", "-y"], capture_output=True)
+        print("[OK] pip package removed")
         
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False, encoding='utf-8') as f:
-            f.write(uninstall_script)
-            script_path = f.name
+        if os.path.exists(zai_home):
+            print(f"Deleting {zai_home}...")
+            shutil.rmtree(zai_home)
+            print("[OK] user data removed")
         
-        # Start uninstall in background and exit
-        subprocess.Popen([sys.executable, script_path, zai_home])
+        print()
+        print("Uninstall complete!")
         return 0
 
     # Use current directory as default workspace if not specified
