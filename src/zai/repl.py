@@ -173,6 +173,7 @@ class EnhancedREPL:
         """Start the REPL loop."""
         self.print_welcome()
         self.message_count = 0
+        is_first_prompt = True
 
         while True:
             self.message_count += 1
@@ -181,8 +182,15 @@ class EnhancedREPL:
                 # but we use try/except to distinguish idle vs running.
                 # patch_stdout ensures background tasks don't garble the prompt.
                 with patch_stdout():
+                    # Add a blank line before each prompt (except the first one)
+                    if is_first_prompt:
+                        is_first_prompt = False
+                        prompt_str = f"[{self.message_count}] > "
+                    else:
+                        prompt_str = f"\n[{self.message_count}] > "
+
                     prompt_text = self.session.prompt(
-                        f"[{self.message_count}] > ",
+                        prompt_str,
                         key_bindings=self.kb,
                     )
             except KeyboardInterrupt:
