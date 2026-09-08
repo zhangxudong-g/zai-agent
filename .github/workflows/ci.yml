@@ -54,8 +54,8 @@ jobs:
       - name: Install dependencies
         run: uv sync
 
-      - name: Build package
-        run: uv build
+      - name: Install build tool
+        run: pip install build
 
-      - name: Check package
-        run: uv pack
+      - name: Build package
+        run: python -m build
