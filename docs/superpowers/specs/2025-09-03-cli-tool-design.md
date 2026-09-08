@@ -34,7 +34,7 @@ dependencies = [
 ]
 
 [project.scripts]
-strands-agent = "strands_poc.main:run_cli"
+strands-agent = "zai.main:run_cli"
 
 [build-system]
 requires = ["hatchling"]
@@ -43,7 +43,7 @@ build-backend = "hatchling.build"
 
 ### 2. CLI 入口函数
 
-在 `src/strands_poc/main.py` 添加 `run_cli()` 函数：
+在 `src/zai/main.py` 添加 `run_cli()` 函数：
 
 ```python
 import os
@@ -107,7 +107,7 @@ strands-agent --help
 | 文件 | 改动内容 |
 |------|----------|
 | `pyproject.toml` | 添加 `[project.scripts]` 和 metadata |
-| `src/strands_poc/main.py` | 添加 `run_cli()` 函数 |
+| `src/zai/main.py` | 添加 `run_cli()` 函数 |
 
 ## 向后兼容
 

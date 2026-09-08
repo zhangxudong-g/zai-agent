@@ -26,7 +26,7 @@ strands-agent/
 ├── .env.example                   # 配置模板
 ├── .gitignore
 │
-├── src/strands_poc/
+├── src/zai/
 │   ├── __init__.py
 │   ├── config.py                  # env → Config dataclass
 │   ├── llm.py                     # OllamaModel factory (版本容错)
@@ -92,7 +92,7 @@ uv run pytest -v
 ### 3.4 跑最小端到端(需 Ollama 在跑)
 
 ```bash
-uv run python -m strands_poc.main \
+uv run python -m zai.main \
   --workspace ./workspace/sample_project \
   --prompt "请列出项目的目录结构。" \
   --stream

@@ -14,8 +14,8 @@
 
 | 文件 | 改动 |
 |------|------|
-| `pyproject.toml` | 添加 `strands-agent = "strands_poc.main:run_cli"` 入口 |
-| `src/strands_poc/main.py` | 添加 `run_cli()` 函数 |
+| `pyproject.toml` | 添加 `strands-agent = "zai.main:run_cli"` 入口 |
+| `src/zai/main.py` | 添加 `run_cli()` 函数 |
 
 ---
 
@@ -30,8 +30,8 @@
 
 ```toml
 [project.scripts]
-agent = "strands_poc.main:main"
-strands-agent = "strands_poc.main:run_cli"
+agent = "zai.main:main"
+strands-agent = "zai.main:run_cli"
 ```
 
 - [ ] **Step 2: 提交**
@@ -46,7 +46,7 @@ git commit -m "feat: add strands-agent CLI entry point"
 ## Task 2: 在 main.py 添加 run_cli() 函数
 
 **Files:**
-- Modify: `src/strands_poc/main.py`
+- Modify: `src/zai/main.py`
 
 - [ ] **Step 1: 在 main() 函数前添加 run_cli() 函数**
 
@@ -75,7 +75,7 @@ def run_cli(argv: list[str] | None = None) -> int:
 
 ```bash
 cd D:/agent_harness_sdk_demo/strands-agent
-uv run python -c "from strands_poc.main import run_cli; print('OK')"
+uv run python -c "from zai.main import run_cli; print('OK')"
 ```
 
 Expected output: `OK`
@@ -83,7 +83,7 @@ Expected output: `OK`
 - [ ] **Step 3: 提交**
 
 ```bash
-git add src/strands_poc/main.py
+git add src/zai/main.py
 git commit -m "feat: add run_cli() for global CLI installation"
 ```
 

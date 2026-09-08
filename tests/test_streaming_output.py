@@ -26,7 +26,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 
-from strands_poc.stream import StreamChunk, StreamConsumer
+from zai.stream import StreamChunk, StreamConsumer
 
 
 # ============================================================ #
@@ -101,7 +101,7 @@ def test_trace_hook_pushes_tool_end_to_consumer():
     streaming loop sees the result without going through JSONL."""
     from unittest.mock import MagicMock
 
-    from strands_poc.agent import JsonlTraceHook
+    from zai.agent import JsonlTraceHook
 
     consumer = StreamConsumer()
     # Bypass JsonlTraceHook.__init__ (no real SessionLogger needed for this assertion).
@@ -132,7 +132,7 @@ def test_trace_hook_can_be_construct_without_consumer():
     must still work (consumer is optional; legacy callers / tests do this)."""
     from unittest.mock import MagicMock
 
-    from strands_poc.agent import JsonlTraceHook
+    from zai.agent import JsonlTraceHook
 
     logger = MagicMock()
     hook = JsonlTraceHook(logger=logger)  # no consumer kwarg
@@ -143,7 +143,7 @@ def test_trace_hook_with_consumer_records_error():
     """A cancelled tool call (cancel_tool truthy) must push is_error=True."""
     from unittest.mock import MagicMock
 
-    from strands_poc.agent import JsonlTraceHook
+    from zai.agent import JsonlTraceHook
 
     consumer = StreamConsumer()
     hook = object.__new__(JsonlTraceHook)
@@ -189,7 +189,7 @@ def _make_argv(**overrides):
 def test_main_streaming_mode_renders_thinking(monkeypatch, capsys):
     """When the agent emits a 'thinking' chunk, main.py must print it
     (not silently drop it)."""
-    from strands_poc import main as cli
+    from zai import main as cli
 
     # Stub Agent so run_streaming yields a controlled sequence.
     class _FakeAgent:
@@ -222,7 +222,7 @@ def test_main_streaming_mode_renders_thinking(monkeypatch, capsys):
 def test_main_streaming_mode_skips_jsonl_summary(monkeypatch):
     """In --stream mode the JSONL post-run summary must NOT be invoked —
     the streaming loop already shows tool_start/tool_input/tool_end live."""
-    from strands_poc import main as cli
+    from zai import main as cli
 
     called = {"count": 0}
 
@@ -254,7 +254,7 @@ def test_main_streaming_mode_skips_jsonl_summary(monkeypatch):
 def test_main_non_streaming_mode_still_shows_jsonl_summary(monkeypatch):
     """With --sync, the JSONL post-run summary MUST still run
     (it's the only way the user sees tool outcomes)."""
-    from strands_poc import main as cli
+    from zai import main as cli
 
     called = {"count": 0}
 
@@ -285,7 +285,7 @@ def test_main_non_streaming_mode_still_shows_jsonl_summary(monkeypatch):
 # Helpers
 # ============================================================ #
 def _fake_config():
-    from strands_poc.config import Config
+    from zai.config import Config
 
     return Config(
         ollama_base_url="http://localhost:11434",

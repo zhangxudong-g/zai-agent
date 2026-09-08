@@ -30,11 +30,11 @@ sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
 import asyncio
 
-from strands_poc.config import get_config
-from strands_poc.security import WorkspaceSandboxHook
-from strands_poc.stream import StreamConsumer
-from strands_poc.tools import build_file_tree_entries
-from strands_poc.trace import SessionLogger
+from zai.config import get_config
+from zai.security import WorkspaceSandboxHook
+from zai.stream import StreamConsumer
+from zai.tools import build_file_tree_entries
+from zai.trace import SessionLogger
 
 
 # --------------------------------------------------------------------- #
@@ -52,7 +52,7 @@ class _MockBeforeToolCallEvent:
 # 1. Config loading
 # --------------------------------------------------------------------- #
 def test_config_defaults(tmp_path: Path, monkeypatch) -> None:
-    # Earlier tests may have imported strands_poc.agent, which auto-loads
+    # Earlier tests may have imported zai.agent, which auto-loads
     # .env via telemetry._ensure_dotenv_loaded(); clear any inherited
     # ALLOWED_TOOLS so this test exercises the documented default list.
     monkeypatch.delenv("ALLOWED_TOOLS", raising=False)
@@ -184,7 +184,7 @@ def test_file_tree_truncation_and_noise_skip(tmp_path: Path) -> None:
 def test_shell_tool_windows_translation_windows_only() -> None:
     """ls/cat/pwd/find translate to cmd equivalents; allowlist unchanged."""
     assert os.name == "nt", "translation only applies on Windows"
-    from strands_poc.tools import _is_command_allowed, _translate_for_windows
+    from zai.tools import _is_command_allowed, _translate_for_windows
 
     assert _translate_for_windows(["ls"]) == ["dir", "/b"]
     assert _translate_for_windows(["ls", "-R"]) == ["dir", "/b", "-s"]
@@ -439,7 +439,7 @@ def test_strands_tool_decorator_importable() -> None:
 # --------------------------------------------------------------------- #
 # 7. _resolve_within_sandbox (tool-layer path guard, issue #1 fix)
 # --------------------------------------------------------------------- #
-from strands_poc.tools import _resolve_within_sandbox
+from zai.tools import _resolve_within_sandbox
 
 
 def test_resolve_within_sandbox_relative(tmp_path: Path) -> None:
@@ -511,8 +511,8 @@ def test_build_sandbox_host_default(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.delenv("SANDBOX_CONTAINER", raising=False)
     monkeypatch.delenv("SANDBOX_SSH_HOST", raising=False)
 
-    from strands_poc.config import get_config
-    from strands_poc.sandbox import build_sandbox
+    from zai.config import get_config
+    from zai.sandbox import build_sandbox
 
     cfg = get_config(env_file=None)
     cfg.execution_sandbox = "host"
@@ -530,8 +530,8 @@ def test_build_sandbox_unknown_mode_raises(tmp_path: Path, monkeypatch) -> None:
     pytest.importorskip("strands.sandbox", reason="strands.sandbox not available")
     monkeypatch.setenv("AGENT_WORKSPACE", str(tmp_path))
 
-    from strands_poc.config import get_config
-    from strands_poc.sandbox import build_sandbox
+    from zai.config import get_config
+    from zai.sandbox import build_sandbox
 
     cfg = get_config(env_file=None)
     cfg.execution_sandbox = "no_such_mode"
@@ -544,8 +544,8 @@ def test_build_sandbox_docker_missing_container(tmp_path: Path, monkeypatch) -> 
     pytest.importorskip("strands.sandbox", reason="strands.sandbox not available")
     monkeypatch.setenv("AGENT_WORKSPACE", str(tmp_path))
 
-    from strands_poc.config import get_config
-    from strands_poc.sandbox import build_sandbox
+    from zai.config import get_config
+    from zai.sandbox import build_sandbox
 
     cfg = get_config(env_file=None)
     cfg.execution_sandbox = "docker"
@@ -559,8 +559,8 @@ def test_build_sandbox_ssh_missing_host(tmp_path: Path, monkeypatch) -> None:
     pytest.importorskip("strands.sandbox", reason="strands.sandbox not available")
     monkeypatch.setenv("AGENT_WORKSPACE", str(tmp_path))
 
-    from strands_poc.config import get_config
-    from strands_poc.sandbox import build_sandbox
+    from zai.config import get_config
+    from zai.sandbox import build_sandbox
 
     cfg = get_config(env_file=None)
     cfg.execution_sandbox = "ssh"
@@ -574,8 +574,8 @@ def test_build_sandbox_posix_constructible(tmp_path: Path, monkeypatch) -> None:
     pytest.importorskip("strands.sandbox", reason="strands.sandbox not available")
     monkeypatch.setenv("AGENT_WORKSPACE", str(tmp_path))
 
-    from strands_poc.config import get_config
-    from strands_poc.sandbox import build_sandbox
+    from zai.config import get_config
+    from zai.sandbox import build_sandbox
 
     cfg = get_config(env_file=None)
     cfg.execution_sandbox = "posix"
@@ -589,7 +589,7 @@ def test_build_sandbox_posix_constructible(tmp_path: Path, monkeypatch) -> None:
 
 def test_wslpath_translation_unit() -> None:
     """Unit-test _wslpath_windows_to_linux (no subprocess needed)."""
-    from strands_poc.sandbox import _wslpath_windows_to_linux
+    from zai.sandbox import _wslpath_windows_to_linux
 
     # Common Windows drive letters
     assert _wslpath_windows_to_linux(r"C:\Users\foo") == "/mnt/c/Users/foo"
@@ -636,7 +636,7 @@ def test_posix_mode_works_from_native_windows() -> None:
         check=True, timeout=10,
     )
 
-    from strands_poc.sandbox import _wslpath_windows_to_linux, build_sandbox
+    from zai.sandbox import _wslpath_windows_to_linux, build_sandbox
 
     # Build a sandbox pointed at a Windows-style workspace
     with tempfile.TemporaryDirectory() as td:

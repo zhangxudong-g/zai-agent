@@ -1,4 +1,4 @@
-"""Tests for strands_poc.community_tools module.
+"""Tests for zai.community_tools module.
 
 Pins two contracts that were silently violated:
   1. ``CommunityToolsConfig`` construction must not mutate ``os.environ``
@@ -34,7 +34,7 @@ def test_constructing_config_does_not_set_bypass_env(isolated_bypass):
     test, demo, or downstream import that built a config mutated global
     process state — which leaked across unrelated code paths.
     """
-    from strands_poc.community_tools import CommunityToolsConfig
+    from zai.community_tools import CommunityToolsConfig
 
     # Construction must NOT touch the env.
     CommunityToolsConfig()
@@ -50,7 +50,7 @@ def test_constructing_config_with_bypass_false_does_not_set_env(isolated_bypass)
     The env mutation belongs to the load step, not the config object's
     ``__post_init__``. This test makes the contract explicit.
     """
-    from strands_poc.community_tools import CommunityToolsConfig
+    from zai.community_tools import CommunityToolsConfig
 
     cfg = CommunityToolsConfig(bypass_consent=True)
     _ = cfg  # silence unused warning
@@ -68,7 +68,7 @@ def test_module_does_not_duplicate_dataclass_import():
     """
     import inspect
 
-    import strands_poc.community_tools as ct
+    import zai.community_tools as ct
 
     src = inspect.getsource(ct)
     # Count top-level imports of dataclass (exclude re-exports).

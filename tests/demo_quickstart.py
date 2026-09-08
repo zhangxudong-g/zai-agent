@@ -36,13 +36,13 @@ import time
 import traceback
 from pathlib import Path
 
-# 让脚本能从仓库根目录导入 strands_poc（如果存在）
+# 让脚本能从仓库根目录导入 zai（如果存在）
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 
 
 # ---------------------------------------------------------------------------
-# 模型构造（与 tests/demo.py 一致；如有 strands_poc 则用其配置加载）
+# 模型构造（与 tests/demo.py 一致；如有 zai 则用其配置加载）
 # ---------------------------------------------------------------------------
 def build_ollama_model():
     from strands.models.ollama import OllamaModel

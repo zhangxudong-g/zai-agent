@@ -13,7 +13,7 @@
 
 使用示例:
 
-    from strands_poc.community_tools import build_community_tools
+    from zai.community_tools import build_community_tools
 
     # 构建所有工具
     tools = build_community_tools()

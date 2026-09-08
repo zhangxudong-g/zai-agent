@@ -3,7 +3,7 @@
 设计原则：
 - **幂等**：多次调用 setup() 不会创建多个 exporter。
 - **零依赖默认**：环境变量不配就不做任何事（不影响现有运行）。
-- **统一入口**：所有使用 strands_poc.agent 的脚本（main / tests / cli）都会自动获得遥测。
+- **统一入口**：所有使用 zai.agent 的脚本（main / tests / cli）都会自动获得遥测。
 
 激活方式（任一即可，按优先级）：
   1. ``OTEL_EXPORTER_OTLP_ENDPOINT=http://host:4318`` → OTLP HTTP 导出

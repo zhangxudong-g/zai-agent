@@ -6,7 +6,7 @@
 
 ## 一、为什么要优化
 
-`src/strands_poc/` 是一个用 Strands Agents SDK 包装的 **代码分析 Agent**，
+`src/zai/` 是一个用 Strands Agents SDK 包装的 **代码分析 Agent**，
 跑 Ollama 上的本地小模型（默认 `qwen3:7b`）。优化前存在 4 类系统性问题：
 
 | 问题 | 现象 | 影响 |
@@ -67,10 +67,10 @@
 
 | 文件 | 类型 | 说明 |
 |------|------|------|
-| `src/strands_poc/agent.py` | 改 | 重写 `_build_system_prompt`；新增 `detect_weak_assertions` 类方法 |
-| `src/strands_poc/tools.py` | 改 | 增强 read/grep；新增 file_tree + outline；提取 `build_file_tree_entries` 给索引复用 |
-| `src/strands_poc/index.py` | 新 | `ProjectIndex`（缓存 + mtime 失效） |
-| `src/strands_poc/config.py` | 改 | 默认工具列表加 `file_tree` + `outline` |
+| `src/zai/agent.py` | 改 | 重写 `_build_system_prompt`；新增 `detect_weak_assertions` 类方法 |
+| `src/zai/tools.py` | 改 | 增强 read/grep；新增 file_tree + outline；提取 `build_file_tree_entries` 给索引复用 |
+| `src/zai/index.py` | 新 | `ProjectIndex`（缓存 + mtime 失效） |
+| `src/zai/config.py` | 改 | 默认工具列表加 `file_tree` + `outline` |
 | `tests/test_agent_optimizations.py` | 新 | **14 个新测试**，4 个层各覆盖 |
 | `tests/test_smoke.py` | 改 | 更新默认工具列表期望值（行为变化，不是测试错误） |
 
@@ -106,7 +106,7 @@ tests/test_smoke.py ......................                         [100%]
 ## 五、端到端建议验证
 
 ```bash
-.venv/Scripts/python.exe -m strands_poc.main \
+.venv/Scripts/python.exe -m zai.main \
     --workspace ./workspace/sample_project \
     --prompt-file ./prompts/init.txt \
     --stream

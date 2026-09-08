@@ -27,8 +27,8 @@ sys.path.insert(0, str(ROOT / "src"))
 # Group 1: the patch function exists and is safe to call
 # ============================================================ #
 def test_patch_ollama_thinking_is_callable():
-    """The patch function must exist on strands_poc.llm and be callable."""
-    from strands_poc import llm
+    """The patch function must exist on zai.llm and be callable."""
+    from zai import llm
 
     assert hasattr(llm, "patch_ollama_thinking")
     assert callable(llm.patch_ollama_thinking)
@@ -38,7 +38,7 @@ def test_patch_ollama_thinking_is_idempotent():
     """Calling the patch twice must not stack multiple wrappers."""
     import strands.models.ollama as ollama_mod
 
-    from strands_poc import llm
+    from zai import llm
 
     cls = getattr(ollama_mod, "OllamaModel", None) or getattr(ollama_mod, "Ollama", None)
     if cls is None:
@@ -62,7 +62,7 @@ async def test_patched_stream_yields_reasoning_content_delta(monkeypatch):
 
     import strands.models.ollama as ollama_mod
 
-    from strands_poc import llm
+    from zai import llm
 
     cls = getattr(ollama_mod, "OllamaModel", None) or getattr(ollama_mod, "Ollama", None)
     if cls is None:
@@ -156,7 +156,7 @@ async def test_patched_stream_does_not_emit_reasoning_when_model_has_none(monkey
     """When ollama returns no thinking field, no reasoning_content events."""
     import strands.models.ollama as ollama_mod
 
-    from strands_poc import llm
+    from zai import llm
 
     cls = getattr(ollama_mod, "OllamaModel", None) or getattr(ollama_mod, "Ollama", None)
     if cls is None:
@@ -227,7 +227,7 @@ async def test_patched_stream_surfaces_connect_error_as_message(monkeypatch):
     import httpx
     import strands.models.ollama as ollama_mod
 
-    from strands_poc import llm
+    from zai import llm
 
     cls = getattr(ollama_mod, "OllamaModel", None) or getattr(ollama_mod, "Ollama", None)
     if cls is None:
@@ -299,7 +299,7 @@ async def test_patched_stream_surfaces_timeout_as_message(monkeypatch):
     import httpx
     import strands.models.ollama as ollama_mod
 
-    from strands_poc import llm
+    from zai import llm
 
     cls = getattr(ollama_mod, "OllamaModel", None) or getattr(ollama_mod, "Ollama", None)
     if cls is None:
@@ -351,7 +351,7 @@ async def test_patched_stream_surfaces_oserror_as_message(monkeypatch):
     higher-level ``ConnectError``."""
     import strands.models.ollama as ollama_mod
 
-    from strands_poc import llm
+    from zai import llm
 
     cls = getattr(ollama_mod, "OllamaModel", None) or getattr(ollama_mod, "Ollama", None)
     if cls is None:
@@ -407,7 +407,7 @@ async def test_patched_stream_propagates_unrelated_exceptions(monkeypatch):
     error — we only swallow transport-layer failures."""
     import strands.models.ollama as ollama_mod
 
-    from strands_poc import llm
+    from zai import llm
 
     cls = getattr(ollama_mod, "OllamaModel", None) or getattr(ollama_mod, "Ollama", None)
     if cls is None:
@@ -446,10 +446,10 @@ async def test_unreachable_agent_returns_clean_assistant_message(monkeypatch):
     import httpx
     import strands.models.ollama as ollama_mod
 
-    from strands_poc import agent as agent_mod
-    from strands_poc import llm
-    from strands_poc.config import Config
-    from strands_poc.trace import SessionLogger
+    from zai import agent as agent_mod
+    from zai import llm
+    from zai.config import Config
+    from zai.trace import SessionLogger
 
     cls = getattr(ollama_mod, "OllamaModel", None) or getattr(ollama_mod, "Ollama", None)
     if cls is None:

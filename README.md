@@ -22,7 +22,7 @@
 ### 2. 安装
 
 ```bash
-cd D:/agent_harness_sdk_demo/strands-agent
+cd D:/agent_harness_sdk_demo/zai-agent
 uv sync
 cp .env.example .env
 ```
@@ -171,8 +171,8 @@ SANDBOX_SSH_HOST=remote-host
 ## 项目结构
 
 ```
-strands-agent/
-├── src/strands_poc/
+zai-agent/
+├── src/zai/
 │   ├── agent.py       # Agent 主类
 │   ├── config.py      # 配置管理
 │   ├── llm.py         # Ollama 模型封装

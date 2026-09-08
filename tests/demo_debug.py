@@ -29,8 +29,8 @@ sys.path.insert(0, str(ROOT / "src"))
 
 def _make_model():
     try:
-        from strands_poc.config import get_config  # type: ignore
-        from strands_poc.llm import build_ollama_model  # type: ignore
+        from zai.config import get_config  # type: ignore
+        from zai.llm import build_ollama_model  # type: ignore
         return build_ollama_model(get_config())
     except ImportError:
         import os

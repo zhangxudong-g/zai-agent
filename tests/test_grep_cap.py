@@ -17,7 +17,7 @@ sys.path.insert(0, str(ROOT / "src"))
 
 def test_grep_caps_at_200_hits_across_files(tmp_path: Path):
     """3 files \u00d7 100 matches = 300 potential hits \u2014 cap must kick in."""
-    from strands_poc.tools import make_grep_tool
+    from zai.tools import make_grep_tool
 
     for i in range(3):
         (tmp_path / f"f{i}.txt").write_text(
@@ -34,7 +34,7 @@ def test_grep_caps_at_200_hits_across_files(tmp_path: Path):
 
 def test_grep_returns_uncapped_when_under_limit(tmp_path: Path):
     """Under the cap, grep must return every match row."""
-    from strands_poc.tools import make_grep_tool
+    from zai.tools import make_grep_tool
 
     (tmp_path / "a.txt").write_text(
         "\n".join(f"hit {i}" for i in range(50)),
