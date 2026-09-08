@@ -81,8 +81,6 @@ def build_parser() -> argparse.ArgumentParser:
                    help="Path to .env file (default: .env).")
     p.add_argument("--info", action="store_true",
                    help="Show Zai home directory information and exit.")
-    p.add_argument("-uninstall", "--uninstall", action="store_true",
-                   help="Uninstall zai-agent and remove user data.")
 
     return p
 
@@ -357,12 +355,12 @@ def run_cli(argv: list[str] | None = None) -> int:
     Automatically uses current directory as workspace when --workspace is not specified.
     """
     args = build_parser().parse_args(argv)
-    
-    # Handle -uninstall flag: spawn a new process to uninstall and exit
+
+    # Handle -uninstall flag
     if args.uninstall:
         import shutil
         import subprocess
-        import time
+        import tempfile
         
         print("Uninstalling zai-agent...")
         print()
@@ -371,46 +369,40 @@ def run_cli(argv: list[str] | None = None) -> int:
         from .paths import get_zai_home
         zai_home = str(get_zai_home())
         
-        # Spawn uninstall process and exit immediately
-        uninstall_cmd = [
-            sys.executable, "-c",
-            f""
+        # Write uninstall script to temp file
+        uninstall_script = '''
 import subprocess, sys, shutil, os, time
-zai_home = r'{zai_home}'
+zai_home = sys.argv[1]
 
-# Confirm
-print(f'Delete user data at {{zai_home}}? [y/N]: ', end='', flush=True)
+print("Delete user data at " + zai_home + "? [y/N]: ", end="", flush=True)
 try:
     response = input().strip().lower()
-    if response not in ('y', 'yes'):
-        print('Cancelled')
+    if response not in ("y", "yes"):
+        print("Cancelled")
         sys.exit(0)
 except EOFError:
     pass
 
-# Wait a bit for parent process to exit
 time.sleep(0.5)
 
-# Uninstall pip package
-print('Uninstalling pip package...')
-subprocess.run([sys.executable, '-m', 'pip', 'uninstall', 'zai-agent', '-y'], 
-               capture_output=True)
+print("Uninstalling pip package...")
+subprocess.run([sys.executable, "-m", "pip", "uninstall", "zai-agent", "-y"], capture_output=True)
 
-# Remove user data
 if os.path.exists(zai_home):
-    print(f'Deleting {{zai_home}}...')
+    print("Deleting " + zai_home + "...")
     shutil.rmtree(zai_home)
 
 print()
-print('Uninstall complete!')
-"""
-        ]
+print("Uninstall complete!")
+'''
+        
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False, encoding='utf-8') as f:
+            f.write(uninstall_script)
+            script_path = f.name
         
         # Start uninstall in background and exit
-        subprocess.Popen(uninstall_cmd)
+        subprocess.Popen([sys.executable, script_path, zai_home])
         return 0
-    
-    return _main(args)
 
     # Use current directory as default workspace if not specified
     if args.workspace is None:
