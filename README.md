@@ -52,7 +52,7 @@ uv tool install .
 pip install .
 
 # 卸载
-uv tool uninstall strands-agent
+uv tool uninstall zai
 ```
 
 #### 使用示例
@@ -73,14 +73,14 @@ zai --workspace ./other-project "分析代码"
 
 ```bash
 $ zai
-╭─ Strands Agent ──────────────────────────────
+╭─ Zai Agent ──────────────────────────────
 │ Model:     qwen3.8:27b
 │ Workspace: ./workspace
 │ Session:   20260903_100000_0001
 │ Mode:      REPL (连续对话)
 ╰────────────────────────────────────────────
 
-╭─ Strands Agent REPL ─────────────────────────
+╭─ Zai Agent REPL ─────────────────────────
 │ /help   显示帮助
 │ /clear  清屏
 │ /exit   退出
@@ -161,7 +161,7 @@ EXECUTION_SANDBOX=host
 
 # Docker 隔离
 EXECUTION_SANDBOX=docker
-SANDBOX_CONTAINER=strands-sandbox
+SANDBOX_CONTAINER=zai-sandbox
 
 # SSH 隔离
 EXECUTION_SANDBOX=ssh
