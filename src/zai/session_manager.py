@@ -89,7 +89,7 @@ class SessionManager:
     using the native Strands session management under the hood.
     """
 
-    def __init__(self, agent: "Agent | None" = None):
+    def __init__(self, agent: Agent | None = None):
         self._agent = agent
         self._session_mgr: Any | None = None
         self._storage_dir = _get_session_storage_dir()
@@ -121,7 +121,7 @@ class SessionManager:
 
         return self._session_mgr
 
-    def set_agent(self, agent: "Agent") -> None:
+    def set_agent(self, agent: Agent) -> None:
         """Set the agent for session management."""
         self._agent = agent
         self._session_mgr = None  # Reset so it will be reinitialized
@@ -155,7 +155,7 @@ class SessionManager:
         return sessions
 
     def save_session(
-        self, name: str, agent: "Agent", session_log: Path | None = None
+        self, name: str, agent: Agent, session_log: Path | None = None
     ) -> Path:
         """Save current session as a named snapshot.
 
@@ -228,7 +228,7 @@ class SessionManager:
         return data
 
     def export_session(
-        self, name: str, agent: "Agent | None", session_log: Path | None = None
+        self, name: str, agent: Agent | None, session_log: Path | None = None
     ) -> Path:
         """Export session to exports directory."""
         if agent is None:
@@ -244,7 +244,7 @@ class SessionManager:
 
         return path
 
-    def restore_session(self, name: str, agent: "Agent") -> bool:
+    def restore_session(self, name: str, agent: Agent) -> bool:
         """Restore a session from the saves directory."""
         # Load the snapshot data
         try:
@@ -271,7 +271,7 @@ class SessionManager:
 _session_manager: SessionManager | None = None
 
 
-def get_session_manager(agent: "Agent | None" = None) -> SessionManager:
+def get_session_manager(agent: Agent | None = None) -> SessionManager:
     """Get the global session manager instance."""
     global _session_manager
 
