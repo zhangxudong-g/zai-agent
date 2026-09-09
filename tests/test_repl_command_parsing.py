@@ -4,7 +4,6 @@ These tests verify that /save, /load, /export without arguments
 are correctly recognized as commands and don't fall through to the agent.
 """
 
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 
