@@ -20,7 +20,16 @@ from . import telemetry, tui
 from .agent import Agent
 from .config import Config, get_config
 from .context_loader import ContextLoader, ProjectContext, load_project_context
+from .executors import build_concurrent_executor, build_sequential_executor, get_executor
+from .interventions import DangerousCommandIntervention, SensitiveFileIntervention
 from .llm import patch_ollama_thinking
+from .skills import (
+    build_skill_plugin,
+    create_skill_template,
+    install_skill,
+    list_skills,
+    uninstall_skill,
+)
 from .paths import (
     get_zai_config_dir,
     get_zai_env_file,
@@ -44,12 +53,19 @@ __all__ = [
     "Agent",
     "Config",
     "ContextLoader",
+    "DangerousCommandIntervention",
     "ProjectContext",
+    "SensitiveFileIntervention",
     "SessionLogger",
     "SessionManager",
     "Snapshot",
     "StreamChunk",
+    "build_concurrent_executor",
+    "build_sequential_executor",
+    "build_skill_plugin",
+    "create_skill_template",
     "get_config",
+    "get_executor",
     "get_zai_config_dir",
     "get_zai_env_file",
     "get_zai_exports_dir",
@@ -60,6 +76,8 @@ __all__ = [
     "get_zai_workspace_dir",
     "get_session_manager",
     "init_zai_config",
+    "install_skill",
+    "list_skills",
     "load_project_context",
     "load_snapshot",
     "patch_ollama_thinking",
@@ -67,4 +85,5 @@ __all__ = [
     "save_snapshot",
     "telemetry",
     "tui",
+    "uninstall_skill",
 ]

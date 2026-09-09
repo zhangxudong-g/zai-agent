@@ -96,6 +96,21 @@ def build_parser() -> argparse.ArgumentParser:
         "--sync", action="store_true", help="Disable streaming output (default: streaming enabled)."
     )
     p.add_argument(
+        "--no-interventions",
+        action="store_true",
+        help="Disable safety interventions (dangerous commands, sensitive files).",
+    )
+    p.add_argument(
+        "--skills",
+        action="store_true",
+        help="Enable skill plugin system (loads skills from ~/.zai/plugins/skills/).",
+    )
+    p.add_argument(
+        "--concurrent-tools",
+        action="store_true",
+        help="Run tool calls concurrently (faster but may affect ordering).",
+    )
+    p.add_argument(
         "--max-retries",
         type=int,
         default=3,
@@ -351,7 +366,13 @@ def _main(args: argparse.Namespace) -> int:
 
     if not config.agent_workspace.exists():
         print(f"[WARN] workspace does not exist: {config.agent_workspace}", file=sys.stderr)
-    agent = Agent(config=config, logger=logger)
+    agent = Agent(
+        config=config,
+        logger=logger,
+        enable_interventions=not args.no_interventions,
+        enable_skills=args.skills,
+        tool_executor_mode="concurrent" if args.concurrent_tools else "sequential",
+    )
 
     # REPL mode when no prompt given
     is_interactive = args.interactive or (args.prompt is None)
