@@ -23,6 +23,7 @@ from prompt_toolkit.patch_stdout import patch_stdout
 
 from .paths import get_zai_home
 from .trace import SessionLogger
+from .session_manager import get_session_manager
 
 if TYPE_CHECKING:
     from .agent import Agent
@@ -61,6 +62,7 @@ class EnhancedREPL:
         "/help",
         "/clear",
         "/info",
+        "/sessions",
     }
 
     def __init__(self, agent, logger: SessionLogger, stream: bool = True, max_retries: int = 3):
@@ -82,15 +84,19 @@ class EnhancedREPL:
         print_box(
             "Zai Agent REPL",
             [
-                "/help   显示帮助",
-                "/clear  清屏",
-                "/info   查看配置",
-                "/exit   退出",
+                "/help     显示帮助",
+                "/sessions 列出已保存会话",
+                "/save <n> 保存当前会话",
+                "/load <n> 加载会话",
+                "/export <n> 导出会话",
+                "/clear    清屏",
+                "/info     查看配置",
+                "/exit     退出",
                 "Ctrl+R  搜索历史",
                 "Ctrl+C  取消/退出",
             ],
             color="cyan",
-            width=45,
+            width=50,
         )
         print()
 
@@ -103,10 +109,14 @@ class EnhancedREPL:
             [
                 "输入问题，Agent 会记住上下文",
                 "",
-                "/help   - 显示此帮助",
-                "/clear  - 清屏",
-                "/info   - 显示配置信息",
-                "/exit   - 退出",
+                "/help     - 显示此帮助",
+                "/sessions - 列出已保存的会话",
+                "/save <n> - 保存当前会话快照",
+                "/load <n> - 加载并恢复会话",
+                "/export <n> - 导出会话为 JSON",
+                "/clear    - 清屏",
+                "/info     - 显示配置信息",
+                "/exit     - 退出",
                 "",
                 "快捷键：",
                 "  ↑/↓  历史记录",
@@ -116,7 +126,7 @@ class EnhancedREPL:
                 "  Ctrl+D  退出",
             ],
             color="cyan",
-            width=50,
+            width=55,
         )
         print()
 
@@ -137,6 +147,88 @@ class EnhancedREPL:
         # Just print the indicator without trailing newline;
         # prompt_toolkit will handle the actual prompt
         print()  # blank line before each prompt
+
+    def handle_sessions_command(self) -> None:
+        """Handle /sessions command."""
+        from .tui import print_box
+
+        sm = get_session_manager()
+        sessions = sm.list_sessions()
+
+        print()
+        if not sessions:
+            print_box("已保存的会话", ["暂无保存的会话"], color="cyan")
+        else:
+            lines = [f"{'名称':<20} {'消息数':<10} {'创建时间':<20}"]
+            lines.append("-" * 50)
+            for s in sessions:
+                created = s.get("created_at", "")[:19]  # Truncate timestamp
+                lines.append(f"{s['name']:<20} {s['message_count']:<10} {created:<20}")
+
+            print_box("已保存的会话", lines, color="cyan")
+        print()
+
+    def handle_save_command(self, name: str) -> None:
+        """Handle /save <name> command."""
+        from .tui import print_box
+
+        if not name:
+            print("[ERROR] 用法: /save <名称>")
+            return
+
+        sm = get_session_manager()
+        log_file = self.logger.log_file
+
+        try:
+            path = sm.save_session(name, self.agent.config, log_file)
+            print_box("会话已保存", [f"路径: {path}"], color="green")
+        except Exception as e:
+            print(f"[ERROR] 保存失败: {e}")
+
+    def handle_load_command(self, name: str) -> None:
+        """Handle /load <name> command."""
+        from .tui import print_box
+
+        if not name:
+            print("[ERROR] 用法: /load <名称>")
+            return
+
+        sm = get_session_manager()
+
+        try:
+            snapshot = sm.load_session(name)
+            print_box(
+                "会话已加载",
+                [
+                    f"名称: {snapshot.name}",
+                    f"消息数: {len(snapshot.messages)}",
+                    f"工具调用: {len(snapshot.tool_calls)}",
+                    "",
+                    "提示: 会话上下文已恢复",
+                ],
+                color="green",
+            )
+        except FileNotFoundError:
+            print(f"[ERROR] 会话不存在: {name}")
+        except Exception as e:
+            print(f"[ERROR] 加载失败: {e}")
+
+    def handle_export_command(self, name: str) -> None:
+        """Handle /export <name> command."""
+        from .tui import print_box
+
+        if not name:
+            print("[ERROR] 用法: /export <名称>")
+            return
+
+        sm = get_session_manager()
+        log_file = self.logger.log_file
+
+        try:
+            path = sm.export_session(name, log_file)
+            print_box("会话已导出", [f"路径: {path}"], color="green")
+        except Exception as e:
+            print(f"[ERROR] 导出失败: {e}")
 
     async def run_streaming_async(self, prompt: str) -> None:
         """Async streaming implementation (placeholder)."""
@@ -207,8 +299,11 @@ class EnhancedREPL:
             prompt_text = prompt_text.strip()
 
             # Handle commands
-            if prompt_text.lower() in self.COMMANDS:
-                cmd = prompt_text.lower()
+            cmd_lower = prompt_text.lower()
+            
+            # Check for exact command matches first
+            if cmd_lower in self.COMMANDS:
+                cmd = cmd_lower
                 if cmd in ("/exit", "/quit", "/q"):
                     break
                 elif cmd == "/help":
@@ -220,9 +315,23 @@ class EnhancedREPL:
                 elif cmd == "/info":
                     self.print_info()
                     continue
-                elif cmd == "/clear":
-                    self.clear_screen()
+                elif cmd == "/sessions":
+                    self.handle_sessions_command()
                     continue
+            
+            # Check for prefix commands (with arguments)
+            if prompt_text.lower().startswith("/save "):
+                name = prompt_text[5:].strip()
+                self.handle_save_command(name)
+                continue
+            elif prompt_text.lower().startswith("/load "):
+                name = prompt_text[6:].strip()
+                self.handle_load_command(name)
+                continue
+            elif prompt_text.lower().startswith("/export "):
+                name = prompt_text[8:].strip()
+                self.handle_export_command(name)
+                continue
 
             if not prompt_text:
                 continue
