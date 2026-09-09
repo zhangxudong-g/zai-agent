@@ -179,7 +179,7 @@ def test_extract_messages_no_inner():
     from zai.session_manager import _extract_messages
 
     class FakeAgent:
-        messages = [{"role": "user", "content": "Direct"}]
+        messages = [{"role": "user", "content": "Direct"}]  # noqa: RUF012
 
     fake = FakeAgent()
     messages = _extract_messages(fake)
@@ -213,13 +213,13 @@ def test_save_session_with_wrapper_agent(tmp_path, monkeypatch):
         ollama_model = "qwen3:1.7b"
         agent_workspace = "/tmp"
 
+    class FakeInner:
+        messages = [{"role": "user", "content": "test"}]  # noqa: RUF012
+
     class FakeAgent:
-        config = FakeConfig()
-
-        class _Inner:
-            messages = [{"role": "user", "content": "test"}]
-
-        _inner = _Inner
+        def __init__(self):
+            self.config = FakeConfig()
+            self._inner = FakeInner()
 
     agent = FakeAgent()
     manager = SessionManager(agent=agent)
@@ -243,13 +243,13 @@ def test_export_session_with_wrapper_agent(tmp_path, monkeypatch):
         ollama_model = "qwen3:1.7b"
         agent_workspace = "/tmp"
 
+    class FakeInner:
+        messages = [{"role": "user", "content": "export me"}]  # noqa: RUF012
+
     class FakeAgent:
-        config = FakeConfig()
-
-        class _Inner:
-            messages = [{"role": "user", "content": "export me"}]
-
-        _inner = _Inner
+        def __init__(self):
+            self.config = FakeConfig()
+            self._inner = FakeInner()
 
     agent = FakeAgent()
     manager = SessionManager(agent=agent)
@@ -267,16 +267,17 @@ def test_save_session_graceful_failure_on_strands_error(tmp_path, monkeypatch):
 
     monkeypatch.setattr(sm_module, "_get_saves_dir", lambda: tmp_path)
 
-    # Create a fake agent
+    class FakeConfig:
+        ollama_model = "test"
+        agent_workspace = "/tmp"
+
+    class FakeInner:
+        messages: list = []  # noqa: RUF012
+
     class FakeAgent:
-        class _Inner:
-            messages = []
-
-        _inner = _Inner
-
-        class config:
-            ollama_model = "test"
-            agent_workspace = "/tmp"
+        def __init__(self):
+            self.config = FakeConfig()
+            self._inner = FakeInner()
 
     agent = FakeAgent()
     manager = SessionManager(agent=agent)
