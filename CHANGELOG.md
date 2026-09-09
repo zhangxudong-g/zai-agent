@@ -6,6 +6,32 @@
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-01-XX
+
+### Added
+- **会话管理**（`session_manager.py`, `snapshot.py`）：
+  - `/sessions` 列出已保存的会话
+  - `/save <name>` 保存当前会话快照
+  - `/load <name>` 恢复历史会话
+  - `/export <name>` 导出会话为 JSON
+  - `~/.zai/saves/` 和 `~/.zai/exports/` 目录
+- **模型参数**（`main.py`, `llm.py`）：
+  - `--model` 参数（已有）
+  - `--max-tokens` 控制单次 token 预算
+- **项目上下文**（`context_loader.py`, `agent.py`）：
+  - `.zai/context.md` 自动加载到系统提示
+  - `.zai/rules.md` 项目特定规则
+  - `.zai/ignore` 文件排除（glob 工具支持）
+- **新增模块**：
+  - `snapshot.py` - 会话快照序列化
+  - `session_manager.py` - 会话管理
+  - `context_loader.py` - 项目上下文加载
+
+### Changed
+- 版本号更新为 0.3.0
+- REPL 帮助信息更新（新增会话命令）
+- Agent 系统提示增强（可选项目上下文）
+
 ## [0.2.0] - 2026-01-08
 
 ### Added

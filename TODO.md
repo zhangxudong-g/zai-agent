@@ -6,29 +6,7 @@ Format follows the [Keep a Changelog](https://keepachangelog.com/) style.
 
 ---
 
-## 🔴 [0.3.0] - High Priority
-
-### 会话管理
-
-- [ ] `/sessions` 命令列出所有历史会话
-- [ ] `/save <name>` 保存当前会话
-- [ ] `/load <name>` 恢复历史会话
-- [ ] `/export <format>` 导出会话（md / json / html）
-
-### 单次模型选择
-
-- [ ] `--model` 参数支持单次问答使用不同模型
-- [ ] `--max-tokens` 参数控制单次 token 预算
-
-### 项目级上下文
-
-- [ ] 项目目录下的 `.zai/context.md` 自动加载
-- [ ] `.zai/rules.md` 项目特定规则
-- [ ] `.zai/ignore` 类似 `.gitignore` 的文件排除
-
----
-
-## 🟡 [0.4.0] - Medium Priority
+## 🔴 [0.4.0] - Medium Priority
 
 ### 流式输出增强
 
@@ -51,8 +29,8 @@ Format follows the [Keep a Changelog](https://keepachangelog.com/) style.
 
 ### 错误恢复
 
-- [ ] Ollama 离线检测 + 友好提示
-- [ ] 网络断开自动重连
+- [x] Ollama 离线检测 + 友好提示
+- [x] 网络断开自动重连
 - [ ] 大响应自动分页
 
 ---
@@ -128,6 +106,23 @@ Format follows the [Keep a Changelog](https://keepachangelog.com/) style.
 ---
 
 ## 📊 Completed
+
+### ✅ [0.3.0]
+
+#### 会话管理
+- [x] `/sessions` 命令列出所有历史会话
+- [x] `/save <name>` 保存当前会话
+- [x] `/load <name>` 恢复历史会话
+- [x] `/export <name>` 导出会话为 JSON
+
+#### 单次模型选择
+- [x] `--model` 参数支持单次问答使用不同模型
+- [x] `--max-tokens` 参数控制单次 token 预算
+
+#### 项目级上下文
+- [x] 项目目录下的 `.zai/context.md` 自动加载
+- [x] `.zai/rules.md` 项目特定规则
+- [x] `.zai/ignore` 类似 `.gitignore` 的文件排除（glob 工具支持）
 
 ### ✅ [0.2.0]
 
