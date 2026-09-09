@@ -108,7 +108,9 @@ def test_handle_load_command_not_found(capsys):
         repl = EnhancedREPL(mock_agent, mock_logger, stream=False)
 
         with patch("zai.repl.get_session_manager") as mock_sm:
-            mock_sm.return_value.load_session.side_effect = FileNotFoundError("Session not found")
+            mock_sm.return_value.restore_session.side_effect = FileNotFoundError(
+                "Session not found"
+            )
             repl.handle_load_command("nonexistent")
 
     captured = capsys.readouterr()

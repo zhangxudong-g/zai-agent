@@ -281,6 +281,51 @@ def test_main_non_streaming_mode_still_shows_jsonl_summary(monkeypatch):
 
 
 # ============================================================ #
+# Group 4: _render_stream_chunks fallback for lost text
+# ============================================================ #
+
+
+async def test_render_done_fallback_prints_result_when_no_text(capsys):
+    """If no streaming text chunks were emitted but the done event carries a
+    result (e.g. small models / Ollama returning the whole reply at once), the
+    renderer must print the result so the user never sees an empty response."""
+    from zai.main import _render_stream_chunks
+
+    async def _chunks():
+        # No 'text' chunk at all — reply arrives only in the final result event
+        yield StreamChunk(
+            kind="done",
+            result="你好,我是代码助手",
+            stop_reason="end_turn",
+        )
+
+    await _render_stream_chunks(_chunks())
+    captured = capsys.readouterr().out
+    assert "你好,我是代码助手" in captured, (
+        f"done fallback must print result text; got:\n{captured}"
+    )
+
+
+async def test_render_does_not_double_print_when_text_present(capsys):
+    """When text chunks were already streamed, the done fallback must NOT
+    print the result again (would duplicate the reply)."""
+    from zai.main import _render_stream_chunks
+
+    async def _chunks():
+        yield StreamChunk(kind="text", text="你好")
+        yield StreamChunk(
+            kind="done",
+            result="你好",
+            stop_reason="end_turn",
+        )
+
+    await _render_stream_chunks(_chunks())
+    captured = capsys.readouterr().out
+    # "你好" should appear exactly once (from the text chunk, not duplicated)
+    assert captured.count("你好") == 1, f"must not duplicate the reply; got:\n{captured}"
+
+
+# ============================================================ #
 # Helpers
 # ============================================================ #
 def _fake_config():

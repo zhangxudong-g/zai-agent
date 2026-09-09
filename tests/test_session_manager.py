@@ -261,6 +261,86 @@ def test_export_session_with_wrapper_agent(tmp_path, monkeypatch):
     assert data["name"] == "export-test"
 
 
+def test_restore_session_injects_messages(tmp_path, monkeypatch):
+    """Test restore_session actually injects messages into agent._inner."""
+    from zai import session_manager as sm_module
+
+    monkeypatch.setattr(sm_module, "_get_saves_dir", lambda: tmp_path)
+
+    # First save a session with messages
+    class FakeConfig:
+        ollama_model = "qwen3:1.7b"
+        agent_workspace = "/tmp"
+
+    class FakeInner:
+        def __init__(self):
+            self.messages = [
+                {"role": "user", "content": "我叫7c"},
+                {"role": "assistant", "content": "好的,7c"},
+            ]
+
+    class FakeAgent:
+        def __init__(self):
+            self.config = FakeConfig()
+            self._inner = FakeInner()
+
+    save_agent = FakeAgent()
+    manager = SessionManager(agent=save_agent)
+    manager.save_session("name-test", save_agent)
+
+    # Now create a fresh agent with NO messages and restore into it
+    class FreshInner:
+        def __init__(self):
+            self.messages = []
+
+    class FreshAgent:
+        def __init__(self):
+            self.config = FakeConfig()
+            self._inner = FreshInner()
+
+    fresh = FreshAgent()
+    restored = manager.restore_session("name-test", fresh)
+
+    assert restored == 2
+    # The fresh agent now has the restored messages in Strands format
+    assert len(fresh._inner.messages) == 2
+    # Verify messages are in Strands block format
+    msg0 = fresh._inner.messages[0]
+    assert msg0["role"] == "user"
+    # content should now be a list of blocks
+    assert isinstance(msg0["content"], list)
+    assert msg0["content"][0]["text"] == "我叫7c"
+
+
+def test_restore_session_empty():
+    """Test restore_session on empty session returns 0."""
+    import json
+
+    class FakeAgent:
+        _inner = type("I", (), {})()
+
+    agent = FakeAgent()
+    manager = SessionManager(agent=agent)
+
+    # Create an empty snapshot manually
+    from pathlib import Path
+
+    saves_dir = Path("_test_saves")
+    saves_dir.mkdir(exist_ok=True)
+    try:
+        (saves_dir / "empty.json").write_text(
+            json.dumps({"name": "empty", "messages": []}), encoding="utf-8"
+        )
+        # Point the manager at our dir
+        manager._saves_dir = saves_dir
+        restored = manager.restore_session("empty", agent)
+        assert restored == 0
+    finally:
+        for p in saves_dir.glob("*.json"):
+            p.unlink()
+        saves_dir.rmdir()
+
+
 def test_save_session_graceful_failure_on_strands_error(tmp_path, monkeypatch):
     """Test that Strands SnapshotSessionManager errors don't break save_session."""
     from zai import session_manager as sm_module

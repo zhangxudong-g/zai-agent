@@ -154,9 +154,7 @@ class SessionManager:
 
         return sessions
 
-    def save_session(
-        self, name: str, agent: Agent, session_log: Path | None = None
-    ) -> Path:
+    def save_session(self, name: str, agent: Agent, session_log: Path | None = None) -> Path:
         """Save current session as a named snapshot.
 
         Uses Strands' SnapshotSessionManager for the internal state,
@@ -183,9 +181,7 @@ class SessionManager:
         snapshot = self._create_repl_snapshot(name, agent)
         path = self._saves_dir / f"{name}.json"
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(
-            json.dumps(snapshot, indent=2, ensure_ascii=False), encoding="utf-8"
-        )
+        path.write_text(json.dumps(snapshot, indent=2, ensure_ascii=False), encoding="utf-8")
 
         return path
 
@@ -196,9 +192,7 @@ class SessionManager:
         # Get config info safely
         config = getattr(agent, "config", None)
         model = getattr(config, "ollama_model", "unknown") if config else "unknown"
-        workspace = (
-            str(getattr(config, "agent_workspace", "")) if config else ""
-        )
+        workspace = str(getattr(config, "agent_workspace", "")) if config else ""
 
         return {
             "version": "1.0",
@@ -238,25 +232,52 @@ class SessionManager:
 
         path = self._exports_dir / f"{name}.json"
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(
-            json.dumps(snapshot, indent=2, ensure_ascii=False), encoding="utf-8"
-        )
+        path.write_text(json.dumps(snapshot, indent=2, ensure_ascii=False), encoding="utf-8")
 
         return path
 
-    def restore_session(self, name: str, agent: Agent) -> bool:
-        """Restore a session from the saves directory."""
-        # Load the snapshot data
-        try:
-            data = self.load_session(name)
-        except FileNotFoundError:
-            raise
+    def restore_session(self, name: str, agent: Agent) -> int:
+        """Restore a session's messages into the agent.
 
-        # Note: Strands manages messages internally, so we just log the restoration
+        Returns:
+            The number of messages that were actually injected.
+        """
+        # Load the snapshot data
+        data = self.load_session(name)
+
+        # Get the underlying Strands agent (bypass our wrapper if needed)
+        inner = getattr(agent, "_inner", None) or agent
+
         messages = data.get("messages", [])
-        if messages:
-            print(f"[INFO] Restored {len(messages)} messages to session")
-        return True
+        if not messages:
+            return 0
+
+        # Convert our format to Strands Message format (content = list of blocks)
+        restored: list[dict[str, Any]] = []
+        for msg in messages:
+            role = msg.get("role", "user")
+            content = msg.get("content", "")
+
+            # Build content blocks (Strands text blocks use the "text" key only)
+            content_blocks: list[dict[str, Any]]
+            if isinstance(content, list):
+                # Keep already-structured blocks as-is
+                content_blocks = [block for block in content if isinstance(block, dict)]
+            else:
+                content_blocks = [{"text": str(content)}]
+
+            restored.append({"role": role, "content": content_blocks})
+
+        # Inject into the agent's message list
+        if hasattr(inner, "messages"):
+            if hasattr(inner, "extend_messages"):
+                inner.extend_messages(restored)
+            else:
+                inner.messages.extend(restored)
+        else:
+            inner.messages = restored
+
+        return len(restored)
 
     def delete_session(self, name: str) -> bool:
         """Delete a saved session."""

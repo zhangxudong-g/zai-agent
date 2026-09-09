@@ -256,6 +256,13 @@ async def _render_stream_chunks(chunk_stream, *, show_usage: bool = True) -> Non
         elif chunk.kind == "done":
             if thinking_buffer:
                 print_thinking(thinking_buffer)
+            # Fallback: if no streaming text was displayed (e.g. the whole
+            # reply arrived in the final result event, or a small model
+            # returned it without incremental chunks), print the result text
+            # so the user never sees an empty response.
+            if not has_text and chunk.result:
+                print(chunk.result, end="", flush=True)
+                has_text = True
             elapsed = time.time() - t0
             print_done(elapsed)
 

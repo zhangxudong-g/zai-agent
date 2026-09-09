@@ -198,17 +198,16 @@ class EnhancedREPL:
         sm = get_session_manager(agent=self.agent)
 
         try:
-            snapshot = sm.load_session(name)
-            # Restore session to agent
-            sm.restore_session(name, self.agent)
+            # Restore session to agent and get actual count
+            restored_count = sm.restore_session(name, self.agent)
 
             print_box(
                 "会话已加载",
                 [
-                    f"名称: {snapshot.get('name', name)}",
-                    f"消息数: {len(snapshot.get('messages', []))}",
+                    f"名称: {name}",
+                    f"恢复消息数: {restored_count}",
                     "",
-                    "提示: 会话上下文已恢复",
+                    "提示: 上下文已注入到会话中",
                 ],
                 color="green",
             )
