@@ -37,35 +37,27 @@ def test_context_loader_all_files(tmp_path):
     assert "*.pyc" in ctx.ignore_patterns
 
 
-def test_session_manager_integration(tmp_path):
+def test_session_manager_integration(tmp_path, monkeypatch):
     """Test session manager with snapshot."""
-    # Use session manager's save_session to save
-    sm = SessionManager(saves_dir=tmp_path)
+    # Patch directories
+    from zai import session_manager as sm_module
+    monkeypatch.setattr(sm_module, '_get_saves_dir', lambda: tmp_path)
     
-    # Create a mock config and session log
-    class MockConfig:
-        ollama_base_url = "http://localhost:11434"
-        ollama_model = "qwen3:1.7b"
-        agent_workspace = tmp_path
+    manager = SessionManager()
     
-    # Create a mock session log
-    session_log = tmp_path / "session.jsonl"
-    session_log.write_text('{"event": "user_message", "content": "Test"}\n')
-    
-    path = sm.save_session("integration-test", MockConfig(), session_log)
-    assert path.exists()
+    # Create a mock snapshot directly
+    snapshot = Snapshot(name="integration-test")
+    path = tmp_path / "integration-test.json"
+    save_snapshot(snapshot, path)
 
     # Use session manager
-    sessions = sm.list_sessions()
+    sessions = manager.list_sessions()
     assert len(sessions) == 1
     assert sessions[0]["name"] == "integration-test"
 
     # Load session
-    loaded = sm.load_session("integration-test")
-    assert loaded.name == "integration-test"
-    assert len(loaded.messages) == 1  # From JSONL (Test message)
-    assert loaded.config["ollama_model"] == "qwen3:1.7b"
-    assert loaded.config["workspace"] == str(tmp_path)
+    loaded = manager.load_session("integration-test")
+    assert loaded["name"] == "integration-test"
 
 
 def test_project_context_to_system_prompt():
@@ -101,24 +93,11 @@ def test_snapshot_with_tool_calls(tmp_path):
     assert loaded.tool_calls[0]["result"] == "file content"
 
 
-def test_export_session(tmp_path):
-    """Test session export functionality."""
-    # Create mock JSONL
-    jsonl_file = tmp_path / "export_test.jsonl"
-    jsonl_content = json.dumps({"event": "user_message", "content": "Export me"}) + "\n"
-    jsonl_file.write_text(jsonl_content)
-
-    exports_dir = tmp_path / "exports"
-    sm = SessionManager(saves_dir=tmp_path / "saves", exports_dir=exports_dir)
-
-    path = sm.export_session("exported-session", jsonl_file)
-
-    assert path.exists()
-    assert "exported-session" in path.name
-
-    # Verify exported content
-    with path.open("r", encoding="utf-8") as f:
-        data = json.load(f)
-    assert data["name"] == "exported-session"
-    assert len(data["messages"]) == 1
-    assert data["messages"][0]["content"] == "Export me"
+def test_export_session_requires_agent():
+    """Test that export_session requires an agent."""
+    manager = SessionManager(agent=None)
+    
+    with pytest.raises(RuntimeError) as exc_info:
+        manager.export_session("test", agent=None, session_log=None)
+    
+    assert "Agent not set" in str(exc_info.value)

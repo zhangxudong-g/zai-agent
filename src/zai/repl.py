@@ -176,11 +176,12 @@ class EnhancedREPL:
             print("[ERROR] 用法: /save <名称>")
             return
 
-        sm = get_session_manager()
+        # Initialize session manager with current agent
+        sm = get_session_manager(agent=self.agent)
         log_file = self.logger.log_file
 
         try:
-            path = sm.save_session(name, self.agent.config, log_file)
+            path = sm.save_session(name, self.agent, log_file)
             print_box("会话已保存", [f"路径: {path}"], color="green")
         except Exception as e:
             print(f"[ERROR] 保存失败: {e}")
@@ -193,16 +194,19 @@ class EnhancedREPL:
             print("[ERROR] 用法: /load <名称>")
             return
 
-        sm = get_session_manager()
+        # Initialize session manager with current agent
+        sm = get_session_manager(agent=self.agent)
 
         try:
             snapshot = sm.load_session(name)
+            # Restore session to agent
+            sm.restore_session(name, self.agent)
+            
             print_box(
                 "会话已加载",
                 [
-                    f"名称: {snapshot.name}",
-                    f"消息数: {len(snapshot.messages)}",
-                    f"工具调用: {len(snapshot.tool_calls)}",
+                    f"名称: {snapshot.get('name', name)}",
+                    f"消息数: {len(snapshot.get('messages', []))}",
                     "",
                     "提示: 会话上下文已恢复",
                 ],
@@ -221,11 +225,12 @@ class EnhancedREPL:
             print("[ERROR] 用法: /export <名称>")
             return
 
-        sm = get_session_manager()
+        # Initialize session manager with current agent
+        sm = get_session_manager(agent=self.agent)
         log_file = self.logger.log_file
 
         try:
-            path = sm.export_session(name, log_file)
+            path = sm.export_session(name, self.agent, log_file)
             print_box("会话已导出", [f"路径: {path}"], color="green")
         except Exception as e:
             print(f"[ERROR] 导出失败: {e}")
