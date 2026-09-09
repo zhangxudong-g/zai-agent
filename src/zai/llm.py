@@ -537,12 +537,17 @@ def build_ollama_model(config: Config):
     # ``think=True`` output is not silently dropped.
     patch_ollama_thinking()
 
+    # Build additional_args with max_tokens if specified
+    additional_args = {"think": True}
+    if config.max_tokens is not None:
+        additional_args["max_tokens"] = config.max_tokens
+
     return cls(
         host=config.ollama_base_url,
         model_id=model_id,
         # Enable Qwen3's thinking mode to improve reasoning
         # See: https://ollama.com/library/qwen3 - think param for thinking models
-        additional_args={"think": True},
+        additional_args=additional_args,
     )
 
 

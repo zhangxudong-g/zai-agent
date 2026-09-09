@@ -28,6 +28,7 @@ class Config:
     # --- Optional fields (with defaults) follow ---
     ollama_auth_token: str = "ollama"
     allowed_tools: list[str] = field(default_factory=list)
+    max_tokens: int | None = None
 
     # --- SDK Sandbox (execution-level isolation) ---
     # See ``sandbox.py`` for the full mode matrix. ``host`` (default) means

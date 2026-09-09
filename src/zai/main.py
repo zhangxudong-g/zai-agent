@@ -87,6 +87,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--model", type=str, default=None, help="Ollama model name (default: qwen3.8:27b)."
     )
     p.add_argument(
+        "--max-tokens",
+        type=int,
+        default=None,
+        help="Maximum tokens for single response (default: model default).",
+    )
+    p.add_argument(
         "--sync", action="store_true", help="Disable streaming output (default: streaming enabled)."
     )
     p.add_argument(
@@ -331,6 +337,8 @@ def _main(args: argparse.Namespace) -> int:
         config.agent_workspace = args.workspace.resolve()
     if args.model is not None:
         config.ollama_model = args.model
+    if args.max_tokens is not None:
+        config.max_tokens = args.max_tokens
 
     session_id = generate_session_id()
     logger = SessionLogger(session_id=session_id, log_dir=config.session_log_dir)
