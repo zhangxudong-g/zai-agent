@@ -97,7 +97,14 @@ class SessionManager:
         self._exports_dir = _get_exports_dir()
 
     def _get_session_manager(self) -> Any | None:
-        """Lazy initialization of SnapshotSessionManager."""
+        """Lazy creation of the Strands SnapshotSessionManager.
+
+        Note: we intentionally do NOT call ``initialize``/``restore`` here.
+        ``initialize`` is a *resume* operation that overwrites the agent's
+        current messages with a previously saved snapshot — doing that right
+        before a save would clobber the live conversation. Our REPL restore
+        path (``restore_session``) injects messages directly instead.
+        """
         if self._agent is None:
             return None
 
@@ -111,12 +118,9 @@ class SessionManager:
                     session_id="current",
                     storage=storage,
                 )
-                # Get the underlying Strands agent
-                inner_agent = getattr(self._agent, "_inner", None) or self._agent
-                self._session_mgr.initialize(inner_agent)
             except Exception:
-                # If Strands session manager fails to initialize, just return None
-                # The REPL snapshot (JSON) still works without it
+                # If Strands session manager can't be constructed, just return None.
+                # The REPL snapshot (JSON) still works without it.
                 return None
 
         return self._session_mgr
@@ -171,8 +175,9 @@ class SessionManager:
         if sm is not None:
             try:
                 inner_agent = getattr(agent, "_inner", None) or agent
+                # sync_agent() blocks until the snapshot is persisted (it wraps
+                # the async save_snapshot internally via Strands' run_async).
                 sm.sync_agent(inner_agent)
-                sm.save_snapshot(inner_agent, is_latest=True)
             except Exception:
                 # Silently ignore Strands errors; REPL snapshot still works
                 pass

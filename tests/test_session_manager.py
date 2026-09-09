@@ -1,6 +1,8 @@
 """Tests for session manager module."""
 
 import json
+import warnings
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -339,6 +341,43 @@ def test_restore_session_empty():
         for p in saves_dir.glob("*.json"):
             p.unlink()
         saves_dir.rmdir()
+
+
+def test_save_session_no_unawaited_coroutine(tmp_path, monkeypatch):
+    """Saving must not emit a RuntimeWarning about an un-awaited coroutine.
+
+    (Regression: we used to call the async ``save_snapshot`` directly without
+    awaiting it. ``sync_agent`` already persists via Strands' internal run_async.)
+    """
+    from zai import session_manager as sm_module
+
+    monkeypatch.setattr(sm_module, "_get_saves_dir", lambda: tmp_path)
+    monkeypatch.setattr(sm_module, "_get_session_storage_dir", lambda: tmp_path)
+
+    inner = MagicMock()
+    inner.take_snapshot.return_value = MagicMock()
+    inner.messages = []
+    inner.agent_id = "agent-x"
+    inner.storage = None
+
+    class FakeConfig:
+        ollama_model = "m"
+        agent_workspace = "/tmp"
+
+    agent = MagicMock()
+    agent._inner = inner
+    agent.config = FakeConfig
+
+    manager = SessionManager(agent=agent)
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        manager.save_session("no-warn", agent)
+
+    runtime_warnings = [w for w in caught if issubclass(w.category, RuntimeWarning)]
+    assert runtime_warnings == [], (
+        f"Unexpected RuntimeWarning: {[str(w.message) for w in runtime_warnings]}"
+    )
+    assert (tmp_path / "no-warn.json").exists()
 
 
 def test_save_session_graceful_failure_on_strands_error(tmp_path, monkeypatch):
