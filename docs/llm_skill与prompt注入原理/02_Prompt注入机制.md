@@ -102,14 +102,18 @@ def on_user_input(user_message):
         skill_content = read_file(f".claude/skills/{skill_name}.md")
 
         # 5. 把 Skill 内容作为"工具结果"塞进对话
-        messages.append({
-            "role": "user",
-            "content": [{
-                "type": "tool_result",
-                "tool_use_id": response.tool_call.id,
-                "content": skill_content   # ⭐ 真正的"注入"发生在这里
-            }]
-        })
+        messages.append(
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "tool_result",
+                        "tool_use_id": response.tool_call.id,
+                        "content": skill_content,  # ⭐ 真正的"注入"发生在这里
+                    }
+                ],
+            }
+        )
 
         # 6. 第二次调用 LLM(此时模型已经看到完整 Skill 指令)
         final = llm_call(system=system, messages=messages)
@@ -148,14 +152,14 @@ client = anthropic.Anthropic()
 response = client.messages.create(
     model="claude-opus-5",
     system="你是一位资深 Python 工程师,只回答 Python 相关问题。",  # ← 注入
-    messages=[{"role": "user", "content": "如何读取文件?"}]
+    messages=[{"role": "user", "content": "如何读取文件?"}],
 )
 ```
 
 ### 2. 用 `system` 数组(支持缓存 + 多块)
 
 ```python
-system=[
+system = [
     {"type": "text", "text": "你是一位资深 Python 工程师"},
     {"type": "text", "text": "<env>当前时间:2026-08-28</env>"},
 ]
@@ -164,13 +168,15 @@ system=[
 ### 3. 在 user 消息里「伪注入」(⚠️ 不推荐)
 
 ```python
-messages=[{
-    "role": "user",
-    "content": f"""
+messages = [
+    {
+        "role": "user",
+        "content": f"""
     【系统指令】你只能回答技术问题。
     【用户输入】今天天气怎么样?
-    """
-}]
+    """,
+    }
+]
 ```
 
 ⚠️ 这种方式**不安全**,因为用户输入可以伪造 system 标记 —— 这就是经典的 **Prompt Injection 攻击**。
@@ -178,11 +184,11 @@ messages=[{
 ### 4. Prompt Caching(性能优化)
 
 ```python
-system=[
+system = [
     {
         "type": "text",
         "text": "你是一位资深 Python 工程师...",
-        "cache_control": {"type": "ephemeral"}  # ← 缓存这段
+        "cache_control": {"type": "ephemeral"},  # ← 缓存这段
     }
 ]
 ```

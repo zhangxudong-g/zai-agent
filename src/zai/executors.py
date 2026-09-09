@@ -9,11 +9,10 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from strands import Agent
     from strands.tools.executors import ToolExecutor
 
 
-def build_concurrent_executor() -> "ToolExecutor":
+def build_concurrent_executor() -> ToolExecutor:
     """Build a concurrent tool executor.
 
     Returns:
@@ -24,7 +23,7 @@ def build_concurrent_executor() -> "ToolExecutor":
     return ConcurrentToolExecutor()
 
 
-def build_sequential_executor() -> "ToolExecutor":
+def build_sequential_executor() -> ToolExecutor:
     """Build a sequential tool executor.
 
     Returns:
@@ -35,7 +34,7 @@ def build_sequential_executor() -> "ToolExecutor":
     return SequentialToolExecutor()
 
 
-def get_executor(mode: str = "sequential") -> "ToolExecutor":
+def get_executor(mode: str = "sequential") -> ToolExecutor:
     """Get a tool executor by mode name.
 
     Args:

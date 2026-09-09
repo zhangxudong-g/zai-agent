@@ -83,11 +83,13 @@ INNER: exit → MIDDLE: exit → OUTER: exit
 ```python
 from strands._middleware.stages import InvokeModelStage
 
+
 async def timing_mw(ctx, next_fn):
     start = time.time()
     async for event in next_fn(ctx):
         yield event
     print(f"LLM 调用耗时: {time.time() - start:.2f}s")
+
 
 agent._middleware_registry.add_middleware(InvokeModelStage, timing_mw)
 ```
@@ -97,12 +99,19 @@ agent._middleware_registry.add_middleware(InvokeModelStage, timing_mw)
 ```python
 from strands._middleware.stages import InvokeModelStage
 
-def inject_date(ctx,):
-    ctx.messages.insert(0, {
-        "role": "user",
-        "content": [{"text": "[HINT] Today's date is 2026-08-26"}],
-    })
+
+def inject_date(
+    ctx,
+):
+    ctx.messages.insert(
+        0,
+        {
+            "role": "user",
+            "content": [{"text": "[HINT] Today's date is 2026-08-26"}],
+        },
+    )
     return ctx  # 必须返回 ctx
+
 
 agent._middleware_registry.add_middleware(InvokeModelStage.Input, inject_date)
 ```
@@ -112,11 +121,13 @@ agent._middleware_registry.add_middleware(InvokeModelStage.Input, inject_date)
 ```python
 from strands._middleware.stages import InvokeModelStage
 
+
 def add_audit_marker(result):
     if result.value and hasattr(result.value, "message"):
         content = result.value.message.get("content", [])
         content.insert(0, {"text": "[AUDITED]\n"})
     return result.replace(value=result.value)
+
 
 agent._middleware_registry.add_middleware(InvokeModelStage.Output, add_audit_marker)
 ```
@@ -130,11 +141,13 @@ async def outer(ctx, next_fn):
         yield event
     print("OUTER: exit")
 
+
 async def inner(ctx, next_fn):
     print("INNER: enter")
     async for event in next_fn(ctx):
         yield event
     print("INNER: exit")
+
 
 # 注册顺序：后注册的最外层
 agent._middleware_registry.add_middleware(InvokeModelStage, outer)
@@ -147,12 +160,14 @@ agent._middleware_registry.add_middleware(InvokeModelStage, inner)
 ```python
 from strands._middleware.stages import ExecuteToolStage
 
+
 async def tool_audit(ctx, next_fn):
     tool_name = ctx.tool_use.get("name")
     print(f"[AUDIT] 调用工具: {tool_name}")
     async for event in next_fn(ctx):
         yield event
     print(f"[AUDIT] 工具 {tool_name} 完成")
+
 
 agent._middleware_registry.add_middleware(ExecuteToolStage, tool_audit)
 ```
@@ -162,12 +177,14 @@ agent._middleware_registry.add_middleware(ExecuteToolStage, tool_audit)
 ```python
 from strands._middleware.stages import AgentStreamStage
 
+
 async def silent_mode(ctx, next_fn):
     """吞掉所有 data chunk，只保留 tool_use 等结构事件。"""
     async for event in next_fn(ctx):
         if "data" in event:
             continue  # 丢弃流式文本
         yield event  # 其他事件透传
+
 
 agent._middleware_registry.add_middleware(AgentStreamStage, silent_mode)
 ```
@@ -182,12 +199,12 @@ agent._middleware_registry.add_middleware(AgentStreamStage, silent_mode)
 @dataclass
 class InvokeModelContext:
     agent: Agent
-    messages: Messages                  # 深拷贝，可改
-    system_prompt: SystemPrompt         # 深拷贝
-    tool_specs: list[ToolSpec]          # 深拷贝
-    tool_choice: ToolChoice | None      # 深拷贝
-    invocation_state: dict[str, Any]    # 引用共享
-    model: Model                        # 引用共享，可换
+    messages: Messages  # 深拷贝，可改
+    system_prompt: SystemPrompt  # 深拷贝
+    tool_specs: list[ToolSpec]  # 深拷贝
+    tool_choice: ToolChoice | None  # 深拷贝
+    invocation_state: dict[str, Any]  # 引用共享
+    model: Model  # 引用共享，可换
     projected_input_tokens: int | None
     dynamic_trailing_blocks: int = 0
 ```
@@ -199,9 +216,9 @@ class InvokeModelContext:
 class ExecuteToolContext:
     agent: Agent | BidiAgent
     tool: AgentTool | None
-    tool_use: ToolUse                   # 浅拷贝，可改 input
-    invocation_state: dict[str, Any]    # 引用共享
-    _interrupt_state: _InterruptState   # 内部状态
+    tool_use: ToolUse  # 浅拷贝，可改 input
+    invocation_state: dict[str, Any]  # 引用共享
+    _interrupt_state: _InterruptState  # 内部状态
 
     def interrupt(self, name, *, reason=None, response=None):
         """HITL 中断"""
@@ -213,7 +230,7 @@ class ExecuteToolContext:
 @dataclass
 class AgentStreamContext:
     agent: Agent
-    messages: Messages                  # 引用共享
+    messages: Messages  # 引用共享
     invocation_state: dict[str, Any]
     _interrupts: Mapping[str, Interrupt]
 
@@ -229,10 +246,14 @@ class AgentStreamContext:
 
 ```python
 # ❌ 忘记 return，ctx 不会传给底层
-def inject(ctx): pass
+def inject(ctx):
+    pass
+
 
 # ✅ 必须返回
-def inject(ctx,):
+def inject(
+    ctx,
+):
     ctx.messages.insert(0, ...)
     return ctx
 ```
@@ -243,6 +264,7 @@ def inject(ctx,):
 # ❌ 普通函数不行
 def my_mw(ctx, next_fn):
     next_fn(ctx)
+
 
 # ✅ 必须 async generator
 async def my_mw(ctx, next_fn):

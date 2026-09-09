@@ -256,6 +256,7 @@ def make_glob_tool(workspace: Path):
         ignore_patterns: list[str] = []
         if use_ignore:
             from .context_loader import load_project_context
+
             ctx = load_project_context(workspace)
             ignore_patterns = ctx.ignore_patterns
 

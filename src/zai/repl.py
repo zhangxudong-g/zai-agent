@@ -22,8 +22,8 @@ from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.patch_stdout import patch_stdout
 
 from .paths import get_zai_home
-from .trace import SessionLogger
 from .session_manager import get_session_manager
+from .trace import SessionLogger
 
 if TYPE_CHECKING:
     from .agent import Agent
@@ -201,7 +201,7 @@ class EnhancedREPL:
             snapshot = sm.load_session(name)
             # Restore session to agent
             sm.restore_session(name, self.agent)
-            
+
             print_box(
                 "会话已加载",
                 [
@@ -305,7 +305,7 @@ class EnhancedREPL:
 
             # Handle commands
             cmd_lower = prompt_text.lower()
-            
+
             # Check for exact command matches first
             if cmd_lower in self.COMMANDS:
                 cmd = cmd_lower
@@ -323,7 +323,7 @@ class EnhancedREPL:
                 elif cmd == "/sessions":
                     self.handle_sessions_command()
                     continue
-            
+
             # Check for prefix commands (with arguments)
             if prompt_text.lower().startswith("/save "):
                 name = prompt_text[5:].strip()

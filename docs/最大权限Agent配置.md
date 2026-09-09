@@ -21,6 +21,7 @@
 
 ```python
 from strands import Agent
+
 sig = inspect.signature(Agent.__init__)
 ```
 
@@ -69,7 +70,7 @@ model = BedrockModel(
 
 # 2) 重试策略：几乎无限
 retry = ModelRetryStrategy(
-    max_attempts=999,        # 极大值（不是 999999，6 次默认值已可改大）
+    max_attempts=999,  # 极大值（不是 999999，6 次默认值已可改大）
     initial_delay=1,
     max_delay=120,
 )
@@ -77,9 +78,10 @@ retry = ModelRetryStrategy(
 # 3) 上下文管理：尽量保留（自定义 manager 也可）
 #    1.53.0 两条路径都可：顶层 __init__.py 已重导出
 from strands.agent.conversation_manager import SummarizingConversationManager  # 简洁写法
+
 # 或者 from strands.agent.conversation_manager.summarizing_conversation_manager import SummarizingConversationManager  # 显式写法
 cm = SummarizingConversationManager(
-    summary_ratio=0.1,                # 只总结 10%
+    summary_ratio=0.1,  # 只总结 10%
     preserve_recent_messages=5,
 )
 
@@ -92,13 +94,13 @@ mode = ConcurrentInvocationMode.UNSAFE_REENTRANT  # ← 必须是枚举，不是
 # 6) 创建 Agent：所有旋钮开到最大
 agent = Agent(
     model=model,
-    tools=[],                        # 按需添加
+    tools=[],  # 按需添加
     conversation_manager=cm,
     tool_executor=executor,
     retry_strategy=retry,
-    concurrent_invocation_mode=mode, # 枚举值
+    concurrent_invocation_mode=mode,  # 枚举值
     checkpointing=False,
-    callback_handler=None,           # 关闭默认输出
+    callback_handler=None,  # 关闭默认输出
     system_prompt="你是一个全权限助手。",
 )
 ```
@@ -127,8 +129,8 @@ assert agent.tool_executor.__class__.__name__ == "ConcurrentToolExecutor"
 
 ```python
 # ✅ 实际上两种都工作（因为 ConcurrentInvocationMode 是 str 枚举）
-concurrent_invocation_mode="UNSAFE_REENTRANT"             # 工作
-concurrent_invocation_mode=ConcurrentInvocationMode.UNSAFE_REENTRANT  # 工作（推荐）
+concurrent_invocation_mode = "UNSAFE_REENTRANT"  # 工作
+concurrent_invocation_mode = ConcurrentInvocationMode.UNSAFE_REENTRANT  # 工作（推荐）
 ```
 
 **实测**：
@@ -175,8 +177,12 @@ from strands.event_loop._retry import ModelRetryStrategy
 ### 3. 上下文管理：`conversation_manager`
 
 ```python
-from strands.agent.conversation_manager.summarizing_conversation_manager import SummarizingConversationManager
-from strands.agent.conversation_manager.sliding_window_conversation_manager import SlidingWindowConversationManager
+from strands.agent.conversation_manager.summarizing_conversation_manager import (
+    SummarizingConversationManager,
+)
+from strands.agent.conversation_manager.sliding_window_conversation_manager import (
+    SlidingWindowConversationManager,
+)
 ```
 
 | 类型 | 行为 |
@@ -231,10 +237,12 @@ agent = Agent(sandbox=sandbox, tools=[])
 # 本地 Shell 子进程隔离示例（自己写）
 from strands.sandbox import PosixShellSandbox
 
+
 class LocalSubprocessSandbox(PosixShellSandbox):
     async def execute_streaming(self, command, *, timeout=None, cwd=None, env=None, **kwargs):
         # spawn asyncio.subprocess，yield StreamChunk，最后返回 ExecutionResult
         ...
+
 
 sandbox = LocalSubprocessSandbox()
 ```
@@ -297,13 +305,17 @@ from strands.hooks import BeforeToolCallEvent
 #      - SshSandbox(...)                  → 远程主机执行
 #      - 或自己继承 PosixShellSandbox 实现 execute_streaming
 from strands.sandbox.docker import DockerSandbox
+
 sandbox = DockerSandbox(container="my-agent-container")
 
 # 2) 审计 hook：记录每个工具调用（最大权限也要留审计！）
 #    关键：`event` 参数必须有类型注解，否则 HookRegistry 无法推断事件类型
 from strands.hooks import BeforeToolCallEvent
+
+
 def audit_tool(event: BeforeToolCallEvent) -> None:
     print(f"[AUDIT] {event.tool_use['name']}({event.tool_use.get('input', {})})")
+
 
 # 3) 模型：默认 Bedrock
 model = BedrockModel(model_id="global.anthropic.claude-sonnet-4-6")
@@ -314,12 +326,12 @@ model = BedrockModel(model_id="global.anthropic.claude-sonnet-4-6")
 agent = Agent(
     model=model,
     sandbox=sandbox,
-    tools=[],                        # 白名单按需加
+    tools=[],  # 白名单按需加
     callback_handler=None,
     retry_strategy=ModelRetryStrategy(max_attempts=20, max_delay=60),
     concurrent_invocation_mode=ConcurrentInvocationMode.THROW,  # 保持默认
     checkpointing=False,
-    hooks=[audit_tool],              # 必须留
+    hooks=[audit_tool],  # 必须留
 )
 
 # 调用时再传 limits

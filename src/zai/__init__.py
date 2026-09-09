@@ -23,13 +23,6 @@ from .context_loader import ContextLoader, ProjectContext, load_project_context
 from .executors import build_concurrent_executor, build_sequential_executor, get_executor
 from .interventions import DangerousCommandIntervention, SensitiveFileIntervention
 from .llm import patch_ollama_thinking
-from .skills import (
-    build_skill_plugin,
-    create_skill_template,
-    install_skill,
-    list_skills,
-    uninstall_skill,
-)
 from .paths import (
     get_zai_config_dir,
     get_zai_env_file,
@@ -43,6 +36,13 @@ from .paths import (
     print_zai_info,
 )
 from .session_manager import SessionManager, get_session_manager
+from .skills import (
+    build_skill_plugin,
+    create_skill_template,
+    install_skill,
+    list_skills,
+    uninstall_skill,
+)
 from .snapshot import Snapshot, load_snapshot, save_snapshot
 from .stream import StreamChunk
 from .trace import SessionLogger
@@ -66,6 +66,7 @@ __all__ = [
     "create_skill_template",
     "get_config",
     "get_executor",
+    "get_session_manager",
     "get_zai_config_dir",
     "get_zai_env_file",
     "get_zai_exports_dir",
@@ -74,7 +75,6 @@ __all__ = [
     "get_zai_saves_dir",
     "get_zai_sessions_dir",
     "get_zai_workspace_dir",
-    "get_session_manager",
     "init_zai_config",
     "install_skill",
     "list_skills",

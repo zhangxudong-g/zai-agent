@@ -118,7 +118,7 @@ class SessionManager(HookProvider, ABC):
 SnapshotSessionManager(
     storage=storage,
     session_id="snap-001",
-    save_latest_on="message",   # Literal: 'message' / 'invocation' / 'trigger'
+    save_latest_on="message",  # Literal: 'message' / 'invocation' / 'trigger'
 )
 ```
 
@@ -158,11 +158,14 @@ Strands 没有自带的具体 store，需要自己实现：
 ```python
 from strands.memory import MemoryStore
 
+
 class InMemoryStore(MemoryStore):
     def __init__(self):
         self.entries = []
 
-    async def add(self, entry): self.entries.append(entry)
+    async def add(self, entry):
+        self.entries.append(entry)
+
     async def search(self, query, limit=10): ...
     async def list(self): ...
     async def get(self, entry_id): ...
@@ -176,7 +179,7 @@ agent = Agent(
     memory_manager=MemoryManager(stores=[my_store]),
 )
 agent("Remember I prefer dark mode")  # → 提取为 memory entry
-agent("What theme do I like?")        # → 自动 search 并注入
+agent("What theme do I like?")  # → 自动 search 并注入
 ```
 
 ---
@@ -245,10 +248,12 @@ await storage.write("k", b"v")
 # ❌ stores=[] 会报"必须至少有一个 store"
 MemoryManager(stores=[])
 
+
 # ✅ 实现一个 MemoryStore 子类
 class MyStore(MemoryStore):
     async def add(self, entry): ...
     async def search(self, query): ...
+
 
 MemoryManager(stores=[MyStore()])
 ```

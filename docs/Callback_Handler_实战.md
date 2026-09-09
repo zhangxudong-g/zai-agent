@@ -62,7 +62,10 @@
 ```python
 def outer():
     from strands.hooks import BeforeModelCallEvent  # 局部 import
-    def inner(event: BeforeModelCallEvent) -> None: pass  # 引用上面
+
+    def inner(event: BeforeModelCallEvent) -> None:
+        pass  # 引用上面
+
     Agent(hooks=[inner])  # ❌ ValueError: cannot infer event type
 ```
 
@@ -75,8 +78,9 @@ A. **把 callback 提到模块顶层**（最干净）：
 ```python
 from strands.hooks import BeforeModelCallEvent  # 模块顶部
 
-def on_before_model(event: BeforeModelCallEvent) -> None:
-    ...
+
+def on_before_model(event: BeforeModelCallEvent) -> None: ...
+
 
 def main():
     Agent(hooks=[on_before_model])  # ✅ 工作
@@ -94,12 +98,12 @@ callback_handler 的事件签名是 `**kwargs`，不是强类型 event。所以�
 
 ```python
 def cb(**kwargs):
-    if "data" in kwargs:           # ✅ 流式文本
+    if "data" in kwargs:  # ✅ 流式文本
         ...
     elif "current_tool_use" in kwargs:  # ✅ 工具调用 delta
         t = kwargs["current_tool_use"]
         ...
-    elif "message" in kwargs:      # ✅ 最终消息
+    elif "message" in kwargs:  # ✅ 最终消息
         ...
     else:
         # ⚠️ 兜底：可能是你没识别的事件类型
@@ -120,6 +124,7 @@ def cb(**kwargs):
 def cb(**kwargs):
     if "current_tool_use" in kwargs and kwargs["current_tool_use"].get("name"):
         tool_uses.append(kwargs["current_tool_use"]["name"])
+
 
 # ✅ 正确：用 toolUseId 去重（同一工具调用产生多个 delta，但 toolUseId 相同）
 def cb(**kwargs):
@@ -153,6 +158,7 @@ from strands_tools import calculator
 captured = []
 tool_uses = []
 
+
 def cb(**kwargs):
     if "data" in kwargs:
         captured.append(kwargs["data"])
@@ -160,6 +166,7 @@ def cb(**kwargs):
         t = kwargs["current_tool_use"]
         if t.get("name") and t["name"] not in tool_uses:
             tool_uses.append(t["name"])
+
 
 agent = Agent(model=model, tools=[calculator], callback_handler=cb)
 agent("What is 123 * 456?")
@@ -171,15 +178,19 @@ agent("What is 123 * 456?")
 ```python
 calls = []
 
+
 def cb(**kwargs):
     if "current_tool_use" in kwargs:
         t = kwargs["current_tool_use"]
         if t.get("name"):
-            calls.append({
-                "tool_use_id": t.get("toolUseId"),
-                "name": t.get("name"),
-                "input": t.get("input", {}),
-            })
+            calls.append(
+                {
+                    "tool_use_id": t.get("toolUseId"),
+                    "name": t.get("name"),
+                    "input": t.get("input", {}),
+                }
+            )
+
 
 agent = Agent(model=model, tools=[calculator], callback_handler=cb)
 agent("Calculate (99 + 1) * 25")
@@ -193,12 +204,15 @@ from strands import Agent
 from strands_tools import calculator
 from strands.hooks import BeforeModelCallEvent, AfterModelCallEvent
 
+
 # ⚠️ 这两个函数必须在模块顶层（或传入 add_callback 时显式指定事件类型）
 def on_before(event: BeforeModelCallEvent) -> None:
     print(f"model call: projected_tokens={event.projected_input_tokens}")
 
+
 def on_after(event: AfterModelCallEvent) -> None:
     print(f"model result: stop_reason={event.stop_response.stop_reason}")
+
 
 agent = Agent(model=model, tools=[calculator], callback_handler=None)
 agent.hooks.add_callback(BeforeModelCallEvent, on_before)
@@ -211,12 +225,18 @@ agent("What is 2+2?")
 ### Pattern 4：多 callback 组合（一个 callback_handler 里跑多个）
 
 ```python
-def cb_a(**kwargs): print("A:", kwargs.get("data", ""))
-def cb_b(**kwargs): print("B:", kwargs.get("data", ""))
+def cb_a(**kwargs):
+    print("A:", kwargs.get("data", ""))
+
+
+def cb_b(**kwargs):
+    print("B:", kwargs.get("data", ""))
+
 
 def composed(**kwargs):
     cb_a(**kwargs)
     cb_b(**kwargs)
+
 
 agent = Agent(model=model, tools=[calculator], callback_handler=composed)
 # → 每次 data 事件触发两次：A: ... B: ...
@@ -228,6 +248,7 @@ agent = Agent(model=model, tools=[calculator], callback_handler=composed)
 in_tool_result = False
 visible = []
 
+
 def cb(**kwargs):
     global in_tool_result
     if "current_tool_use" in kwargs:
@@ -238,6 +259,7 @@ def cb(**kwargs):
             in_tool_result = False  # 跳过工具输出
         else:
             visible.append(kwargs["data"])
+
 
 agent = Agent(model=model, tools=[calculator], callback_handler=cb)
 agent("What is 7 * 8?")
@@ -251,6 +273,7 @@ import json, time
 
 log_path = "callback.jsonl"
 seq = 0
+
 
 def cb(**kwargs):
     global seq
@@ -268,9 +291,14 @@ def cb(**kwargs):
         kind = "other"
         payload = {k: str(v)[:200] for k, v in kwargs.items()}
     with open(log_path, "a", encoding="utf-8") as f:
-        f.write(json.dumps({"seq": seq, "ts": time.time(),
-                            "kind": kind, "payload": payload},
-                           ensure_ascii=False) + "\n")
+        f.write(
+            json.dumps(
+                {"seq": seq, "ts": time.time(), "kind": kind, "payload": payload},
+                ensure_ascii=False,
+            )
+            + "\n"
+        )
+
 
 agent = Agent(model=model, tools=[calculator], callback_handler=cb)
 agent("What is 5 * 5?")

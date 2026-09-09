@@ -1,11 +1,10 @@
 """End-to-end tests for 0.3.0 features."""
 
 import pytest
-import json
-from pathlib import Path
-from zai.snapshot import Snapshot, save_snapshot, load_snapshot
+
+from zai.context_loader import ProjectContext, load_project_context
 from zai.session_manager import SessionManager
-from zai.context_loader import ContextLoader, load_project_context, ProjectContext
+from zai.snapshot import Snapshot, load_snapshot, save_snapshot
 
 
 def test_snapshot_save_load_roundtrip(tmp_path):
@@ -41,10 +40,11 @@ def test_session_manager_integration(tmp_path, monkeypatch):
     """Test session manager with snapshot."""
     # Patch directories
     from zai import session_manager as sm_module
-    monkeypatch.setattr(sm_module, '_get_saves_dir', lambda: tmp_path)
-    
+
+    monkeypatch.setattr(sm_module, "_get_saves_dir", lambda: tmp_path)
+
     manager = SessionManager()
-    
+
     # Create a mock snapshot directly
     snapshot = Snapshot(name="integration-test")
     path = tmp_path / "integration-test.json"
@@ -65,7 +65,7 @@ def test_project_context_to_system_prompt():
     ctx = ProjectContext(
         context="This is a test project",
         rules="Follow PEP 8 style",
-        ignore_patterns=["node_modules"]
+        ignore_patterns=["node_modules"],
     )
 
     prompt = ctx.to_system_prompt()
@@ -96,8 +96,8 @@ def test_snapshot_with_tool_calls(tmp_path):
 def test_export_session_requires_agent():
     """Test that export_session requires an agent."""
     manager = SessionManager(agent=None)
-    
+
     with pytest.raises(RuntimeError) as exc_info:
         manager.export_session("test", agent=None, session_log=None)
-    
+
     assert "Agent not set" in str(exc_info.value)

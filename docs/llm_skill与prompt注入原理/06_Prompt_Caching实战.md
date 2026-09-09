@@ -90,24 +90,33 @@ _CACHEABLE_BLOCK_TYPES = frozenset({"document", "image", "text", "tool_result", 
 def _format_system_prompt(self, system_prompt, system_prompt_content):
     cache_config = self.config.get("cache_config")
     managed_ttl = cache_config.ttl if cache_config else None
-    
+
     if system_prompt_content is None:
         if not system_prompt:
             return None
         # 单字符串模式:自动在末尾打 cache_control
-        return [{"type": "text", "text": system_prompt,
-                 "cache_control": self._format_cache_control(managed_ttl)}]
-    
+        return [
+            {
+                "type": "text",
+                "text": system_prompt,
+                "cache_control": self._format_cache_control(managed_ttl),
+            }
+        ]
+
     # 结构化模式:逐 block 转换
     system_prompt_blocks = []
     for block in system_prompt_content:
         if block.get("cachePoint"):
-            system_prompt_blocks.append({
-                "type": "text",
-                "text": block["text"],
-                "cache_control": {"type": "ephemeral", 
-                                  "ttl": block["cachePoint"].get("ttl") or managed_ttl}
-            })
+            system_prompt_blocks.append(
+                {
+                    "type": "text",
+                    "text": block["text"],
+                    "cache_control": {
+                        "type": "ephemeral",
+                        "ttl": block["cachePoint"].get("ttl") or managed_ttl,
+                    },
+                }
+            )
         elif "text" in block:
             system_prompt_blocks.append({"type": "text", "text": block["text"]})
     return system_prompt_blocks
@@ -144,20 +153,24 @@ def _manage_cache_points(self, messages):
     cache_config = self.config.get("cache_config")
     if not cache_config:
         return messages, None
-    
+
     if cache_config.strategy not in ("auto", "anthropic"):
-        logger.warning("strategy=<%s> | unknown cache strategy, prompt caching disabled",
-                       cache_config.strategy)
+        logger.warning(
+            "strategy=<%s> | unknown cache strategy, prompt caching disabled", cache_config.strategy
+        )
         return messages, None
-    
+
     # 找"最后一个可以打 cache_point 的 user message"
     target_idx = next(
-        (idx for idx in reversed(range(len(messages)))
-         if messages[idx]["role"] == "user"
-         and any("cachePoint" not in block for block in messages[idx]["content"])),
+        (
+            idx
+            for idx in reversed(range(len(messages)))
+            if messages[idx]["role"] == "user"
+            and any("cachePoint" not in block for block in messages[idx]["content"])
+        ),
         None,
     )
-    
+
     # 把所有 cache_point 集中到 target_idx,其他位置的都剥离
     # (避免每轮多打一个 cache point,耗尽 API 的 4 cache point 上限)
     copied = []
@@ -175,10 +188,10 @@ def _manage_cache_points(self, messages):
             else:
                 stripped += 1
         copied.append({"role": message["role"], "content": content})
-    
+
     if stripped:
         logger.warning("count=<%d> | stripped extra cache points, ...")
-    
+
     return copied, target_idx
 ```
 
@@ -198,8 +211,8 @@ model = AnthropicModel(
     model_id="claude-sonnet-4-5",
     cache_config=CacheConfig(
         strategy="auto",
-        ttl="5m",                 # 默认 5 分钟
-        system_prompt_ttl=True,   # ← 策略 A:cache system prompt
+        ttl="5m",  # 默认 5 分钟
+        system_prompt_ttl=True,  # ← 策略 A:cache system prompt
     ),
     cache_tools=CacheToolsConfig(  # ← 策略 B:cache tools
         type="default",
@@ -222,14 +235,16 @@ agent = Agent(
 ```python
 from strands.types.content import Messages, Message, ContentBlock
 
-agent.messages.append({
-    "role": "user",
-    "content": [
-        {"text": "审查 login.py"},
-        # 显式 cache_point:把到这为止的所有历史都缓存
-        {"cachePoint": {"type": "default"}},
-    ],
-})
+agent.messages.append(
+    {
+        "role": "user",
+        "content": [
+            {"text": "审查 login.py"},
+            # 显式 cache_point:把到这为止的所有历史都缓存
+            {"cachePoint": {"type": "default"}},
+        ],
+    }
+)
 
 result = await agent.invoke_async("继续审查")
 ```
@@ -329,8 +344,8 @@ result = await agent.invoke_async("继续审查")
 
 ```python
 # 错误:system TTL 比 tools 长,Bedrock 拒绝
-cache_config=CacheConfig(ttl="5m")
-cache_tools=CacheToolsConfig(ttl="1h")  # ← 1h > 5m,违反 Bedrock 规则
+cache_config = CacheConfig(ttl="5m")
+cache_tools = CacheToolsConfig(ttl="1h")  # ← 1h > 5m,违反 Bedrock 规则
 ```
 
 Bedrock 要求:同一请求里所有 cache_point 的 TTL **必须非递增**(`tools → system → messages` 这个顺序的 TTL 不能越来越长)。
@@ -379,6 +394,7 @@ for block in message["content"]:
 
 ```python
 """Demo:对比开 cache vs 不开 cache 的真实 token 计费"""
+
 import asyncio
 from strands import Agent
 from strands.models.anthropic import AnthropicModel
@@ -389,14 +405,16 @@ async def run_invocations(agent: Agent, n: int = 5):
     """跑 n 次相同问题,看 cache 命中情况"""
     results = []
     for i in range(n):
-        result = await agent.invoke_async(f"第 {i+1} 次:解释 Python 的 GIL")
+        result = await agent.invoke_async(f"第 {i + 1} 次:解释 Python 的 GIL")
         usage = result.metrics.accumulated_usage
-        results.append({
-            "input": usage.get("inputTokens", 0),
-            "output": usage.get("outputTokens", 0),
-            "cache_read": usage.get("cacheReadInputTokens", 0),
-            "cache_write": usage.get("cacheWriteInputTokens", 0),
-        })
+        results.append(
+            {
+                "input": usage.get("inputTokens", 0),
+                "output": usage.get("outputTokens", 0),
+                "cache_read": usage.get("cacheReadInputTokens", 0),
+                "cache_write": usage.get("cacheWriteInputTokens", 0),
+            }
+        )
     return results
 
 
@@ -412,8 +430,8 @@ async def main():
     )
     results_no = await run_invocations(agent_no_cache, n=5)
     for i, r in enumerate(results_no):
-        print(f"调用 {i+1}: input={r['input']}, cache_read=0, cache_write=0")
-    
+        print(f"调用 {i + 1}: input={r['input']}, cache_read=0, cache_write=0")
+
     # 2. 开 cache
     print()
     print("=" * 60)
@@ -430,28 +448,25 @@ async def main():
     )
     results_yes = await run_invocations(agent_with_cache, n=5)
     for i, r in enumerate(results_yes):
-        print(f"调用 {i+1}: input={r['input']}, "
-              f"cache_read={r['cache_read']}, cache_write={r['cache_write']}")
-    
+        print(
+            f"调用 {i + 1}: input={r['input']}, "
+            f"cache_read={r['cache_read']}, cache_write={r['cache_write']}"
+        )
+
     # 3. 成本对比
     def cost(r):
-        return (
-            r["input"] * 3.00 +
-            r["cache_read"] * 0.30 +
-            r["cache_write"] * 3.75
-        ) / 1_000_000
-    
+        return (r["input"] * 3.00 + r["cache_read"] * 0.30 + r["cache_write"] * 3.75) / 1_000_000
+
     total_no = sum(cost(r) for r in results_no)
     total_yes = sum(cost(r) for r in results_yes)
-    
+
     print()
     print("=" * 60)
     print("成本对比(仅 input 端)")
     print("=" * 60)
     print(f"不开 cache: 5 次 = ${total_no:.4f}")
     print(f"开 cache:   5 次 = ${total_yes:.4f}")
-    print(f"节省:        ${total_no - total_yes:.4f} "
-          f"({(1 - total_yes / total_no) * 100:.1f}%)")
+    print(f"节省:        ${total_no - total_yes:.4f} ({(1 - total_yes / total_no) * 100:.1f}%)")
 
 
 # asyncio.run(main())
@@ -495,8 +510,8 @@ model = AnthropicModel(
 
 ```python
 # 多 Agent / 长时间运行的批处理任务
-cache_config=CacheConfig(ttl="1h", system_prompt_ttl="1h")
-cache_tools=CacheToolsConfig(ttl="1h")
+cache_config = CacheConfig(ttl="1h", system_prompt_ttl="1h")
+cache_tools = CacheToolsConfig(ttl="1h")
 ```
 
 注意:Bedrock 下必须 system ≤ tools(非递增),所以上面的写法其实是 `system_prompt_ttl <= tools.ttl`。
@@ -532,6 +547,7 @@ system_prompt = [
 ```python
 from strands.hooks.events import BeforeModelCallEvent
 
+
 @agent.hooks.before_model_call
 def adjust_ttl(event: BeforeModelCallEvent) -> None:
     invocation_count = event.agent.state.get("invocation_count", 0)
@@ -551,10 +567,10 @@ result = await agent.invoke_async("...")
 usage = result.metrics.accumulated_usage
 
 print(f"""
-input_tokens:        {usage.get('inputTokens', 0):>8}
-output_tokens:       {usage.get('outputTokens', 0):>8}
-cache_read_tokens:   {usage.get('cacheReadInputTokens', 0):>8}  ← ⭐ 关键
-cache_write_tokens:  {usage.get('cacheWriteInputTokens', 0):>8}  ← ⭐ 关键
+input_tokens:        {usage.get("inputTokens", 0):>8}
+output_tokens:       {usage.get("outputTokens", 0):>8}
+cache_read_tokens:   {usage.get("cacheReadInputTokens", 0):>8}  ← ⭐ 关键
+cache_write_tokens:  {usage.get("cacheWriteInputTokens", 0):>8}  ← ⭐ 关键
 """)
 
 # 命中率
@@ -570,7 +586,9 @@ Strands 默认开启 OTel tracing,可以在 Jaeger / Honeycomb 里看每次调�
 
 ```python
 from opentelemetry import trace
+
 tracer = trace.get_tracer(__name__)
+
 
 @agent.hooks.before_model_call
 def trace_cache(event: BeforeModelCallEvent) -> None:

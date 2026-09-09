@@ -101,12 +101,12 @@ async def _handle_invocation(self, prompt, ...):
 
 ```python
 class HookOrder:
-    SDK_FIRST:        int = -100   # 框架内置 hook(如 _ModelPlugin)
-    INTERVENTION_OUTPUT: int = -90 # 输出干预(过滤 / 重写模型输出)
-    DEFAULT:          int = 0      # 用户默认(Strands AgentSkills 在这层)
-    MODEL_ROUTING:    int = 50     # 模型路由
-    INTERVENTION_INPUT: int = 90   # 输入干预(过滤 / 重写用户输入)
-    SDK_LAST:         int = 100    # 框架收尾
+    SDK_FIRST: int = -100  # 框架内置 hook(如 _ModelPlugin)
+    INTERVENTION_OUTPUT: int = -90  # 输出干预(过滤 / 重写模型输出)
+    DEFAULT: int = 0  # 用户默认(Strands AgentSkills 在这层)
+    MODEL_ROUTING: int = 50  # 模型路由
+    INTERVENTION_INPUT: int = 90  # 输入干预(过滤 / 重写用户输入)
+    SDK_LAST: int = 100  # 框架收尾
 ```
 
 调用顺序:用 `bisect.insort` 按 `order` 升序排序,同优先级按**注册顺序**保留。
@@ -151,13 +151,13 @@ def add_and_init(self, plugin: Plugin) -> None:
 class AgentSkills(Plugin):
     name = "agent_skills"
 
-    @hook                                   # ← 自动注册为 BeforeInvocationEvent 回调
+    @hook  # ← 自动注册为 BeforeInvocationEvent 回调
     async def _on_before_invocation(self, event: BeforeInvocationEvent) -> None:
         # 在这改 system_prompt
         skills_xml = self._generate_skills_xml(event.agent)
         event.agent.system_prompt = ...
 
-    @tool(context=True)                     # ← 自动注册为可用工具
+    @tool(context=True)  # ← 自动注册为可用工具
     async def skills(self, skill_name: str, tool_context: ToolContext) -> str:
         # 在这返回 tool_result
         ...
@@ -263,23 +263,33 @@ def _format_system_prompt(self, system_prompt, system_prompt_content):
     """Format the system prompt for the Anthropic API, auto-injecting a cache point at its end."""
     cache_config = self.config.get("cache_config")
     managed_ttl = cache_config.ttl if cache_config else None
-    
+
     if system_prompt_content is None:
         if not system_prompt:
             return None
         # 单字符串模式:自动在末尾加 cache_control(如果开了 cache)
-        return [{"type": "text", "text": system_prompt,
-                 "cache_control": self._format_cache_control(managed_ttl)}]
-    
+        return [
+            {
+                "type": "text",
+                "text": system_prompt,
+                "cache_control": self._format_cache_control(managed_ttl),
+            }
+        ]
+
     # 结构化模式:逐 block 转换,保留 cache_control 元数据
     system_prompt_blocks = []
     for block in system_prompt_content:
         if block.get("cachePoint"):
-            system_prompt_blocks.append({
-                "type": "text",
-                "text": block["text"],
-                "cache_control": {"type": "ephemeral", "ttl": block["cachePoint"].get("ttl") or managed_ttl}
-            })
+            system_prompt_blocks.append(
+                {
+                    "type": "text",
+                    "text": block["text"],
+                    "cache_control": {
+                        "type": "ephemeral",
+                        "ttl": block["cachePoint"].get("ttl") or managed_ttl,
+                    },
+                }
+            )
         elif "text" in block:
             system_prompt_blocks.append({"type": "text", "text": block["text"]})
     return system_prompt_blocks
@@ -372,13 +382,14 @@ from strands.hooks.registry import HookOrder
 from hooks import hook
 import os, subprocess, datetime
 
+
 class EnvContextPlugin(Plugin):
     name = "env_context"
 
     @hook
     def inject_env(self, event: BeforeInvocationEvent) -> None:
         agent = event.agent
-        
+
         # 构造环境信息块
         env_block = f"""<environment>
 cwd: {os.getcwd()}
@@ -386,22 +397,26 @@ os: {os.uname().sysname}
 git_branch: {self._get_git_branch()}
 time: {datetime.datetime.now().isoformat()}
 </environment>"""
-        
+
         # 追加到 system_prompt
         if isinstance(agent.system_prompt, list):
             agent.system_prompt = agent.system_prompt + [{"text": env_block}]
         else:
             agent.system_prompt = (agent.system_prompt or "") + "\n\n" + env_block
-    
+
     @staticmethod
     def _get_git_branch() -> str:
         try:
-            return subprocess.check_output(
-                ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-                stderr=subprocess.DEVNULL
-            ).decode().strip()
+            return (
+                subprocess.check_output(
+                    ["git", "rev-parse", "--abbrev-ref", "HEAD"], stderr=subprocess.DEVNULL
+                )
+                .decode()
+                .strip()
+            )
         except Exception:
             return "N/A"
+
 
 agent = Agent(
     system_prompt="你是代码审查助手",
@@ -442,18 +457,19 @@ class AgentsMdPlugin(Plugin):
 import json
 from pathlib import Path
 
+
 class PersistentMemoryPlugin(Plugin):
     name = "persistent_memory"
-    
+
     def __init__(self, memory_file: str = "~/.my_agent_memory.json"):
         self.path = Path(memory_file).expanduser()
         self.path.parent.mkdir(parents=True, exist_ok=True)
-    
+
     def _load_memory(self) -> dict:
         if self.path.is_file():
             return json.loads(self.path.read_text(encoding="utf-8"))
         return {"user_preferences": [], "past_actions": []}
-    
+
     @hook
     def inject_memory(self, event: BeforeInvocationEvent) -> None:
         mem = self._load_memory()
@@ -465,7 +481,7 @@ class PersistentMemoryPlugin(Plugin):
         for act in mem["past_actions"][-5:]:
             block += f"- {act}\n"
         block += "</memory>"
-        
+
         prompt = event.agent.system_prompt or ""
         event.agent.system_prompt = prompt + ("\n\n" if prompt else "") + block
 ```
@@ -481,10 +497,10 @@ agent = Agent(
         # (由 AgentsMdPlugin 自动追加)
     ],
     plugins=[
-        EnvContextPlugin(),           # Layer 3:环境信息
+        EnvContextPlugin(),  # Layer 3:环境信息
         AgentsMdPlugin("AGENTS.md"),  # Layer 4:项目规则
-        PersistentMemoryPlugin(),     # Layer 5:跨会话记忆
-        AgentSkills(skills=[...]),    # Layer 6:Skill 元数据
+        PersistentMemoryPlugin(),  # Layer 5:跨会话记忆
+        AgentSkills(skills=[...]),  # Layer 6:Skill 元数据
         # Layer 7:工具由 @tool 装饰器提供
     ],
 )
@@ -593,11 +609,11 @@ agent.hook_registry.add_callback(
 **修复**:AgentSkills 的 `_on_before_invocation` 显式分两条路径处理,这是**正确范式**:
 
 ```python
-if content is not None:    # list 路径
+if content is not None:  # list 路径
     blocks = list(content)
     blocks.append({"text": new_block})
     agent.system_prompt = blocks
-else:                      # str 路径
+else:  # str 路径
     agent.system_prompt = (current_prompt or "") + "\n\n" + new_block
 ```
 
@@ -634,10 +650,12 @@ print(json.dumps(agent.system_prompt, ensure_ascii=False, indent=2))
 ```python
 from strands.hooks.events import BeforeInvocationEvent
 
+
 @agent.hooks.before_invocation
 def trace_invoke(event: BeforeInvocationEvent):
     print(f"[BeforeInvocationEvent] system_prompt chars: {len(event.agent.system_prompt or '')}")
     print(f"  messages count: {len(event.messages or [])}")
+
 
 # 触发
 agent("hello")
@@ -653,16 +671,20 @@ import anthropic
 
 original_create = anthropic.Anthropic().messages.create
 
+
 def traced_create(*args, **kwargs):
     print("=== HTTP payload ===")
     print(f"model: {kwargs.get('model')}")
     print(f"system blocks: {len(kwargs.get('system', []))}")
-    for i, block in enumerate(kwargs.get('system', [])):
-        text_preview = block.get('text', '')[:80] if isinstance(block, dict) else str(block)[:80]
-        print(f"  [{i}] {block.get('type', '?')} | {block.get('cache_control', {})} | {text_preview}...")
+    for i, block in enumerate(kwargs.get("system", [])):
+        text_preview = block.get("text", "")[:80] if isinstance(block, dict) else str(block)[:80]
+        print(
+            f"  [{i}] {block.get('type', '?')} | {block.get('cache_control', {})} | {text_preview}..."
+        )
     print(f"messages: {len(kwargs.get('messages', []))}")
     print(f"tools: {len(kwargs.get('tools', []))}")
     return original_create(*args, **kwargs)
+
 
 anthropic.Anthropic().messages.create = traced_create
 ```
@@ -680,7 +702,10 @@ after_prompt = json.dumps(agent.system_prompt, ensure_ascii=False)
 
 # 用 difflib 看新增了什么
 import difflib
-for line in difflib.unified_diff(before_prompt.splitlines(), after_prompt.splitlines(), lineterm=''):
+
+for line in difflib.unified_diff(
+    before_prompt.splitlines(), after_prompt.splitlines(), lineterm=""
+):
     print(line)
 ```
 

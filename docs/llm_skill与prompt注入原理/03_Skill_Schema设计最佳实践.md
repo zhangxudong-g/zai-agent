@@ -112,7 +112,7 @@ description: |
 @dataclass
 class Skill:
     name: str
-    description: str   # ← 这一行直接进 system prompt 的 <description> 字段
+    description: str  # ← 这一行直接进 system prompt 的 <description> 字段
     instructions: str = ""
 ```
 
@@ -159,6 +159,7 @@ class Skill:
 from strands import tool
 from typing import Annotated
 from pydantic import Field
+
 
 @tool
 def search_documents(

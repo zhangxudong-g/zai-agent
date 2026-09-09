@@ -84,7 +84,9 @@ async def _on_before_invocation(self, event: BeforeInvocationEvent) -> None:
 
     # 2. 取出上次注入的 XML(用于精确替换,避免重复累积)
     state_data = agent.state.get(self._state_key)
-    last_injected_xml = state_data.get("last_injected_xml") if isinstance(state_data, dict) else None
+    last_injected_xml = (
+        state_data.get("last_injected_xml") if isinstance(state_data, dict) else None
+    )
 
     # 3. 生成新的 XML 块
     skills_xml = self._generate_skills_xml(agent)
@@ -107,7 +109,9 @@ async def _on_before_invocation(self, event: BeforeInvocationEvent) -> None:
         if last_injected_xml is not None and last_injected_xml in current_prompt:
             current_prompt = current_prompt.replace(last_injected_xml, "")
         new_prompt = f"{current_prompt}\n\n{skills_xml}" if current_prompt else skills_xml
-        self._set_state_field(agent, "last_injected_xml", f"\n\n{skills_xml}" if current_prompt else skills_xml)
+        self._set_state_field(
+            agent, "last_injected_xml", f"\n\n{skills_xml}" if current_prompt else skills_xml
+        )
         agent.system_prompt = new_prompt
 ```
 
@@ -213,7 +217,7 @@ async def _format_skill_response(self, skill: Skill, sandbox: Sandbox) -> str:
     if not skill.instructions:
         return f"Skill '{skill.name}' activated (no instructions available)."
 
-    parts: list[str] = [skill.instructions]   # ⭐ Skill 主体内容
+    parts: list[str] = [skill.instructions]  # ⭐ Skill 主体内容
 
     # 追加元信息(白名单工具 / 兼容性 / 位置)
     metadata_lines: list[str] = []
@@ -293,8 +297,7 @@ def _has_tool_use_in_latest_message(messages: "Messages") -> bool:
         return False
     content = latest_message.get("content", [])
     has_tool_use = any(
-        isinstance(block, dict) and block.get("type") == "tool_use"
-        for block in content
+        isinstance(block, dict) and block.get("type") == "tool_use" for block in content
     )
     return has_tool_use
 ```
@@ -407,10 +410,18 @@ Strands `_on_before_invocation` 之所以**支持结构化 system_prompt 注入*
 # 用户侧使用
 agent = Agent(
     system_prompt=[
-        {"type": "text", "text": "你是一个 Python 代码审查专家", "cache_control": {"type": "ephemeral"}},
-        {"type": "text", "text": "<available_skills>...</available_skills>", "cache_control": {"type": "ephemeral"}},
+        {
+            "type": "text",
+            "text": "你是一个 Python 代码审查专家",
+            "cache_control": {"type": "ephemeral"},
+        },
+        {
+            "type": "text",
+            "text": "<available_skills>...</available_skills>",
+            "cache_control": {"type": "ephemeral"},
+        },
     ],
-    plugins=[AgentSkills(skills=[...])]
+    plugins=[AgentSkills(skills=[...])],
 )
 ```
 
@@ -446,13 +457,16 @@ agent = Agent(system_prompt="你是代码审查专家", plugins=[AgentSkills(ski
 # 看 system prompt 实际长什么样
 print(agent.system_prompt_content)
 # 或结构化版
-import json; print(json.dumps(agent.system_prompt, ensure_ascii=False, indent=2))
+import json
+
+print(json.dumps(agent.system_prompt, ensure_ascii=False, indent=2))
 ```
 
 **2. 拦截 tool_result 看 Skill 实际注入内容**
 
 ```python
 from strands.hooks import BeforeToolCallEvent
+
 
 @agent.hooks.tool_called
 def log_skill_call(event):

@@ -74,7 +74,7 @@ print(result.metrics.get_summary())
 class AgentResult:
     stop_reason: StopReason
     message: Message
-    metrics: EventLoopMetrics   # ← 所有用量数据都在这里
+    metrics: EventLoopMetrics  # ← 所有用量数据都在这里
     state: Any
     interrupts: Sequence[Interrupt] | None
     structured_output: BaseModel | None

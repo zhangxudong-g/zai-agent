@@ -1,7 +1,7 @@
 """Tests for safety interventions."""
 
-import pytest
 from unittest.mock import MagicMock
+
 from zai.interventions import DangerousCommandIntervention, SensitiveFileIntervention
 
 
@@ -17,9 +17,10 @@ def test_dangerous_command_blocks_rm_rf():
     intervention = DangerousCommandIntervention()
     event = make_tool_use("shell", {"command": "rm -rf /tmp/test"})
     result = intervention.before_tool_call(event)
-    
+
     # Should return Confirm (not Deny)
     from strands.interventions import Confirm
+
     assert isinstance(result, Confirm)
 
 
@@ -28,8 +29,9 @@ def test_dangerous_command_blocks_shutdown():
     intervention = DangerousCommandIntervention()
     event = make_tool_use("shell", {"command": "shutdown -h now"})
     result = intervention.before_tool_call(event)
-    
+
     from strands.interventions import Deny
+
     assert isinstance(result, Deny)
 
 
@@ -38,9 +40,10 @@ def test_dangerous_command_blocks_dd():
     intervention = DangerousCommandIntervention()
     event = make_tool_use("shell", {"command": "dd if=/dev/zero of=/dev/sda"})
     result = intervention.before_tool_call(event)
-    
+
     # dd requires confirmation (not auto-denied)
     from strands.interventions import Confirm
+
     assert isinstance(result, Confirm)
 
 
@@ -49,8 +52,9 @@ def test_dangerous_command_allows_safe():
     intervention = DangerousCommandIntervention()
     event = make_tool_use("shell", {"command": "ls -la"})
     result = intervention.before_tool_call(event)
-    
+
     from strands.interventions import Proceed
+
     assert isinstance(result, Proceed)
 
 
@@ -59,8 +63,9 @@ def test_dangerous_command_ignores_non_shell():
     intervention = DangerousCommandIntervention()
     event = make_tool_use("read", {"file_path": "test.py"})
     result = intervention.before_tool_call(event)
-    
+
     from strands.interventions import Proceed
+
     assert isinstance(result, Proceed)
 
 
@@ -69,8 +74,9 @@ def test_dangerous_command_auto_approve():
     intervention = DangerousCommandIntervention(auto_approve=True)
     event = make_tool_use("shell", {"command": "rm -rf /tmp/test"})
     result = intervention.before_tool_call(event)
-    
+
     from strands.interventions import Proceed
+
     assert isinstance(result, Proceed)
 
 
@@ -79,8 +85,9 @@ def test_sensitive_file_blocks_env():
     intervention = SensitiveFileIntervention()
     event = make_tool_use("read", {"file_path": ".env"})
     result = intervention.before_tool_call(event)
-    
+
     from strands.interventions import Deny
+
     assert isinstance(result, Deny)
 
 
@@ -89,8 +96,9 @@ def test_sensitive_file_blocks_env_write():
     intervention = SensitiveFileIntervention()
     event = make_tool_use("write", {"file_path": ".env", "content": "SECRET=foo"})
     result = intervention.before_tool_call(event)
-    
+
     from strands.interventions import Deny
+
     assert isinstance(result, Deny)
 
 
@@ -99,8 +107,9 @@ def test_sensitive_file_blocks_pem():
     intervention = SensitiveFileIntervention()
     event = make_tool_use("read", {"file_path": "private.pem"})
     result = intervention.before_tool_call(event)
-    
+
     from strands.interventions import Deny
+
     assert isinstance(result, Deny)
 
 
@@ -109,8 +118,9 @@ def test_sensitive_file_allows_safe_files():
     intervention = SensitiveFileIntervention()
     event = make_tool_use("read", {"file_path": "README.md"})
     result = intervention.before_tool_call(event)
-    
+
     from strands.interventions import Proceed
+
     assert isinstance(result, Proceed)
 
 
@@ -119,8 +129,9 @@ def test_sensitive_file_allow_read():
     intervention = SensitiveFileIntervention(allow_read=True)
     event = make_tool_use("read", {"file_path": ".env"})
     result = intervention.before_tool_call(event)
-    
+
     from strands.interventions import Proceed
+
     assert isinstance(result, Proceed)
 
 

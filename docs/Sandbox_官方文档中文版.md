@@ -145,7 +145,7 @@ from strands.sandbox.docker import DockerSandbox
 sandbox = DockerSandbox(
     "agent-workspace",
     working_dir="/workspace",
-    user="1000:1000",   # 非 root
+    user="1000:1000",  # 非 root
 )
 agent = Agent(sandbox=sandbox)
 agent("Run the test suite and summarize any failures")
@@ -214,6 +214,7 @@ import asyncio
 from strands import Agent
 from strands.sandbox.docker import DockerSandbox
 
+
 async def main():
     agent = Agent(sandbox=DockerSandbox("my-container-id"))
 
@@ -227,6 +228,7 @@ async def main():
     result = await agent.sandbox.execute("cat /workspace/out.txt")
     print(result.exit_code, result.stdout)
 
+
 asyncio.run(main())
 ```
 
@@ -237,14 +239,16 @@ asyncio.run(main())
 ```python
 from strands.sandbox import ExecutionResult, StreamChunk
 
+
 async def stream_example():
     sandbox = DockerSandbox("my-container-id")
 
     async for chunk in sandbox.execute_streaming("npm run build"):
         if isinstance(chunk, StreamChunk):
-            print(chunk.data, end="")          # 边产生边输出
+            print(chunk.data, end="")  # 边产生边输出
         elif isinstance(chunk, ExecutionResult):
             print(f"\nexit code: {chunk.exit_code}")
+
 
 asyncio.run(stream_example())
 ```
@@ -304,7 +308,11 @@ class FirecrackerSandbox(PosixShellSandbox):
         **kwargs: Any,
     ) -> AsyncGenerator[StreamChunk | ExecutionResult, None]:
         proc = await asyncio.create_subprocess_exec(
-            "fc-exec", self.vm_id, "sh", "-c", command,
+            "fc-exec",
+            self.vm_id,
+            "sh",
+            "-c",
+            command,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
@@ -404,12 +412,14 @@ agent = Agent(sandbox=sandbox, tools=[locked_shell])
 ```python
 from strands.types.tools import ToolContext
 
+
 @tool(context="tool_context")
 async def lint(path: str, tool_context: ToolContext) -> list:
     """Lint a file and return structured errors."""
     result = await tool_context.agent.sandbox.execute(f"eslint --format json {path}")
     issues = json.loads(result.stdout)
     return [msg for file in issues for msg in file["messages"]]
+
 
 agent = Agent(
     sandbox=DockerSandbox("my-dev-env"),
@@ -483,11 +493,13 @@ agent = Agent(
 # 不依赖 sandbox 路由（默认）
 from strands import Agent
 from strands.vended_tools import file_editor, shell
+
 agent = Agent(tools=[shell, file_editor])
 
 # 想用 sandbox
 from strands.sandbox.docker import DockerSandbox
 from strands.vended_tools.file_editor import make_file_editor
+
 sandbox = DockerSandbox(container="...")
 agent = Agent(
     sandbox=sandbox,
@@ -525,9 +537,11 @@ Pattern 7/8 通过 bash 跑 POSIX shell，但**Windows 默认 shell 是 cmd.exe*
 ```python
 def _to_bash_path(path: str) -> str:
     """C:\\Users\\foo → /mnt/c/Users/foo（WSL bash 路径）"""
+
+
 def _run_bash_via_script(command: str, *, cwd=None, env=None):
     """把多行 shell 写到 .sh 临时文件，bash <file> 执行
-       （避免 bash -c "heredoc" 被 quoting 破坏）"""
+    （避免 bash -c "heredoc" 被 quoting 破坏）"""
 ```
 
 实测在 WSL 环境下两个 pattern 都跑通真实 shell：pattern 7 真的把 Python 代码通过 heredoc 喂给 WSL 的 `/usr/bin/python3`，pattern 8 真的在 `/mnt/c/...` 下创建、读取、列出、删除文件并校验二进制 round-trip。

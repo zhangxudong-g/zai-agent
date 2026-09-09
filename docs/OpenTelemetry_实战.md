@@ -31,7 +31,7 @@ Span 命名约定（实测）：
 
 ```python
 provider = SDKTracerProvider(resource=Resource.create({"service.name": "x"}))
-trace_api.set_tracer_provider(provider)          # ← 少了这行，span 全是 no-op
+trace_api.set_tracer_provider(provider)  # ← 少了这行，span 全是 no-op
 telemetry = StrandsTelemetry(tracer_provider=provider)
 ```
 
@@ -47,23 +47,23 @@ telemetry = StrandsTelemetry(tracer_provider=provider)
 ### 3. BatchSpanProcessor 需要 `force_flush`
 
 ```python
-exporter.force_flush()     # ❌ 自定义 exporter 上调用 = no-op（只 flush 自己，而 span 在 processor 的队列里）
-provider.force_flush()     # ✅ 遍历所有 processor 冲刷
-processor.force_flush()    # ✅ 或指定 processor
+exporter.force_flush()  # ❌ 自定义 exporter 上调用 = no-op（只 flush 自己，而 span 在 processor 的队列里）
+provider.force_flush()  # ✅ 遍历所有 processor 冲刷
+processor.force_flush()  # ✅ 或指定 processor
 ```
 
 ### 4. ConsoleSpanExporter 的 stdout 在 import 时绑定
 
 ```python
 class ConsoleSpanExporter:
-    def __init__(self, out=sys.stdout): ...   # 默认值在类定义时求值！
+    def __init__(self, out=sys.stdout): ...  # 默认值在类定义时求值！
 ```
 
 → `contextlib.redirect_stdout` **捕获不到**它的输出。必须显式：
 
 ```python
 buf = io.StringIO()
-telemetry.setup_console_exporter(out=buf)    # ✅
+telemetry.setup_console_exporter(out=buf)  # ✅
 ```
 
 ### 5. `AgentResult` 没有 `accumulated_usage`

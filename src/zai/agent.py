@@ -20,7 +20,7 @@ from strands.hooks import AfterToolCallEvent
 
 from . import telemetry
 from .config import Config
-from .context_loader import ContextLoader, ProjectContext
+from .context_loader import ContextLoader
 from .llm import build_ollama_model_safe
 from .sandbox import build_sandbox
 from .security import WorkspaceSandboxHook
@@ -178,6 +178,7 @@ Guidelines:
         interventions = []
         if enable_interventions:
             from .interventions import DangerousCommandIntervention, SensitiveFileIntervention
+
             interventions = [
                 SensitiveFileIntervention(allow_read=False),
                 DangerousCommandIntervention(auto_approve=False),
@@ -188,12 +189,14 @@ Guidelines:
         if enable_skills:
             try:
                 from .skills import build_skill_plugin
+
                 plugins = [build_skill_plugin()]
             except Exception:
                 pass
 
         # Build tool executor
         from .executors import get_executor
+
         tool_executor = get_executor(tool_executor_mode)
 
         # Create Strands Agent
@@ -212,12 +215,12 @@ Guidelines:
     def _build_system_prompt(self) -> str:
         """Build system prompt with project context."""
         prompt = self.BASE_SYSTEM_PROMPT
-        
+
         # Append project context if available
         project_context = self._project_context.to_system_prompt()
         if project_context:
             prompt += f"\n\n{project_context}"
-        
+
         return prompt
 
     # ------------------------------------------------------------------ #

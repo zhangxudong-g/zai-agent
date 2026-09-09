@@ -60,9 +60,11 @@ Strands 1.53.0 有 3 种"插入逻辑"的机制：
 ```python
 from strands.hooks import BeforeModelCallEvent
 
+
 # ✅ 推荐：模块顶层函数 + 显式 add_callback
 def on_before(event: BeforeModelCallEvent) -> None:
     event.cancel = True  # 取消本次模型调用
+
 
 agent = Agent(model=..., tools=...)
 agent.hooks.add_callback(BeforeModelCallEvent, on_before)
@@ -97,8 +99,10 @@ agent.hooks.add_callback(EventType, fn3, order=HookOrder.SDK_LAST)
 # 方式 1：直接传函数（需 event 类型注解）
 def on_x(event: EventX) -> None: ...
 
+
 # 方式 2：HookProvider（适合复杂场景）
 from strands.hooks import HookProvider, HookRegistry
+
 
 class MyHookProvider(HookProvider):
     def register_hooks(self, registry: HookRegistry, **kwargs) -> None:
@@ -107,6 +111,7 @@ class MyHookProvider(HookProvider):
 
     def on_before(self, event): ...
     def on_after(self, event): ...
+
 
 agent = Agent(model=..., hooks=[MyHookProvider()])
 ```
@@ -123,20 +128,33 @@ from strands.hooks import BeforeToolCallEvent, AfterToolCallEvent
 
 audit_logger = logging.getLogger("audit")
 
+
 def audit_before(event: BeforeToolCallEvent) -> None:
-    audit_logger.info(json.dumps({
-        "event": "tool_call_start",
-        "tool": event.tool_use["name"],
-        "input": event.tool_use.get("input"),
-    }, ensure_ascii=False))
+    audit_logger.info(
+        json.dumps(
+            {
+                "event": "tool_call_start",
+                "tool": event.tool_use["name"],
+                "input": event.tool_use.get("input"),
+            },
+            ensure_ascii=False,
+        )
+    )
+
 
 def audit_after(event: AfterToolCallEvent) -> None:
-    audit_logger.info(json.dumps({
-        "event": "tool_call_end",
-        "tool": event.tool_use["name"],
-        "duration_s": event.duration,
-        "success": event.exception is None,
-    }, ensure_ascii=False))
+    audit_logger.info(
+        json.dumps(
+            {
+                "event": "tool_call_end",
+                "tool": event.tool_use["name"],
+                "duration_s": event.duration,
+                "success": event.exception is None,
+            },
+            ensure_ascii=False,
+        )
+    )
+
 
 agent.hooks.add_callback(BeforeToolCallEvent, audit_before)
 agent.hooks.add_callback(AfterToolCallEvent, audit_after)
@@ -149,9 +167,11 @@ from strands.hooks import BeforeToolCallEvent
 
 BLOCKED = {"shell", "file_write", "editor"}  # 禁用危险工具
 
+
 def enforce_whitelist(event: BeforeToolCallEvent) -> None:
     if event.tool_use["name"] in BLOCKED:
         event.cancel_tool = True  # 拒绝
+
 
 agent.hooks.add_callback(BeforeToolCallEvent, enforce_whitelist)
 ```
@@ -161,10 +181,12 @@ agent.hooks.add_callback(BeforeToolCallEvent, enforce_whitelist)
 ```python
 from strands.hooks import BeforeToolCallEvent
 
+
 # 自动给所有 calculator 调用加 precision=2
 def inject_precision(event: BeforeToolCallEvent) -> None:
     if event.tool_use["name"] == "calculator":
         event.tool_use["input"].setdefault("precision", 2)
+
 
 agent.hooks.add_callback(BeforeToolCallEvent, inject_precision)
 ```
@@ -176,9 +198,11 @@ from strands.hooks import BeforeModelCallEvent
 
 MAX_TOKENS_PER_TURN = 8000
 
+
 def limit_tokens(event: BeforeModelCallEvent) -> None:
     if event.projected_input_tokens and event.projected_input_tokens > MAX_TOKENS_PER_TURN:
         event.cancel = True  # 取消，让上层决定怎么压缩上下文
+
 
 agent.hooks.add_callback(BeforeModelCallEvent, limit_tokens)
 ```
@@ -191,13 +215,16 @@ from strands.hooks import AfterModelCallEvent
 total_cost = 0.0
 COST_PER_1K = {"input": 0.003, "output": 0.015}  # Claude Sonnet
 
+
 def track_cost(event: AfterModelCallEvent) -> None:
     global total_cost
     if event.stop_response:
         usage = event.stop_response.usage  # Usage(inputTokens, outputTokens)
-        cost = (usage.inputTokens * COST_PER_1K["input"]
-                + usage.outputTokens * COST_PER_1K["output"]) / 1000
+        cost = (
+            usage.inputTokens * COST_PER_1K["input"] + usage.outputTokens * COST_PER_1K["output"]
+        ) / 1000
         total_cost += cost
+
 
 agent.hooks.add_callback(AfterModelCallEvent, track_cost)
 ```
@@ -209,9 +236,11 @@ from strands.hooks import BeforeInvocationEvent
 
 user_cancelled = threading.Event()
 
+
 def check_cancel(event: BeforeInvocationEvent) -> None:
     if user_cancelled.is_set():
         raise RuntimeError("用户取消")
+
 
 agent.hooks.add_callback(BeforeInvocationEvent, check_cancel)
 ```
@@ -232,6 +261,7 @@ agent.hooks.add_callback(BeforeInvocationEvent, check_cancel)
 def validate(event: BeforeToolCallEvent) -> None:
     if bad:
         raise ValueError("拒绝")  # 用户看到的是 Agent error
+
 
 # ✅ 正确：用 cancel_tool 让工具"返回错误结果"，agent 继续
 def validate(event: BeforeToolCallEvent) -> None:
@@ -260,9 +290,9 @@ event.cancel = True
 ### 🟡 坑 6：HookOrder 数字小 = 先执行
 
 ```python
-HookOrder.SDK_FIRST    = -100   # 最先
-HookOrder.DEFAULT      = 0      # 默认
-HookOrder.SDK_LAST     = 100    # 最后
+HookOrder.SDK_FIRST = -100  # 最先
+HookOrder.DEFAULT = 0  # 默认
+HookOrder.SDK_LAST = 100  # 最后
 ```
 
 ### 🟡 坑 7：AfterModelCallEvent.retry 会触发新一轮 event_loop_cycle

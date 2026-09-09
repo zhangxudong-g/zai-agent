@@ -40,11 +40,9 @@ tools = [
         "description": "获取指定城市的当前天气",
         "input_schema": {
             "type": "object",
-            "properties": {
-                "city": {"type": "string", "description": "城市名"}
-            },
-            "required": ["city"]
-        }
+            "properties": {"city": {"type": "string", "description": "城市名"}},
+            "required": ["city"],
+        },
     }
 ]
 ```
@@ -82,12 +80,7 @@ response = llm.invoke("北京天气?", tools=tools)
 result = get_weather(city="北京")  # 真实函数调用
 
 # 结果回填给模型
-final = llm.invoke(
-    messages=[
-        ...,
-        ToolMessage(content=json.dumps(result), tool_call_id=...)
-    ]
-)
+final = llm.invoke(messages=[..., ToolMessage(content=json.dumps(result), tool_call_id=...)])
 ```
 
 ---

@@ -74,11 +74,9 @@ class DangerousCommandIntervention(InterventionHandler):
         """
         super().__init__()
         self._auto_approve = auto_approve
-        self._dangerous_patterns = [
-            (re.compile(p), desc) for p, desc in _DANGEROUS_PATTERNS
-        ]
+        self._dangerous_patterns = [(re.compile(p), desc) for p, desc in _DANGEROUS_PATTERNS]
 
-    def before_tool_call(self, event: "BeforeToolCallEvent") -> Confirm | Proceed:
+    def before_tool_call(self, event: BeforeToolCallEvent) -> Confirm | Proceed:
         """Check tool calls for dangerous operations."""
         if self._auto_approve:
             return Proceed()
@@ -147,12 +145,9 @@ class SensitiveFileIntervention(InterventionHandler):
 
     def _is_sensitive(self, path: str) -> bool:
         """Check if a path matches sensitive patterns."""
-        for pattern in self._patterns:
-            if pattern.search(path):
-                return True
-        return False
+        return any(pattern.search(path) for pattern in self._patterns)
 
-    def before_tool_call(self, event: "BeforeToolCallEvent") -> Deny | Proceed:
+    def before_tool_call(self, event: BeforeToolCallEvent) -> Deny | Proceed:
         """Check tool calls for sensitive file access."""
         tool_use = getattr(event, "tool_use", None)
         if tool_use is None:

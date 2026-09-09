@@ -62,22 +62,21 @@
 # 想象中间件就是贴在工具上的"安检员"
 class ConfirmMiddleware:
     """危险操作需要确认的中间件"""
-    
+
     def __init__(self):
         # 注册到 ExecuteToolStage.Input 阶段
         # 意思是：在工具真正执行"之前"检查
         ExecuteToolStage.Input(self.on_tool_call)
-    
+
     async def on_tool_call(self, ctx, next_fn):
         # 🔍 检查是不是危险操作
         if ctx.tool_use["name"] in ["delete_file", "drop_table"]:
-            
             # 🚨 触发中断！
             ctx.interrupt(
-                name="dangerous_operation",      # 中断的名字
+                name="dangerous_operation",  # 中断的名字
                 reason="即将执行危险操作，确认吗？",  # 给用户看的原因
             )
-        
+
         # ✅ 没事，继续执行
         return next_fn(ctx)
 ```
@@ -89,7 +88,7 @@ class ConfirmMiddleware:
 agent = Agent(
     model="claude",
     tools=[删除文件, 清空数据库, 格式化硬盘],  # 🔥 危险工具
-    plugins=[ConfirmMiddleware()]  # ⚠️ 给危险操作加个"确认关卡"
+    plugins=[ConfirmMiddleware()],  # ⚠️ 给危险操作加个"确认关卡"
 )
 ```
 
@@ -102,7 +101,7 @@ result = agent("删除 /tmp/important.txt")
 # 结果... 不是直接删除！
 # 而是返回了一个"中断"
 print(result.stop_reason)  # "interrupt"  ← 意思是"暂停了！"
-print(result.interrupts)   # [Interrupt(name="dangerous_operation", ...)]
+print(result.interrupts)  # [Interrupt(name="dangerous_operation", ...)]
 ```
 
 ### 4️⃣ 显示给用户
@@ -122,11 +121,13 @@ for interrupt in result.interrupts:
 # 用户点了 [确认]
 # 再次调用 Agent，把确认结果传进去
 
-result = agent({
-    "interruptResponse": {
-        "dangerous_operation": "确认"  # ← 告诉 Agent：用户确认了
+result = agent(
+    {
+        "interruptResponse": {
+            "dangerous_operation": "确认"  # ← 告诉 Agent：用户确认了
+        }
     }
-})
+)
 
 # 这次才会真正删除！
 print(result.message)  # "文件已删除" ✅
@@ -236,22 +237,19 @@ print(result.message)  # "文件已删除" ✅
 ```python
 class ConfirmMiddleware:
     """常见的需要确认的操作"""
-    
+
     DANGEROUS_OPERATIONS = {
         # 文件操作
         "delete_file": "即将删除文件",
         "delete_folder": "即将删除文件夹",
         "overwrite_file": "即将覆盖文件内容",
-        
         # 数据库操作
         "drop_table": "即将删除整个表",
         "delete_rows": "即将删除数据行",
         "truncate_table": "即将清空表数据",
-        
         # 系统操作
         "execute_command": "即将执行系统命令",
         "format_disk": "即将格式化磁盘",
-        
         # 网络操作
         "send_email": "即将发送邮件",
         "make_payment": "即将进行支付",

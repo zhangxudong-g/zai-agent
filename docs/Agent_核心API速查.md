@@ -198,9 +198,12 @@ from strands.types.agent import ConcurrentInvocationMode
 
 # 钩子
 from strands.hooks import (
-    BeforeModelCallEvent, AfterModelCallEvent,
-    BeforeToolCallEvent, AfterToolCallEvent,
-    BeforeInvocationEvent, AfterInvocationEvent,
+    BeforeModelCallEvent,
+    AfterModelCallEvent,
+    BeforeToolCallEvent,
+    AfterToolCallEvent,
+    BeforeInvocationEvent,
+    AfterInvocationEvent,
     MessageAddedEvent,
     HookOrder,
 )

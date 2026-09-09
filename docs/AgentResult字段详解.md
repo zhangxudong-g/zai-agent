@@ -13,10 +13,10 @@
 ```python
 @dataclass
 class AgentResult:
-    stop_reason: StopReason            # 停止原因枚举
-    message: Message                   # 最后一条 assistant 消息
-    metrics: EventLoopMetrics         # 性能/用量指标（详见 Step 2）
-    state: Any                        # 事件循环累积状态
+    stop_reason: StopReason  # 停止原因枚举
+    message: Message  # 最后一条 assistant 消息
+    metrics: EventLoopMetrics  # 性能/用量指标（详见 Step 2）
+    state: Any  # 事件循环累积状态
     interrupts: Sequence[Interrupt] | None = None
     structured_output: BaseModel | None = None
     checkpoint: Checkpoint | None = None
@@ -105,10 +105,9 @@ msg = result.message
 
 **拿最终文本**（3 种写法）：
 ```python
-text1 = msg["content"][0]["text"]                    # 直接拿
-text2 = str(result)                                    # AgentResult.__str__ 会自动提取文本
-text3 = "".join(b["text"] for b in msg["content"]
-                if "text" in b)                       # 拼接所有文本块
+text1 = msg["content"][0]["text"]  # 直接拿
+text2 = str(result)  # AgentResult.__str__ 会自动提取文本
+text3 = "".join(b["text"] for b in msg["content"] if "text" in b)  # 拼接所有文本块
 ```
 
 ### 4.3 `metrics`（详见 Step 2 文档）
@@ -135,10 +134,12 @@ result.metrics.accumulated_metrics
 ```python
 from strands.hooks import BeforeModelCallEvent
 
+
 def inject(event: BeforeModelCallEvent) -> None:
-    event.agent.state.set("user_id", "user-42")     # ✅
-    event.agent.state.set("count", 3)               # ✅ int
-    event.agent.state.set("tags", ["a", "b"])       # ✅ list
+    event.agent.state.set("user_id", "user-42")  # ✅
+    event.agent.state.set("count", 3)  # ✅ int
+    event.agent.state.set("tags", ["a", "b"])  # ✅ list
+
 
 agent.hooks.add_callback(BeforeModelCallEvent, inject)
 ```
@@ -147,8 +148,8 @@ agent.hooks.add_callback(BeforeModelCallEvent, inject)
 
 **读取**：
 ```python
-agent.state.get("user_id")           # 拿单个 key
-agent.state.get()                     # 拿整个 dict 副本
+agent.state.get("user_id")  # 拿单个 key
+agent.state.get()  # 拿整个 dict 副本
 ```
 
 ### 4.5 `interrupts`
@@ -174,9 +175,11 @@ result.interrupts
 from pydantic import BaseModel
 from strands import Agent
 
+
 class MathResult(BaseModel):
     question: str
     answer: int
+
 
 agent = Agent(model=model, tools=[...])
 result = agent(
@@ -184,7 +187,7 @@ result = agent(
     structured_output_model=MathResult,
 )
 
-print(result.structured_output)        # MathResult(question=..., answer=2500)
+print(result.structured_output)  # MathResult(question=..., answer=2500)
 print(result.structured_output.model_dump_json())
 ```
 
@@ -243,6 +246,7 @@ agent.state.set("user_id", "u-1")
 不能用 `.model_dump()`。要看 JSON：
 ```python
 import json
+
 result_dict = {
     "stop_reason": result.stop_reason,
     "message": result.message,

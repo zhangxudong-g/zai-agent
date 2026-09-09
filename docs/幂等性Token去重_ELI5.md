@@ -69,10 +69,11 @@
 # 场景：用户疯狂点按钮，同时发了3个请求
 # ❌ 没有去重 = 3杯奶茶！💸💸💸
 
+
 async def order奶茶_没有去重():
-    await 扣钱()      # 💸 扣了 30 块！
-    await 下单()      # 📦 下了 3 单！
-    await 通知()      # 📱 发了 3 条通知！
+    await 扣钱()  # 💸 扣了 30 块！
+    await 下单()  # 📦 下了 3 单！
+    await 通知()  # 📱 发了 3 条通知！
     return "下单成功"
 ```
 
@@ -82,27 +83,28 @@ async def order奶茶_没有去重():
 # 场景：用户疯狂点按钮，但用的是同一个 token
 # ✅ 有去重 = 只做 1 杯奶茶！🎉
 
+
 async def order奶茶_有去重(token="888"):
     # 第一次看到 888 这个 token
     if not self._concurrency.is_registered(token):
         # 真正去排队！
         self._concurrency.register(token)
-        
-        await 扣钱()      # 💸 只扣 10 块！
-        await 下单()      # 📦 只下 1 单！
-        await 通知()      # 📱 只发 1 条通知！
-        
+
+        await 扣钱()  # 💸 只扣 10 块！
+        await 下单()  # 📦 只下 1 单！
+        await 通知()  # 📱 只发 1 条通知！
+
         result = "下单成功"
         # 告诉其他"888号"请求：结果在这里！
         self._concurrency.complete(token, result=result)
         return result
-    
+
     # 第二次、第三次看到 888
     else:
         # "你的888号正在做呢，等一下！"
         waiter = await self._concurrency.get_waiter(token)
         await waiter.wait()
-        
+
         # 直接拿第一次的结果！
         return self._concurrency.get_result(token)
 ```

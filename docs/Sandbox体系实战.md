@@ -77,7 +77,7 @@ Sandbox (抽象基类)
 from strands.sandbox.docker import DockerSandbox
 
 sandbox = DockerSandbox(
-    container="my-agent-container",    # 必须已运行
+    container="my-agent-container",  # 必须已运行
     working_dir="/work",
     user="1000:1000",
 )
@@ -93,6 +93,7 @@ agent = Agent(sandbox=sandbox)
 ```python
 from strands.sandbox import PosixShellSandbox, StreamChunk, ExecutionResult
 import asyncio
+
 
 class LocalSubprocessSandbox(PosixShellSandbox):
     async def execute_streaming(self, command, *, timeout=None, cwd=None, env=None, **kwargs):
@@ -117,6 +118,7 @@ class LocalSubprocessSandbox(PosixShellSandbox):
             stderr=stderr.decode(errors="replace"),
         )
 
+
 sandbox = LocalSubprocessSandbox()
 ```
 
@@ -129,7 +131,7 @@ from strands.vended_tools.file_editor import make_file_editor, file_editor
 from my_sandbox import LocalSubprocessSandbox
 
 # 1. 默认 file_editor（无 sandbox）
-default_editor = file_editor          # 直接用本地文件系统
+default_editor = file_editor  # 直接用本地文件系统
 
 # 2. 绑定到 sandbox
 sandbox = LocalSubprocessSandbox()
@@ -258,6 +260,7 @@ agent = Agent(model=model, tools=[shell], sandbox=DockerSandbox(...))
 
 ```python
 from strands.sandbox.docker import DockerSandbox
+
 sandbox = DockerSandbox(container="agent-sandbox")
 ```
 
@@ -266,8 +269,8 @@ sandbox = DockerSandbox(container="agent-sandbox")
 ```python
 sandbox = DockerSandbox(
     container="agent",
-    working_dir="/workspace",     # 限制工作目录
-    user="1000:1000",             # 非 root
+    working_dir="/workspace",  # 限制工作目录
+    user="1000:1000",  # 非 root
 )
 ```
 
@@ -275,7 +278,7 @@ sandbox = DockerSandbox(
 
 ```python
 agent = Agent(
-    tools=[make_file_editor(sandbox=sandbox)],   # ✅
+    tools=[make_file_editor(sandbox=sandbox)],  # ✅
     # tools=[file_editor],                        # ❌ 默认无隔离
 )
 ```
@@ -287,7 +290,7 @@ agent = Agent(
 agent = Agent(
     tools=[
         file_editor_sandboxed,
-        calculator,           # 无副作用
+        calculator,  # 无副作用
         # shell 不要加，用 sandbox 内的 shell 替代
     ],
     sandbox=sandbox,

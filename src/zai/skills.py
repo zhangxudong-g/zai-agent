@@ -46,7 +46,7 @@ description: {description or f"Skill for {name}"}
 
 # {name}
 
-{description or f"Add your skill instructions here."}
+{description or "Add your skill instructions here."}
 
 ## When to use this skill
 
@@ -88,11 +88,13 @@ def list_skills() -> list[dict[str, Any]]:
                         elif line.startswith("description:"):
                             description = line.split(":", 1)[1].strip()
 
-            skills.append({
-                "name": name,
-                "description": description,
-                "path": str(path),
-            })
+            skills.append(
+                {
+                    "name": name,
+                    "description": description,
+                    "path": str(path),
+                }
+            )
 
     return skills
 

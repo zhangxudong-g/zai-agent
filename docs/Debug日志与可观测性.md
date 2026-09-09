@@ -85,13 +85,13 @@ logging.getLogger("strands").setLevel(logging.WARNING)
 ```python
 @dataclass
 class EventLoopMetrics:
-    cycle_count: int                              # 总循环数
-    tool_metrics: dict[str, ToolMetrics]          # 每个工具的统计
-    cycle_durations: list[float]                  # 每轮耗时（秒）
-    agent_invocations: list[AgentInvocation]      # 每次调用的详情
-    traces: list[Trace]                           # 链路追踪
-    accumulated_usage: Usage                      # 累计 token
-    accumulated_metrics: Metrics                   # 累计延迟
+    cycle_count: int  # 总循环数
+    tool_metrics: dict[str, ToolMetrics]  # 每个工具的统计
+    cycle_durations: list[float]  # 每轮耗时（秒）
+    agent_invocations: list[AgentInvocation]  # 每次调用的详情
+    traces: list[Trace]  # 链路追踪
+    accumulated_usage: Usage  # 累计 token
+    accumulated_metrics: Metrics  # 累计延迟
 ```
 
 **实际访问模式**（⚠️ 教程和实际有差异，见 §六）：
@@ -116,7 +116,7 @@ Trace(
     start_time=1787706492.67,
     end_time=1787706494.93,
     messages=[],
-    children=[Trace(...)]  # 嵌套子 trace（如 model invoke span）
+    children=[Trace(...)],  # 嵌套子 trace（如 model invoke span）
 )
 ```
 
@@ -203,6 +203,7 @@ handler.close()  # ⚠️ 不关可能丢日志
 
 ```python
 import logging
+
 logging.basicConfig(
     level=logging.WARNING,
     format="%(levelname)s | %(name)s | %(message)s",
@@ -220,21 +221,28 @@ logging.getLogger("strands").setLevel(logging.WARNING)
 
 # 2. 落 INFO 级别到文件（审计用）
 from logging.handlers import RotatingFileHandler
-audit_handler = RotatingFileHandler("/var/log/strands/audit.log",
-                                      maxBytes=100*1024*1024,
-                                      backupCount=10,
-                                      encoding="utf-8")
+
+audit_handler = RotatingFileHandler(
+    "/var/log/strands/audit.log", maxBytes=100 * 1024 * 1024, backupCount=10, encoding="utf-8"
+)
 audit_handler.setLevel(logging.INFO)
 logging.getLogger("strands").addHandler(audit_handler)
 
 # 3. 关键 hook 做结构化日志
 from strands.hooks import BeforeToolCallEvent
+
+
 def audit_tool(event: BeforeToolCallEvent) -> None:
-    logger.info(json.dumps({
-        "event": "tool_call",
-        "name": event.tool_use["name"],
-        "input": event.tool_use.get("input"),
-    }))
+    logger.info(
+        json.dumps(
+            {
+                "event": "tool_call",
+                "name": event.tool_use["name"],
+                "input": event.tool_use.get("input"),
+            }
+        )
+    )
+
 
 agent.hooks.add_callback(BeforeToolCallEvent, audit_tool)
 ```

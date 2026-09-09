@@ -52,28 +52,31 @@ from .agent import Agent
 from .config import Config
 from .trace import SessionLogger
 
+
 def run_cli():
     """CLI entry point for global installation."""
     import argparse
-    
+
     parser = argparse.ArgumentParser(description="Strands Agent - Local AI Coding Assistant")
     parser.add_argument("prompt", nargs="?", help="Prompt to execute")
     parser.add_argument("-i", "--interactive", action="store_true", help="Start REPL mode")
-    parser.add_argument("--workspace", default=".", help="Workspace directory (default: current directory)")
+    parser.add_argument(
+        "--workspace", default=".", help="Workspace directory (default: current directory)"
+    )
     parser.add_argument("--env-file", default=".env", help="Environment file")
-    
+
     args = parser.parse_args()
-    
+
     # Use current directory as workspace if not specified
     workspace = Path(args.workspace).resolve()
     if not workspace.exists():
         workspace = Path.cwd()
-    
+
     config = Config(
         agent_workspace=str(workspace),
         env_file=args.env_file,
     )
-    
+
     # 复用现有的 REPL 逻辑
 ```
 

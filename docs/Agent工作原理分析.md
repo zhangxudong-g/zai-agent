@@ -198,10 +198,10 @@ def _resolve_context_manager(
     plugins: list[Plugin] | None,
 ) -> tuple[ConversationManager | None, list[Plugin] | None]:
     """解析 context_manager 策略"""
-    
+
     if context_manager is None:
         return None, None
-    
+
     if context_manager == "auto":
         # 自动模式: 上下文卸载器 + 总结管理器
         offloader = ContextOffloader(
@@ -209,8 +209,7 @@ def _resolve_context_manager(
             preview_tokens=750,
         )
         default_cm = SummarizingConversationManager(
-            summary_ratio=0.3,
-            proactive_compression={"compression_threshold": 0.85}
+            summary_ratio=0.3, proactive_compression={"compression_threshold": 0.85}
         )
     elif context_manager == "agentic":
         # 代理模式: 模型驱动上下文管理
@@ -219,13 +218,13 @@ def _resolve_context_manager(
             preview_tokens=750,
         )
         default_cm = SummarizingConversationManager(summary_ratio=0.3)
-    
+
     resolved_plugins = list(plugins) if plugins else []
     if not has_offloader:
         resolved_plugins.append(offloader)
-    
+
     resolved_cm = conversation_manager if conversation_manager else default_cm
-    
+
     return resolved_cm, resolved_plugins
 ```
 
@@ -248,9 +247,7 @@ def __call__(
     **kwargs: Any,
 ) -> AgentResult:
     """处理自然语言提示"""
-    return run_async(
-        lambda: self._invoke_async_and_flush(prompt, **kwargs)
-    )
+    return run_async(lambda: self._invoke_async_and_flush(prompt, **kwargs))
 ```
 
 ### 3.2 异步调用 `invoke_async`
@@ -678,16 +675,13 @@ async def _handle_model_execution(
 
 ```python
 def _make_invoke_model_terminal(
-    agent: "Agent",
-    cycle_span: Any,
-    tracer: Tracer,
-    model_state: dict[str, Any]
+    agent: "Agent", cycle_span: Any, tracer: Tracer, model_state: dict[str, Any]
 ) -> Callable[[InvokeModelContext], AsyncGenerator[Any, None]]:
     """创建 InvokeModelStage 中间件链的终端函数"""
-    
+
     async def terminal(ctx: InvokeModelContext) -> AsyncGenerator[Any, None]:
         system_prompt_str, system_prompt_content = split_system_prompt(ctx.system_prompt)
-        
+
         model_id = ctx.model.config.get("model_id") if hasattr(ctx.model, "config") else None
         model_invoke_span = tracer.start_model_invoke_span(
             messages=ctx.messages,
@@ -696,7 +690,7 @@ def _make_invoke_model_terminal(
             system_prompt=system_prompt_str,
             system_prompt_content=system_prompt_content,
         )
-        
+
         with trace_api.use_span(model_invoke_span, end_on_exit=False):
             try:
                 async for event in stream_messages(
@@ -711,7 +705,7 @@ def _make_invoke_model_terminal(
                     cancel_signal=agent._cancel_signal,
                 ):
                     yield event
-                
+
                 stop_reason, message, usage, metrics = event["stop"]
                 tracer.end_model_invoke_span(
                     model_invoke_span, message, usage, metrics, stop_reason
@@ -719,7 +713,7 @@ def _make_invoke_model_terminal(
             except Exception as e:
                 tracer.end_span_with_error(model_invoke_span, str(e), e)
                 raise
-    
+
     return terminal
 ```
 
@@ -778,7 +772,7 @@ async def process_stream(
     cancel_signal: threading.Event | None = None,
 ) -> AsyncGenerator[TypedEvent, None]:
     """处理模型响应流"""
-    
+
     state = {
         "message": {"role": "assistant", "content": []},
         "text": "",
@@ -787,50 +781,61 @@ async def process_stream(
         "citationsContent": [],
     }
     state["content"] = state["message"]["content"]
-    
+
     first_byte_time = None
-    
+
     async for chunk in chunks:
         # 检查取消
         if cancel_signal and cancel_signal.is_set():
             yield ModelStopReason(
                 stop_reason="cancelled",
                 message={"role": "assistant", "content": [{"text": "Cancelled by user"}]},
-                usage=usage, metrics=metrics,
+                usage=usage,
+                metrics=metrics,
             )
             return
-        
+
         # 追踪首字节时间
-        if first_byte_time is None and ("contentBlockDelta" in chunk or "contentBlockStart" in chunk):
+        if first_byte_time is None and (
+            "contentBlockDelta" in chunk or "contentBlockStart" in chunk
+        ):
             first_byte_time = time.time()
-        
+
         yield ModelStreamChunkEvent(chunk=chunk)
-        
+
         # 处理不同类型的 chunk
         if "messageStart" in chunk:
             state["message"] = handle_message_start(chunk["messageStart"], state["message"])
-        
+
         elif "contentBlockStart" in chunk:
             state["current_tool_use"] = handle_content_block_start(chunk["contentBlockStart"])
-        
+
         elif "contentBlockDelta" in chunk:
             state, typed_event = handle_content_block_delta(chunk["contentBlockDelta"], state)
             yield typed_event
-        
+
         elif "contentBlockStop" in chunk:
             state = handle_content_block_stop(state)
-        
+
         elif "messageStop" in chunk:
-            stop_reason = handle_message_stop(chunk["messageStop"], state["message"].get("content", []))
-        
+            stop_reason = handle_message_stop(
+                chunk["messageStop"], state["message"].get("content", [])
+            )
+
         elif "metadata" in chunk:
-            time_to_first_byte_ms = int(1000 * (first_byte_time - start_time)) if first_byte_time and start_time else None
+            time_to_first_byte_ms = (
+                int(1000 * (first_byte_time - start_time))
+                if first_byte_time and start_time
+                else None
+            )
             usage, metrics = extract_usage_metrics(chunk["metadata"], time_to_first_byte_ms)
-        
+
         elif "redactContent" in chunk:
             handle_redact_content(chunk["redactContent"], state)
-    
-    yield ModelStopReason(stop_reason=stop_reason, message=state["message"], usage=usage, metrics=metrics)
+
+    yield ModelStopReason(
+        stop_reason=stop_reason, message=state["message"], usage=usage, metrics=metrics
+    )
 ```
 
 ---
@@ -987,7 +992,7 @@ async def _handle_tool_execution(
 ```python
 class ConcurrentToolExecutor(ToolExecutor):
     """并发工具执行器"""
-    
+
     async def _execute(
         self,
         agent: "Agent",
@@ -999,24 +1004,32 @@ class ConcurrentToolExecutor(ToolExecutor):
         structured_output_context: "StructuredOutputContext | None" = None,
     ) -> AsyncGenerator[TypedEvent, None]:
         """并发执行所有工具"""
-        
+
         task_queue: asyncio.Queue = asyncio.Queue()
         task_events = [asyncio.Event() for _ in tool_uses]
         task_results: list[list[ToolResult]] = [[] for _ in tool_uses]
         stop_event = object()
-        
+
         # 创建所有任务
         tasks = []
         for task_id, tool_use in enumerate(tool_uses):
             task = asyncio.create_task(
                 self._task(
-                    agent, tool_use, task_results[task_id], cycle_trace,
-                    cycle_span, invocation_state, task_id, task_queue,
-                    task_events[task_id], stop_event, structured_output_context,
+                    agent,
+                    tool_use,
+                    task_results[task_id],
+                    cycle_trace,
+                    cycle_span,
+                    invocation_state,
+                    task_id,
+                    task_queue,
+                    task_events[task_id],
+                    stop_event,
+                    structured_output_context,
                 )
             )
             tasks.append(task)
-        
+
         # 收集结果
         task_count = len(tasks)
         try:
@@ -1025,31 +1038,44 @@ class ConcurrentToolExecutor(ToolExecutor):
                 if event is stop_event:
                     task_count -= 1
                     continue
-                
+
                 if isinstance(event, Exception):
                     raise event
-                
+
                 yield event
                 task_events[task_id].set()
-            
+
             for results in task_results:
                 tool_results.extend(results)
         finally:
             for task in tasks:
                 task.cancel()
             await asyncio.gather(*tasks, return_exceptions=True)
-    
+
     async def _task(
         self,
-        agent, tool_use, tool_results, cycle_trace, cycle_span,
-        invocation_state, task_id, task_queue, task_event, stop_event,
-        structured_output_context
+        agent,
+        tool_use,
+        tool_results,
+        cycle_trace,
+        cycle_span,
+        invocation_state,
+        task_id,
+        task_queue,
+        task_event,
+        stop_event,
+        structured_output_context,
     ) -> None:
         """执行单个工具任务"""
         try:
             events = ToolExecutor._stream_with_trace(
-                agent, tool_use, tool_results, cycle_trace, cycle_span,
-                invocation_state, structured_output_context
+                agent,
+                tool_use,
+                tool_results,
+                cycle_trace,
+                cycle_span,
+                invocation_state,
+                structured_output_context,
             )
             async for event in events:
                 task_queue.put_nowait((task_id, event))
@@ -1076,40 +1102,42 @@ async def _stream(
     **kwargs: Any,
 ) -> AsyncGenerator[TypedEvent, None]:
     """流式工具执行，包含钩子和中间件"""
-    
+
     tool_name = tool_use["name"]
-    
+
     # 1. 查找工具
     tool_info = agent.tool_registry.dynamic_tools.get(tool_name)
     tool_func = tool_info if tool_info else agent.tool_registry.registry.get(tool_name)
     tool_spec = tool_func.tool_spec if tool_func else None
-    
+
     # 2. 设置追踪属性
     current_span = trace_api.get_current_span()
     if current_span and tool_spec:
         current_span.set_attribute("gen_ai.tool.description", tool_spec["description"])
         current_span.set_attribute("gen_ai.tool.json_schema", serialize(tool_spec["inputSchema"]))
-    
+
     # 3. 更新调用状态
-    invocation_state.update({
-        "agent": agent,
-        "model": agent.model,
-        "messages": agent.messages,
-        "system_prompt": agent.system_prompt,
-        "tool_config": ToolConfig(...),
-    })
-    
+    invocation_state.update(
+        {
+            "agent": agent,
+            "model": agent.model,
+            "messages": agent.messages,
+            "system_prompt": agent.system_prompt,
+            "tool_config": ToolConfig(...),
+        }
+    )
+
     # 重试循环
     while True:
         # 4. BeforeToolCallEvent 钩子
         before_event, interrupts = await ToolExecutor._invoke_before_tool_call_hook(
             agent, tool_func, tool_use, invocation_state
         )
-        
+
         if interrupts:
             yield ToolInterruptEvent(tool_use, interrupts)
             return
-        
+
         if before_event.cancel_tool:
             cancel_result = {
                 "toolUseId": str(tool_use.get("toolUseId")),
@@ -1119,12 +1147,12 @@ async def _stream(
             yield ToolResultEvent(cancel_result)
             tool_results.append(cancel_result)
             return
-        
+
         try:
             tool_start_time = time.monotonic()
             selected_tool = before_event.selected_tool
             tool_use = before_event.tool_use
-            
+
             # 5. 构建中间件上下文
             middleware_context = ExecuteToolContext(
                 agent=agent,
@@ -1133,7 +1161,7 @@ async def _stream(
                 invocation_state=invocation_state,
                 _interrupt_state=agent._interrupt_state,
             )
-            
+
             # 6. 调用中间件链
             result_event = None
             async for event in agent._middleware_registry.invoke(
@@ -1146,35 +1174,34 @@ async def _stream(
                         agent._interrupt_state.interrupts.setdefault(interrupt.id, interrupt)
                     yield event
                     return
-                
+
                 if isinstance(event, ToolResultEvent):
                     result_event = event
                 else:
                     yield event
-            
+
             result = result_event.tool_result
-            
+
             # 7. 触发 AfterToolCallEvent 钩子
             tool_duration = time.monotonic() - tool_start_time
             after_event = await ToolExecutor._invoke_after_tool_call_hook(
-                agent, selected_tool, tool_use, invocation_state,
-                result, duration=tool_duration
+                agent, selected_tool, tool_use, invocation_state, result, duration=tool_duration
             )
-            
+
             if ToolExecutor._should_retry(agent, after_event):
                 continue
-            
+
             yield ToolResultEvent(after_event.result, exception=after_event.exception)
             tool_results.append(after_event.result)
             return
-        
+
         except InterruptException as interrupt_exception:
             agent._interrupt_state.interrupts.setdefault(
                 interrupt_exception.interrupt.id, interrupt_exception.interrupt
             )
             yield ToolInterruptEvent(tool_use, [interrupt_exception.interrupt])
             return
-        
+
         except Exception as e:
             error_result = {
                 "toolUseId": str(tool_use.get("toolUseId")),
@@ -1182,13 +1209,12 @@ async def _stream(
                 "content": [{"text": f"Error: {str(e)}"}],
             }
             after_event = await ToolExecutor._invoke_after_tool_call_hook(
-                agent, selected_tool, tool_use, invocation_state,
-                error_result, exception=e
+                agent, selected_tool, tool_use, invocation_state, error_result, exception=e
             )
-            
+
             if ToolExecutor._should_retry(agent, after_event):
                 continue
-            
+
             yield ToolResultEvent(after_event.result, exception=after_event.exception)
             tool_results.append(after_event.result)
             return
@@ -1284,23 +1310,22 @@ def process_tools(self, tools: list[Any]) -> list[str]:
 ```python
 def register_tool(self, tool: AgentTool) -> None:
     """注册单个工具"""
-    
+
     # 检查重复
     if tool.tool_name in self.registry and not tool.supports_hot_reload:
         raise ValueError(f"Tool name '{tool.tool_name}' already exists")
-    
+
     # 检查名称冲突 (- vs _)
     normalized_name = tool.tool_name.replace("-", "_")
     matching_tools = [
-        tn for (tn, t) in self.registry.items()
-        if tn.replace("-", "_") == normalized_name
+        tn for (tn, t) in self.registry.items() if tn.replace("-", "_") == normalized_name
     ]
     if matching_tools:
         raise ValueError(f"Tool name '{tool.tool_name}' already exists as '{matching_tools[0]}'")
-    
+
     # 注册到主表
     self.registry[tool.tool_name] = tool
-    
+
     # 注册到动态工具表
     if tool.is_dynamic:
         self.dynamic_tools[tool.tool_name] = tool
@@ -1314,10 +1339,11 @@ def get_all_tool_specs(self) -> list[ToolSpec]:
     all_tools = self.get_all_tools_config()
     return list(all_tools.values())
 
+
 def get_all_tools_config(self) -> dict[str, Any]:
     """获取所有工具配置"""
     tool_config = {}
-    
+
     for tool_name, tool in self.registry.items():
         spec = tool.tool_spec.copy()
         try:
@@ -1326,12 +1352,12 @@ def get_all_tools_config(self) -> dict[str, Any]:
             tool_config[tool_name] = spec
         except (ValueError, RecursionError) as e:
             logger.warning("tool spec validation failed: %s", e)
-    
+
     for tool_name, tool in self.dynamic_tools.items():
         if tool_name not in tool_config:
             spec = tool.tool_spec.copy()
             tool_config[tool_name] = spec
-    
+
     return tool_config
 ```
 
@@ -1461,7 +1487,7 @@ class SlidingWindowConversationManager(ConversationManager):
 ```python
 class SummarizingConversationManager(ConversationManager):
     """总结式对话管理器"""
-    
+
     def __init__(
         self,
         summary_ratio: float = 0.3,
@@ -1478,7 +1504,7 @@ class SummarizingConversationManager(ConversationManager):
         self.summarization_system_prompt = summarization_system_prompt
         self.pin_first = pin_first
         self._summary_message: Message | None = None
-    
+
     def reduce_context(self, agent: "Agent", e: Exception | None = None, **kwargs) -> None:
         """使用总结减少上下文"""
         try:
@@ -1487,40 +1513,39 @@ class SummarizingConversationManager(ConversationManager):
             if e is not None:
                 raise summarization_error from e
             logger.warning("Proactive summarization failed: %s", summarization_error)
-    
+
     def _summarize_oldest(self, agent: "Agent") -> None:
         """总结最旧的消息"""
         # 1. 计算要总结的消息数
         messages_to_summarize_count = max(1, int(len(agent.messages) * self.summary_ratio))
         messages_to_summarize_count = min(
-            messages_to_summarize_count,
-            len(agent.messages) - self.preserve_recent_messages
+            messages_to_summarize_count, len(agent.messages) - self.preserve_recent_messages
         )
-        
+
         # 2. 调整分割点避免破坏工具对
         messages_to_summarize_count = self._adjust_split_point_for_tool_pairs(
             agent.messages, messages_to_summarize_count
         )
-        
+
         # 3. 固定前 N 条消息
         if self.pin_first and not self._pin_first_applied:
             apply_pin_first(agent.messages, self.pin_first)
             self._pin_first_applied = True
-        
+
         # 4. 分区固定和非固定消息
         protected_to_preserve, to_summarize = partition_pinned(
             agent.messages, 0, messages_to_summarize_count
         )
-        
+
         remaining_messages = agent.messages[messages_to_summarize_count:]
-        
+
         # 5. 生成总结
         self._summary_message = self._generate_summary(to_summarize, agent)
         _ensure_tracking_id(self._summary_message)
-        
+
         # 6. 替换为总结
         agent.messages[:] = protected_to_preserve + [self._summary_message] + remaining_messages
-    
+
     def _generate_summary(self, messages: list[Message], agent: "Agent") -> Message:
         """生成消息总结"""
         if self.summarization_agent:
@@ -1572,7 +1597,7 @@ class HookRegistry:
 async def invoke_callbacks_async(self, event: TInvokeEvent) -> tuple[TInvokeEvent, list[Interrupt]]:
     """异步调用所有注册的回调"""
     interrupts: dict[str, Interrupt] = {}
-    
+
     for callback in self.get_callbacks_for(event):
         try:
             if inspect.iscoroutinefunction(callback):
@@ -1582,14 +1607,15 @@ async def invoke_callbacks_async(self, event: TInvokeEvent) -> tuple[TInvokeEven
         except InterruptException as exception:
             interrupt = exception.interrupt
             interrupts[interrupt.name] = interrupt
-    
+
     return event, list(interrupts.values())
+
 
 def get_callbacks_for(self, event: TEvent) -> Generator[HookCallback[TEvent], None, None]:
     """获取事件类型的回调"""
     event_type = type(event)
     entries = self._registered_callbacks.get(event_type, [])
-    
+
     if event.should_reverse_callbacks:
         for _order, group in groupby(entries, key=lambda e: e.order):
             for entry in reversed(list(group)):
@@ -1619,12 +1645,13 @@ def get_callbacks_for(self, event: TEvent) -> Generator[HookCallback[TEvent], No
 ```python
 class HookOrder:
     """钩子执行优先级"""
-    SDK_FIRST: int = -100           # 最先执行
+
+    SDK_FIRST: int = -100  # 最先执行
     INTERVENTION_OUTPUT: int = -90
-    DEFAULT: int = 0               # 默认优先级
+    DEFAULT: int = 0  # 默认优先级
     MODEL_ROUTING: int = 50
     INTERVENTION_INPUT: int = 90
-    SDK_LAST: int = 100             # 最后执行
+    SDK_LAST: int = 100  # 最后执行
 ```
 
 ---
@@ -1718,6 +1745,7 @@ AgentStreamStage: MiddlewareStage[AgentStreamContext, EventLoopStopEvent, TypedE
 @dataclass
 class InvokeModelContext:
     """InvokeModelStage 中间件上下文"""
+
     agent: Agent
     messages: Messages  # 深度拷贝
     system_prompt: SystemPrompt  # 深度拷贝
@@ -1727,27 +1755,31 @@ class InvokeModelContext:
     model: Model
     projected_input_tokens: int | None = None
 
+
 @dataclass
 class ExecuteToolContext:
     """ExecuteToolStage 中间件上下文"""
+
     agent: Agent | BidiAgent
     tool: AgentTool | None
     tool_use: ToolUse  # 浅拷贝
     invocation_state: dict[str, Any]  # 引用共享
     _interrupt_state: _InterruptState
-    
+
     def interrupt(self, name: str, *, reason=None, response=None) -> MiddlewareInterruptResult:
         """请求人工干预中断"""
         ...
 
+
 @dataclass
 class AgentStreamContext:
     """AgentStreamStage 中间件上下文"""
+
     agent: Agent
     messages: Messages  # 引用共享
     invocation_state: dict[str, Any]  # 引用共享
     _interrupts: Mapping[str, Interrupt]  # 中断快照
-    
+
     def interrupt(self, name: str, *, reason=None, response=None) -> MiddlewareInterruptResult:
         """请求人工干预中断"""
         ...
@@ -1762,7 +1794,7 @@ class AgentStreamContext:
 ```python
 class ModelRetryStrategy(HookProvider):
     """指数退避重试策略"""
-    
+
     def __init__(
         self,
         *,
@@ -1774,48 +1806,48 @@ class ModelRetryStrategy(HookProvider):
         self._initial_delay = initial_delay
         self._max_delay = max_delay
         self._current_attempt = 0
-    
+
     def register_hooks(self, registry: HookRegistry) -> None:
         registry.add_callback(AfterModelCallEvent, self._handle_after_model_call)
         registry.add_callback(AfterInvocationEvent, self._handle_after_invocation)
-    
+
     def is_retryable(self, exception: Exception) -> bool:
         """判断异常是否可重试"""
         return isinstance(exception, ModelThrottledException)
-    
+
     def _calculate_delay(self, attempt: int) -> int:
         """计算延迟 (指数退避)"""
-        delay = self._initial_delay * (2 ** attempt)
+        delay = self._initial_delay * (2**attempt)
         return min(delay, self._max_delay)
-    
+
     async def _handle_after_model_call(self, event: AfterModelCallEvent) -> None:
         """处理模型调用结果"""
         # 1. 检查是否成功
         if event.stop_response is not None:
             self._reset_retry_state()
             return
-        
+
         if event.exception is None:
             self._reset_retry_state()
             return
-        
+
         # 2. 检查是否可重试
         if not self.is_retryable(event.exception):
             return
-        
+
         # 3. 增加尝试次数
         self._current_attempt += 1
-        
+
         # 4. 检查是否超过最大次数
         if self._current_attempt >= self._max_attempts:
             return
-        
+
         # 5. 计算延迟
         delay = self._calculate_delay(self._current_attempt)
-        
+
         # 6. 等待
         await asyncio.sleep(delay)
-        
+
         # 7. 设置重试标志
         event.retry = True
 ```
@@ -1842,13 +1874,13 @@ class ModelRetryStrategy(HookProvider):
 ```python
 class _ToolCaller:
     """直接工具调用器"""
-    
+
     def __init__(self, agent: "Agent | BidiAgent") -> None:
         self._agent_ref = weakref.ref(agent)
-    
+
     def __getattr__(self, name: str) -> Callable[..., Any]:
         """动态属性访问: agent.tool.my_tool()"""
-        
+
         def caller(
             user_message_override: str | None = None,
             record_direct_tool_call: bool | None = None,
@@ -1856,21 +1888,25 @@ class _ToolCaller:
         ) -> Any:
             if self._agent._interrupt_state.activated:
                 raise RuntimeError("cannot directly call tool during interrupt")
-            
+
             should_record_direct_tool_call = (
-                record_direct_tool_call if record_direct_tool_call is not None
+                record_direct_tool_call
+                if record_direct_tool_call is not None
                 else self._agent.record_direct_tool_call
             )
-            
+
             # 获取锁
             should_lock = should_record_direct_tool_call
-            acquired_lock = should_lock and isinstance(self._agent, Agent) \
-                          and self._agent._concurrency.try_acquire_lock()
-            
+            acquired_lock = (
+                should_lock
+                and isinstance(self._agent, Agent)
+                and self._agent._concurrency.try_acquire_lock()
+            )
+
             try:
                 # 规范化工具名
                 normalized_name = self._find_normalized_tool_name(name)
-                
+
                 # 创建工具请求
                 tool_id = f"tooluse_{name}_{random.randint(100000000, 999999999)}"
                 tool_use: ToolUse = {
@@ -1879,7 +1915,7 @@ class _ToolCaller:
                     "input": kwargs.copy(),
                 }
                 tool_results: list[ToolResult] = []
-                
+
                 # 执行工具
                 async def acall() -> ToolResult:
                     async for event in ToolExecutor._stream(
@@ -1888,42 +1924,41 @@ class _ToolCaller:
                         if isinstance(event, ToolInterruptEvent):
                             self._agent._interrupt_state.deactivate()
                             raise RuntimeError("cannot raise interrupt in direct tool call")
-                    
+
                     return tool_results[0]
-                
+
                 tool_result = run_async(acall)
-                
+
                 # 记录到消息历史
                 if should_record_direct_tool_call:
                     await self._record_tool_execution(tool_use, tool_result, user_message_override)
-                
+
                 # 应用对话管理
                 if isinstance(self._agent, Agent):
                     self._agent.conversation_manager.apply_management(self._agent)
-                
+
                 return tool_result
-            
+
             finally:
                 if acquired_lock and isinstance(self._agent, Agent):
                     self._agent._concurrency.release_lock()
-        
+
         return caller
-    
+
     def _find_normalized_tool_name(self, name: str) -> str:
         """查找工具名 (支持 - 和 _ 互换)"""
         tool_registry = self._agent.tool_registry.registry
-        
+
         if tool_registry.get(name):
             return name
-        
+
         if "_" in name:
             filtered_tools = [
-                tn for (tn, t) in tool_registry.items()
-                if tn.replace("-", "_") == name
+                tn for (tn, t) in tool_registry.items() if tn.replace("-", "_") == name
             ]
             if filtered_tools:
                 return filtered_tools[0]
-        
+
         raise AttributeError(f"Tool '{name}' not found")
 ```
 
@@ -1937,35 +1972,40 @@ async def _record_tool_execution(
     user_message_override: str | None,
 ) -> None:
     """记录工具执行到消息历史"""
-    
+
     # 创建用户消息
     user_msg_content = [
-        {"text": f"agent.tool.{tool['name']} direct tool call.\n"
-                 f"Input parameters: {json.dumps(tool['input'])}\n"}
+        {
+            "text": f"agent.tool.{tool['name']} direct tool call.\n"
+            f"Input parameters: {json.dumps(tool['input'])}\n"
+        }
     ]
-    
+
     if user_message_override:
         user_msg_content.insert(0, {"text": f"{user_message_override}\n"})
-    
+
     # 创建消息序列
     user_msg = {"role": "user", "content": user_msg_content}
     tool_use_msg = {
         "role": "assistant",
-        "content": [{"toolUse": {
-            "toolUseId": tool["toolUseId"],
-            "name": tool["name"],
-            "input": self._filter_tool_parameters_for_recording(tool["name"], tool["input"]),
-        }}]
+        "content": [
+            {
+                "toolUse": {
+                    "toolUseId": tool["toolUseId"],
+                    "name": tool["name"],
+                    "input": self._filter_tool_parameters_for_recording(
+                        tool["name"], tool["input"]
+                    ),
+                }
+            }
+        ],
     }
-    tool_result_msg = {
-        "role": "user",
-        "content": [{"toolResult": tool_result}]
-    }
+    tool_result_msg = {"role": "user", "content": [{"toolResult": tool_result}]}
     assistant_msg = {
         "role": "assistant",
-        "content": [{"text": f"agent.tool.{tool['name']} was called."}]
+        "content": [{"text": f"agent.tool.{tool['name']} was called."}],
     }
-    
+
     # 添加到消息历史
     await self._agent._append_messages(user_msg, tool_use_msg, tool_result_msg, assistant_msg)
 ```

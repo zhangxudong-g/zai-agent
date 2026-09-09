@@ -93,9 +93,9 @@ result = swarm("研究问题")  # 自动决定谁来答、谁接力
 ```python
 @dataclass
 class SwarmResult(MultiAgentResult):
-    node_history: list[SwarmNode]   # 执行顺序
+    node_history: list[SwarmNode]  # 执行顺序
     # 继承自 MultiAgentResult：
-    status: Status                  # COMPLETED / FAILED / INTERRUPTED
+    status: Status  # COMPLETED / FAILED / INTERRUPTED
     results: dict[str, NodeResult]  # 每个 agent 的输出
 ```
 
@@ -111,8 +111,10 @@ builder.add_node(classifier, "classify")
 builder.add_node(math_agent, "math")
 builder.add_node(general_agent, "general")
 
+
 def is_math(state):
     return "MATH" in str(list(state.results.values())[-1]).upper()
+
 
 builder.add_edge("classify", "math", condition=is_math)
 builder.add_edge("classify", "general", condition=lambda s: not is_math(s))
@@ -194,10 +196,7 @@ def my_condition(state):
 
 ```python
 # ❌ 报错：GraphNode 没有 add_edge
-graph = (GraphBuilder()
-         .add_node(a, "x")
-         .add_edge("x", "y")
-         .build())
+graph = GraphBuilder().add_node(a, "x").add_edge("x", "y").build()
 # AttributeError: 'GraphNode' object has no attribute 'add_edge'
 
 # ✅ 必须分步
@@ -244,8 +243,8 @@ def my_cond(state):
 不是字符串：
 ```python
 for node in result.node_history:
-    print(node.node_id)        # ✅ 拿名字
-    print(node.executor)       # ✅ 拿 Agent 实例
+    print(node.node_id)  # ✅ 拿名字
+    print(node.executor)  # ✅ 拿 Agent 实例
 ```
 
 ### 🟡 坑 6：`as_tool()` 出来的工具名
@@ -264,9 +263,9 @@ for node in result.node_history:
 
 ```python
 Agent = Agent(
-    name="researcher",       # ⚠️ Swarm 用 name 区分 Agent
-    agent_id="r-001",        # 用于审计
-    description="...",       # 让 as_tool 出来的工具描述更清楚
+    name="researcher",  # ⚠️ Swarm 用 name 区分 Agent
+    agent_id="r-001",  # 用于审计
+    description="...",  # 让 as_tool 出来的工具描述更清楚
 )
 ```
 
@@ -277,8 +276,8 @@ swarm = Swarm(
     agents,
     max_handoffs=10,
     max_iterations=20,
-    execution_timeout=600.0,    # 总超时 10 分钟
-    node_timeout=60.0,          # 单个 Agent 1 分钟
+    execution_timeout=600.0,  # 总超时 10 分钟
+    node_timeout=60.0,  # 单个 Agent 1 分钟
 )
 ```
 
@@ -297,8 +296,10 @@ if result.status == Status.FAILED:
 ```python
 from strands.hooks import BeforeInvocationEvent
 
+
 def audit_invocation(event: BeforeInvocationEvent) -> None:
     logger.info(f"Multi-agent invocation: {event.agent.name}")
+
 
 # Swarm 也有 hooks
 swarm.hooks.add_callback(BeforeInvocationEvent, audit_invocation)
