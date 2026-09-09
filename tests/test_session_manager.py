@@ -1,5 +1,7 @@
 """Tests for session manager module."""
 
+import json
+
 import pytest
 
 from zai.session_manager import SessionManager, get_session_manager
@@ -127,3 +129,158 @@ def test_get_session_manager():
     """Test getting the global session manager instance."""
     sm = get_session_manager()
     assert isinstance(sm, SessionManager)
+
+
+def test_extract_messages_from_dict_messages():
+    """Test _extract_messages handles dict messages correctly."""
+    from zai.session_manager import _extract_messages
+
+    class FakeAgent:
+        pass
+
+    fake = FakeAgent()
+    fake._inner = type("Inner", (), {})()
+    fake._inner.messages = [
+        {"role": "user", "content": "Hello"},
+        {"role": "assistant", "content": "Hi there"},
+    ]
+
+    messages = _extract_messages(fake)
+    assert len(messages) == 2
+    assert messages[0]["role"] == "user"
+    assert messages[0]["content"] == "Hello"
+    assert messages[1]["role"] == "assistant"
+
+
+def test_extract_messages_from_list_content():
+    """Test _extract_messages handles list content blocks."""
+    from zai.session_manager import _extract_messages
+
+    class FakeAgent:
+        pass
+
+    fake = FakeAgent()
+    fake._inner = type("Inner", (), {})()
+    fake._inner.messages = [
+        {
+            "role": "assistant",
+            "content": [{"type": "text", "text": "Block 1"}, {"type": "text", "text": "Block 2"}],
+        }
+    ]
+
+    messages = _extract_messages(fake)
+    assert len(messages) == 1
+    assert "Block 1" in messages[0]["content"]
+    assert "Block 2" in messages[0]["content"]
+
+
+def test_extract_messages_no_inner():
+    """Test _extract_messages handles agent without _inner."""
+    from zai.session_manager import _extract_messages
+
+    class FakeAgent:
+        messages = [{"role": "user", "content": "Direct"}]
+
+    fake = FakeAgent()
+    messages = _extract_messages(fake)
+    assert len(messages) == 1
+    assert messages[0]["content"] == "Direct"
+
+
+def test_extract_messages_empty():
+    """Test _extract_messages handles no messages."""
+    from zai.session_manager import _extract_messages
+
+    class FakeAgent:
+        pass
+
+    fake = FakeAgent()
+    fake._inner = type("Inner", (), {})()
+    fake._inner.messages = []
+
+    messages = _extract_messages(fake)
+    assert messages == []
+
+
+def test_save_session_with_wrapper_agent(tmp_path, monkeypatch):
+    """Test save_session works with zai wrapper agent (no _inner.messages)."""
+    from zai import session_manager as sm_module
+
+    monkeypatch.setattr(sm_module, "_get_saves_dir", lambda: tmp_path)
+
+    # Create a fake agent that mimics our zai.agent.Agent wrapper
+    class FakeConfig:
+        ollama_model = "qwen3:1.7b"
+        agent_workspace = "/tmp"
+
+    class FakeAgent:
+        config = FakeConfig()
+
+        class _Inner:
+            messages = [{"role": "user", "content": "test"}]
+
+        _inner = _Inner
+
+    agent = FakeAgent()
+    manager = SessionManager(agent=agent)
+
+    path = manager.save_session("wrapper-test", agent)
+
+    assert path.exists()
+    data = json.loads(path.read_text(encoding="utf-8"))
+    assert data["name"] == "wrapper-test"
+    assert len(data["messages"]) == 1
+    assert data["messages"][0]["content"] == "test"
+
+
+def test_export_session_with_wrapper_agent(tmp_path, monkeypatch):
+    """Test export_session works with zai wrapper agent."""
+    from zai import session_manager as sm_module
+
+    monkeypatch.setattr(sm_module, "_get_exports_dir", lambda: tmp_path)
+
+    class FakeConfig:
+        ollama_model = "qwen3:1.7b"
+        agent_workspace = "/tmp"
+
+    class FakeAgent:
+        config = FakeConfig()
+
+        class _Inner:
+            messages = [{"role": "user", "content": "export me"}]
+
+        _inner = _Inner
+
+    agent = FakeAgent()
+    manager = SessionManager(agent=agent)
+
+    path = manager.export_session("export-test", agent)
+
+    assert path.exists()
+    data = json.loads(path.read_text(encoding="utf-8"))
+    assert data["name"] == "export-test"
+
+
+def test_save_session_graceful_failure_on_strands_error(tmp_path, monkeypatch):
+    """Test that Strands SnapshotSessionManager errors don't break save_session."""
+    from zai import session_manager as sm_module
+
+    monkeypatch.setattr(sm_module, "_get_saves_dir", lambda: tmp_path)
+
+    # Create a fake agent
+    class FakeAgent:
+        class _Inner:
+            messages = []
+
+        _inner = _Inner
+
+        class config:
+            ollama_model = "test"
+            agent_workspace = "/tmp"
+
+    agent = FakeAgent()
+    manager = SessionManager(agent=agent)
+
+    # Should not raise even if Strands parts fail
+    path = manager.save_session("fail-test", agent)
+    assert path.exists()

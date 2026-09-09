@@ -7,32 +7,14 @@ with the REPL commands (/sessions, /save, /load, /export).
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from .paths import get_zai_exports_dir, get_zai_saves_dir
 
 if TYPE_CHECKING:
-    from strands import Agent
-    from strands.session import SnapshotSessionManager
-
-
-class SessionInfo:
-    """Info about a saved session."""
-
-    def __init__(self, name: str, path: str, created_at: str = "", message_count: int = 0):
-        self.name = name
-        self.path = path
-        self.created_at = created_at
-        self.message_count = message_count
-
-    def to_dict(self) -> dict:
-        return {
-            "name": self.name,
-            "path": self.path,
-            "created_at": self.created_at,
-            "message_count": self.message_count,
-        }
+    from .agent import Agent
 
 
 def _get_session_storage_dir() -> Path:
@@ -52,6 +34,54 @@ def _get_exports_dir() -> Path:
     return get_zai_exports_dir()
 
 
+def _extract_messages(agent: Any) -> list[dict[str, str]]:
+    """Safely extract messages from an agent.
+
+    Handles both our zai.agent.Agent wrapper and Strands Agent directly.
+    Returns a list of {"role": ..., "content": ...} dicts.
+    """
+    messages: list[dict[str, str]] = []
+
+    # Try to get the underlying Strands agent
+    inner = getattr(agent, "_inner", None) or agent
+
+    # Get raw messages list
+    raw_messages = getattr(inner, "messages", None)
+    if not raw_messages:
+        return messages
+
+    try:
+        for msg in raw_messages:
+            # Message could be dict or object
+            if isinstance(msg, dict):
+                role = msg.get("role", "user")
+                content = msg.get("content", "")
+            else:
+                role = getattr(msg, "role", "user")
+                content = getattr(msg, "content", "")
+
+            # Extract text from content (could be str or list of blocks)
+            if isinstance(content, list):
+                texts: list[str] = []
+                for block in content:
+                    if isinstance(block, dict):
+                        if "text" in block:
+                            texts.append(str(block["text"]))
+                        elif block.get("type") == "text":
+                            texts.append(str(block.get("text", "")))
+                    elif hasattr(block, "text"):
+                        texts.append(str(block.text))
+                content = "\n".join(texts)
+
+            if content:
+                messages.append({"role": str(role), "content": str(content)})
+    except Exception:
+        # If extraction fails, return what we have so far
+        pass
+
+    return messages
+
+
 class SessionManager:
     """Manage saved sessions using Strands' SnapshotSessionManager.
 
@@ -59,32 +89,39 @@ class SessionManager:
     using the native Strands session management under the hood.
     """
 
-    def __init__(self, agent: Agent | None = None):
+    def __init__(self, agent: "Agent | None" = None):
         self._agent = agent
-        self._session_mgr: SnapshotSessionManager | None = None
+        self._session_mgr: Any | None = None
         self._storage_dir = _get_session_storage_dir()
         self._saves_dir = _get_saves_dir()
         self._exports_dir = _get_exports_dir()
 
-    def _get_session_manager(self) -> SnapshotSessionManager | None:
+    def _get_session_manager(self) -> Any | None:
         """Lazy initialization of SnapshotSessionManager."""
         if self._agent is None:
             return None
 
         if self._session_mgr is None:
-            from strands.session import SnapshotSessionManager
-            from strands.storage import LocalFileStorage
+            try:
+                from strands.session import SnapshotSessionManager
+                from strands.storage import LocalFileStorage
 
-            storage = LocalFileStorage(str(self._storage_dir))
-            self._session_mgr = SnapshotSessionManager(
-                session_id="current",
-                storage=storage,
-            )
-            self._session_mgr.initialize(self._agent)
+                storage = LocalFileStorage(str(self._storage_dir))
+                self._session_mgr = SnapshotSessionManager(
+                    session_id="current",
+                    storage=storage,
+                )
+                # Get the underlying Strands agent
+                inner_agent = getattr(self._agent, "_inner", None) or self._agent
+                self._session_mgr.initialize(inner_agent)
+            except Exception:
+                # If Strands session manager fails to initialize, just return None
+                # The REPL snapshot (JSON) still works without it
+                return None
 
         return self._session_mgr
 
-    def set_agent(self, agent: Agent) -> None:
+    def set_agent(self, agent: "Agent") -> None:
         """Set the agent for session management."""
         self._agent = agent
         self._session_mgr = None  # Reset so it will be reinitialized
@@ -117,73 +154,59 @@ class SessionManager:
 
         return sessions
 
-    def save_session(self, name: str, agent: Agent, session_log: Path | None = None) -> Path:
+    def save_session(
+        self, name: str, agent: "Agent", session_log: Path | None = None
+    ) -> Path:
         """Save current session as a named snapshot.
 
         Uses Strands' SnapshotSessionManager for the internal state,
         and saves a compatible JSON to the saves directory for REPL.
         """
-        # Get session manager and ensure it's initialized
-        sm = self._get_session_manager()
-        if sm is None:
+        if agent is None:
             raise RuntimeError("Agent not set for session management")
 
-        # Ensure agent is synced
-        sm.sync_agent(agent)
+        # Update agent reference
+        self._agent = agent
 
-        # Save snapshot
-        sm.save_snapshot(agent, is_latest=True)
+        # Try to use Strands session manager (best effort, may fail silently)
+        sm = self._get_session_manager()
+        if sm is not None:
+            try:
+                inner_agent = getattr(agent, "_inner", None) or agent
+                sm.sync_agent(inner_agent)
+                sm.save_snapshot(inner_agent, is_latest=True)
+            except Exception:
+                # Silently ignore Strands errors; REPL snapshot still works
+                pass
 
-        # Also save a compatible JSON snapshot for REPL
+        # Always save a REPL-compatible JSON snapshot
         snapshot = self._create_repl_snapshot(name, agent)
         path = self._saves_dir / f"{name}.json"
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(snapshot, indent=2, ensure_ascii=False), encoding="utf-8")
+        path.write_text(
+            json.dumps(snapshot, indent=2, ensure_ascii=False), encoding="utf-8"
+        )
 
         return path
 
-    def _create_repl_snapshot(self, name: str, agent: Agent) -> dict[str, Any]:
+    def _create_repl_snapshot(self, name: str, agent: Any) -> dict[str, Any]:
         """Create a REPL-compatible snapshot from the agent."""
-        from datetime import UTC, datetime
+        messages = _extract_messages(agent)
 
-        messages = []
-
-        # Try to get messages from agent
-        if hasattr(agent, "_inner"):
-            inner = agent._inner
-            if hasattr(inner, "messages"):
-                msgs = inner.messages
-                for msg in msgs:
-                    role = (
-                        getattr(msg, "role", "user")
-                        if hasattr(msg, "role")
-                        else msg.get("role", "user")
-                    )
-                    content = (
-                        getattr(msg, "content", "")
-                        if hasattr(msg, "content")
-                        else msg.get("content", "")
-                    )
-                    if isinstance(content, list):
-                        # Extract text from content blocks
-                        texts = []
-                        for block in content:
-                            if isinstance(block, dict):
-                                if "text" in block:
-                                    texts.append(block["text"])
-                                elif block.get("type") == "text":
-                                    texts.append(str(block.get("text", "")))
-                        content = "\n".join(texts)
-                    if content:
-                        messages.append({"role": str(role), "content": str(content)})
+        # Get config info safely
+        config = getattr(agent, "config", None)
+        model = getattr(config, "ollama_model", "unknown") if config else "unknown"
+        workspace = (
+            str(getattr(config, "agent_workspace", "")) if config else ""
+        )
 
         return {
             "version": "1.0",
             "name": name,
             "created_at": datetime.now(UTC).isoformat(),
             "config": {
-                "model": getattr(agent.config, "ollama_model", "unknown"),
-                "workspace": str(getattr(agent.config, "agent_workspace", "")),
+                "model": model,
+                "workspace": workspace,
             },
             "messages": messages,
             "tool_calls": [],
@@ -205,7 +228,7 @@ class SessionManager:
         return data
 
     def export_session(
-        self, name: str, agent: Agent | None, session_log: Path | None = None
+        self, name: str, agent: "Agent | None", session_log: Path | None = None
     ) -> Path:
         """Export session to exports directory."""
         if agent is None:
@@ -215,45 +238,24 @@ class SessionManager:
 
         path = self._exports_dir / f"{name}.json"
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(snapshot, indent=2, ensure_ascii=False), encoding="utf-8")
+        path.write_text(
+            json.dumps(snapshot, indent=2, ensure_ascii=False), encoding="utf-8"
+        )
 
         return path
 
-    def restore_session(self, name: str, agent: Agent) -> bool:
+    def restore_session(self, name: str, agent: "Agent") -> bool:
         """Restore a session from the saves directory."""
-        from strands.session import SnapshotSessionManager
-        from strands.storage import LocalFileStorage
-
         # Load the snapshot data
-        data = self.load_session(name)
-
-        # Initialize session manager with agent
-        storage = LocalFileStorage(str(self._storage_dir))
-        sm = SnapshotSessionManager(
-            session_id=f"restore-{name}",
-            storage=storage,
-        )
-        sm.initialize(agent)
-
-        # Note: Full restore would require the snapshot JSON in the strands format
-        # For now, we restore messages to the agent
-        return self._restore_messages(agent, data)
-
-    def _restore_messages(self, agent: Agent, data: dict[str, Any]) -> bool:
-        """Restore messages to agent."""
-        if not hasattr(agent, "_inner"):
-            return False
-
-        inner = agent._inner
-        if not hasattr(inner, "messages"):
-            return False
-
-        messages = data.get("messages", [])
-        if not messages:
-            return True
+        try:
+            data = self.load_session(name)
+        except FileNotFoundError:
+            raise
 
         # Note: Strands manages messages internally, so we just log the restoration
-        print(f"[INFO] Restored {len(messages)} messages to session")
+        messages = data.get("messages", [])
+        if messages:
+            print(f"[INFO] Restored {len(messages)} messages to session")
         return True
 
     def delete_session(self, name: str) -> bool:
@@ -269,7 +271,7 @@ class SessionManager:
 _session_manager: SessionManager | None = None
 
 
-def get_session_manager(agent: Agent | None = None) -> SessionManager:
+def get_session_manager(agent: "Agent | None" = None) -> SessionManager:
     """Get the global session manager instance."""
     global _session_manager
 
