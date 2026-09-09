@@ -229,18 +229,36 @@ def make_read_tool(workspace: Path):
 # --------------------------------------------------------------------- #
 # GlobTool
 # --------------------------------------------------------------------- #
+def _matches_ignore_pattern(path: str, patterns: list[str]) -> bool:
+    """Check if path matches any ignore pattern."""
+    for pattern in patterns:
+        if fnmatch.fnmatch(path, pattern):
+            return True
+        # Also check path/*/pattern style
+        if fnmatch.fnmatch(path, f"*/{pattern}"):
+            return True
+        if fnmatch.fnmatch(path, f"**/{pattern}"):
+            return True
+    return False
+
+
 def make_glob_tool(workspace: Path):
     @tool(
         name="glob",
         description=(
             "List files under the workspace whose path matches the glob "
-            "pattern (e.g. 'src/**/*.py'). Returns paths separated by newlines."
+            "pattern (e.g. 'src/**/*.py'). Returns paths separated by newlines. "
+            "Respects .zai/ignore patterns if use_ignore=True (default)."
         ),
     )
-    # Glob is anchored at ``workspace`` by design — the model only ever
-    # supplies a glob pattern, never a base directory. No path argument
-    # to sandbox, so no ``_resolve_within_sandbox`` call needed here.
-    def glob_tool(pattern: str) -> str:
+    def glob_tool(pattern: str, use_ignore: bool = True) -> str:
+        # Load ignore patterns if enabled
+        ignore_patterns: list[str] = []
+        if use_ignore:
+            from .context_loader import load_project_context
+            ctx = load_project_context(workspace)
+            ignore_patterns = ctx.ignore_patterns
+
         results: list[str] = []
         for path in workspace.rglob(pattern):
             if path.is_file():
@@ -248,7 +266,13 @@ def make_glob_tool(workspace: Path):
                     rel = path.relative_to(workspace).as_posix()
                 except ValueError:
                     rel = str(path)
+
+                # Check against ignore patterns
+                if ignore_patterns and _matches_ignore_pattern(rel, ignore_patterns):
+                    continue
+
                 results.append(rel)
+
         if not results:
             return f"[no matches for {pattern!r}]"
         return "\n".join(sorted(results))
