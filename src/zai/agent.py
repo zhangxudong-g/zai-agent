@@ -20,6 +20,7 @@ from strands.hooks import AfterToolCallEvent
 
 from . import telemetry
 from .config import Config
+from .context_loader import ContextLoader, ProjectContext
 from .llm import build_ollama_model_safe
 from .sandbox import build_sandbox
 from .security import WorkspaceSandboxHook
@@ -122,7 +123,7 @@ class Agent:
         logger: Session logger for JSONL output
     """
 
-    SYSTEM_PROMPT = """你是一个代码助手。根据用户请求，使用可用的工具来完成任务。
+    BASE_SYSTEM_PROMPT = """你是一个代码助手。根据用户请求，使用可用的工具来完成任务。
 
 Available tools:
 - read: 读取文件内容，支持 offset/limit/max_bytes 参数
@@ -150,6 +151,13 @@ Guidelines:
         self.config = config
         self.logger = logger
 
+        # Load project context (if .zai/ directory exists in workspace)
+        self._context_loader = ContextLoader(config.agent_workspace)
+        self._project_context = self._context_loader.load()
+
+        # Build system prompt with project context
+        self.SYSTEM_PROMPT = self._build_system_prompt()
+
         # Build tools
         self._tools = build_tools(config)
 
@@ -172,6 +180,17 @@ Guidelines:
             sandbox=self._sandbox,
             callback_handler=null_callback_handler,
         )
+
+    def _build_system_prompt(self) -> str:
+        """Build system prompt with project context."""
+        prompt = self.BASE_SYSTEM_PROMPT
+        
+        # Append project context if available
+        project_context = self._project_context.to_system_prompt()
+        if project_context:
+            prompt += f"\n\n{project_context}"
+        
+        return prompt
 
     # ------------------------------------------------------------------ #
     # Public API
