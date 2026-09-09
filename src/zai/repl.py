@@ -324,18 +324,20 @@ class EnhancedREPL:
                     self.handle_sessions_command()
                     continue
 
-            # Check for prefix commands (with arguments)
-            if prompt_text.lower().startswith("/save "):
-                name = prompt_text[5:].strip()
-                self.handle_save_command(name)
+            # Check for prefix commands (with or without arguments)
+            cmd_lower_strip = prompt_text.lower().strip()
+            if cmd_lower_strip.startswith("/save"):
+                # Extract name after /save (skip the command and any whitespace)
+                rest = prompt_text[5:].strip()
+                self.handle_save_command(rest)
                 continue
-            elif prompt_text.lower().startswith("/load "):
-                name = prompt_text[6:].strip()
-                self.handle_load_command(name)
+            elif cmd_lower_strip.startswith("/load"):
+                rest = prompt_text[5:].strip()
+                self.handle_load_command(rest)
                 continue
-            elif prompt_text.lower().startswith("/export "):
-                name = prompt_text[8:].strip()
-                self.handle_export_command(name)
+            elif cmd_lower_strip.startswith("/export"):
+                rest = prompt_text[7:].strip()
+                self.handle_export_command(rest)
                 continue
 
             if not prompt_text:
