@@ -57,6 +57,20 @@ def get_zai_log_dir() -> Path:
     return log_dir
 
 
+def get_zai_saves_dir() -> Path:
+    """Get the saves directory (~/.zai/saves/)."""
+    saves_dir = get_zai_home() / "saves"
+    saves_dir.mkdir(parents=True, exist_ok=True)
+    return saves_dir
+
+
+def get_zai_exports_dir() -> Path:
+    """Get the exports directory (~/.zai/exports/)."""
+    exports_dir = get_zai_home() / "exports"
+    exports_dir.mkdir(parents=True, exist_ok=True)
+    return exports_dir
+
+
 def get_zai_env_file() -> Path:
     """Get the default .env file path (~/.zai/config/.env)."""
     return get_zai_config_dir() / ".env"
@@ -97,5 +111,7 @@ def print_zai_info() -> None:
     print(f"Zai Home: {home}")
     print(f"  Config: {get_zai_config_dir()}")
     print(f"  Sessions: {get_zai_sessions_dir()}")
+    print(f"  Saves: {get_zai_saves_dir()}")
+    print(f"  Exports: {get_zai_exports_dir()}")
     print(f"  Workspace: {get_zai_workspace_dir()}")
     print(f"  Logs: {get_zai_log_dir()}")
