@@ -147,6 +147,9 @@ Guidelines:
         self,
         config: Config,
         logger: SessionLogger,
+        enable_interventions: bool = True,
+        enable_skills: bool = False,
+        tool_executor_mode: str = "sequential",
     ):
         self.config = config
         self.logger = logger
@@ -171,12 +174,37 @@ Guidelines:
         # Build execution sandbox
         self._sandbox = build_sandbox(config)
 
+        # Build safety interventions
+        interventions = []
+        if enable_interventions:
+            from .interventions import DangerousCommandIntervention, SensitiveFileIntervention
+            interventions = [
+                SensitiveFileIntervention(allow_read=False),
+                DangerousCommandIntervention(auto_approve=False),
+            ]
+
+        # Build plugins (skills)
+        plugins = []
+        if enable_skills:
+            try:
+                from .skills import build_skill_plugin
+                plugins = [build_skill_plugin()]
+            except Exception:
+                pass
+
+        # Build tool executor
+        from .executors import get_executor
+        tool_executor = get_executor(tool_executor_mode)
+
         # Create Strands Agent
         self._inner = StrandsAgent(
             model=build_ollama_model_safe(config),
             tools=self._tools,
             system_prompt=self.SYSTEM_PROMPT,
             hooks=[self._sandbox_hook, self._trace_hook],
+            interventions=interventions if interventions else None,
+            plugins=plugins if plugins else None,
+            tool_executor=tool_executor,
             sandbox=self._sandbox,
             callback_handler=null_callback_handler,
         )
