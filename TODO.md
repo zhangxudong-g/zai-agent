@@ -33,6 +33,12 @@ Format follows the [Keep a Changelog](https://keepachangelog.com/) style.
 - [x] 网络断开自动重连
 - [ ] 大响应自动分页
 
+### 安全增强
+
+- [x] 危险命令二次确认（基于 Strands InterventionHandler）
+- [x] 敏感文件保护（.env, .key 等）
+- [ ] 工具调用审计日志
+
 ---
 
 ## 🟢 [0.5.0] - Future Enhancements
@@ -45,13 +51,14 @@ Format follows the [Keep a Changelog](https://keepachangelog.com/) style.
 
 ### 插件系统
 
-- [ ] `zai plugin install <name>` 安装插件
-- [ ] `zai plugin list` 列出已安装
+- [x] 技能插件系统（基于 Strands AgentSkills）
+- [ ] `zai plugin install <name>` CLI 安装插件
+- [ ] `zai plugin list` CLI 列出已安装
 - [ ] 插件自动发现（`~/.zai/plugins/`）
 
 ### 性能优化
 
-- [ ] 并行工具调用
+- [x] 并行工具调用（基于 Strands ConcurrentToolExecutor）
 - [ ] 流式响应优化
 - [ ] Token 消耗监控
 
@@ -93,15 +100,14 @@ Format follows the [Keep a Changelog](https://keepachangelog.com/) style.
 
 ### Agent 框架扩展
 
-- 多 Agent 协作
+- 多 Agent 协作（基于 Strands Swarm/Graph）
 - 子 Agent 委派
 - 长任务分解
 
 ### 安全增强
 
 - 工具调用审计日志
-- 危险命令二次确认
-- 敏感文件保护（.env, .key 等）
+- 敏感文件读取警告模式
 
 ---
 
@@ -123,6 +129,13 @@ Format follows the [Keep a Changelog](https://keepachangelog.com/) style.
 - [x] 项目目录下的 `.zai/context.md` 自动加载
 - [x] `.zai/rules.md` 项目特定规则
 - [x] `.zai/ignore` 类似 `.gitignore` 的文件排除（glob 工具支持）
+
+#### Strands SDK 集成
+- [x] 会话管理使用 Strands `SnapshotSessionManager`
+- [x] 危险命令保护（`DangerousCommandIntervention`）
+- [x] 敏感文件保护（`SensitiveFileIntervention`）
+- [x] 技能插件系统（基于 `AgentSkills`）
+- [x] 并行工具执行（基于 `ConcurrentToolExecutor`）
 
 ### ✅ [0.2.0]
 

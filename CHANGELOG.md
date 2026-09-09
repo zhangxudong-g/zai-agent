@@ -26,9 +26,17 @@
   - `snapshot.py` - 会话快照序列化（保留为兼容层）
   - `session_manager.py` - 会话管理（基于 Strands 内置机制）
   - `context_loader.py` - 项目上下文加载
+  - `interventions.py` - 危险命令与敏感文件保护（基于 Strands `InterventionHandler`）
+  - `skills.py` - 技能插件系统（基于 Strands `AgentSkills`）
+  - `executors.py` - 并行/串行工具执行器（基于 Strands `ConcurrentToolExecutor`）
+- **CLI 参数**：
+  - `--no-interventions` 禁用安全干预
+  - `--skills` 启用技能插件
+  - `--concurrent-tools` 启用并行工具执行
 
 ### Changed
 - **重构**: `session_manager.py` 重写以使用 Strands SDK 内置的 `SnapshotSessionManager` 和 `LocalFileStorage` 作为底层存储
+- **重构**: Agent 集成 Strands 内置的 `interventions`、`plugins`、`tool_executor` 机制
 - 版本号更新为 0.3.0
 - REPL 帮助信息更新（新增会话命令）
 - Agent 系统提示增强（可选项目上下文）
