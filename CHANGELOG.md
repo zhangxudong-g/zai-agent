@@ -23,11 +23,12 @@
   - `.zai/rules.md` 项目特定规则
   - `.zai/ignore` 文件排除（glob 工具支持）
 - **新增模块**：
-  - `snapshot.py` - 会话快照序列化
-  - `session_manager.py` - 会话管理
+  - `snapshot.py` - 会话快照序列化（保留为兼容层）
+  - `session_manager.py` - 会话管理（基于 Strands 内置机制）
   - `context_loader.py` - 项目上下文加载
 
 ### Changed
+- **重构**: `session_manager.py` 重写以使用 Strands SDK 内置的 `SnapshotSessionManager` 和 `LocalFileStorage` 作为底层存储
 - 版本号更新为 0.3.0
 - REPL 帮助信息更新（新增会话命令）
 - Agent 系统提示增强（可选项目上下文）
